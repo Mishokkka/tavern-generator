@@ -1,0 +1,310 @@
+// Regional food entries for tirabor.
+
+export const TIRABOR_FOOD_TABLE = [
+  {
+    "name": "Дварфская похлебка из кореньев",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "city"
+    ],
+    "min": 5,
+    "max": 12,
+    "weight": 9,
+    "desc": "Коренья, крупа и жир в густом бульоне."
+  },
+  {
+    "name": "Жаркое шахтера",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town"
+    ],
+    "min": 10,
+    "max": 22,
+    "weight": 8,
+    "desc": "Мясо, картофель, лук и соль, запеченные в закрытом горшке."
+  },
+  {
+    "name": "Грибной пирог из штолен",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "city",
+      "town"
+    ],
+    "min": 6,
+    "max": 14,
+    "weight": 7,
+    "desc": "Пирог с подземными грибами и луком."
+  },
+  {
+    "name": "Солонина с горчицей",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "road",
+      "town",
+      "city"
+    ],
+    "min": 7,
+    "max": 16,
+    "weight": 7,
+    "desc": "Соленая говядина с густой горчицей."
+  },
+  {
+    "name": "Каменная каша",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "road",
+      "wilderness"
+    ],
+    "min": 3,
+    "max": 8,
+    "weight": 8,
+    "desc": "Крупа, бобы и сало, сваренные до плотной массы."
+  },
+  {
+    "name": "Печеная репа с копченым сыром",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "city"
+    ],
+    "min": 5,
+    "max": 12,
+    "weight": 6,
+    "desc": "Репа, запеченная с твердым копченым сыром."
+  },
+  {
+    "name": "Грибная каша из каменных погребов",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "city",
+      "town"
+    ],
+    "min": 5,
+    "max": 12,
+    "weight": 8,
+    "desc": "Каша с солеными грибами и маслом."
+  },
+  {
+    "name": "Козье жаркое с кореньями",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "road"
+    ],
+    "min": 9,
+    "max": 20,
+    "weight": 7,
+    "desc": "Козлятина, коренья и густая подлива."
+  },
+  {
+    "name": "Сырная похлебка",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "city",
+      "town"
+    ],
+    "min": 6,
+    "max": 14,
+    "weight": 7,
+    "desc": "Густая похлебка с твердым сыром и крупой."
+  },
+  {
+    "name": "Ржаная лепешка с рудничной солью",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "terrains": [
+      "mountain",
+      "road",
+      "town"
+    ],
+    "min": 2,
+    "max": 6,
+    "weight": 8,
+    "desc": "Ржаная лепешка с грубой солью."
+  },
+  {
+    "name": "Жаркое из горного козла",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "min": 12,
+    "max": 28,
+    "weight": 6,
+    "desc": "Мясо горного козла, запеченное с солью и луком.",
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "road"
+    ]
+  },
+  {
+    "name": "Тироборские грибные лепешки",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "min": 5,
+    "max": 12,
+    "weight": 7,
+    "desc": "Плотные лепешки с рублеными подземными грибами.",
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "city"
+    ]
+  },
+  {
+    "name": "Похлебка из кореньев и сыра",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "min": 5,
+    "max": 13,
+    "weight": 7,
+    "desc": "Коренья, твердый сыр и густой соленый бульон.",
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "city"
+    ]
+  },
+  {
+    "name": "Копченая форель из штолен",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "min": 8,
+    "max": 18,
+    "weight": 5,
+    "desc": "Малые рыбы из подземных водоемов, копченные на угле.",
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town",
+      "city"
+    ]
+  },
+  {
+    "name": "Плотный грибной пирог",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "min": 6,
+    "max": 15,
+    "weight": 6,
+    "desc": "Закрытый пирог с грибами, луком и сырной коркой.",
+    "local": true,
+    "terrains": [
+      "mountain",
+      "town"
+    ]
+  },
+  {
+    "name": "Ячменная каша с рудничной солью",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "min": 3,
+    "max": 8,
+    "weight": 8,
+    "desc": "Ячмень с маслом и крупной темной солью.",
+    "local": true,
+    "terrains": [
+      "mountain",
+      "road",
+      "town"
+    ]
+  },
+  {
+    "name": "Фильминдова каша отдыха",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "min": 5,
+    "max": 11,
+    "weight": 8,
+    "desc": "Густая крупяная каша с маслом, которую подают строго после смены.",
+    "terrains": [
+      "city",
+      "town",
+      "mountain",
+      "village"
+    ]
+  },
+  {
+    "name": "Галстерская шахтерская лепешка",
+    "type": "food",
+    "regions": [
+      "tirabor"
+    ],
+    "local": true,
+    "min": 4,
+    "max": 9,
+    "weight": 8,
+    "desc": "Плотная лепешка с луком и соленым мясом, удобная для узких штолен.",
+    "terrains": [
+      "mountain",
+      "road",
+      "town"
+    ]
+  }
+];

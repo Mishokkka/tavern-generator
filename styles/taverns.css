@@ -1,0 +1,1992 @@
+/*
+ * FBL Tavern Generator
+ * Scope every application rule under .fbl-tavern. Chat price badges are the only deliberate global exception.
+ */
+
+/* -------------------------------------------------------------------------
+   Window shell and design tokens
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern {
+  --tg-bg-0: #120d09;
+  --tg-bg-1: #1b120c;
+  --tg-bg-2: #25190f;
+  --tg-surface-0: rgba(30, 21, 14, 0.96);
+  --tg-surface-1: rgba(43, 31, 20, 0.96);
+  --tg-row-bg: rgba(9, 7, 5, 0.34);
+
+  --tg-text: #ead9b8;
+  --tg-text-strong: #fff1cf;
+  --tg-text-muted: #c7aa78;
+  --tg-text-faint: #9f855d;
+
+  --tg-accent: #d6a15a;
+  --tg-accent-strong: #f0c77f;
+  --tg-danger: #cf7861;
+
+  --tg-border: rgba(226, 181, 103, 0.34);
+  --tg-border-soft: rgba(226, 181, 103, 0.18);
+  --tg-focus: rgba(240, 199, 127, 0.36);
+
+  --tg-coin-gold-bg: #b8862c;
+  --tg-coin-gold-fg: #1a1005;
+  --tg-coin-silver-bg: #5f7898;
+  --tg-coin-silver-fg: #f3f8ff;
+  --tg-coin-copper-bg: #a86139;
+  --tg-coin-copper-fg: #fff0df;
+
+  --tg-radius-sm: 6px;
+  --tg-radius: 9px;
+  --tg-gap-xs: 4px;
+  --tg-gap-sm: 6px;
+  --tg-gap: 10px;
+  --tg-gap-lg: 14px;
+  --tg-pad-sm: 8px;
+  --tg-pad: 12px;
+  --tg-pad-lg: 16px;
+  --tg-card-min: 230px;
+
+  --tg-shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.44);
+  --tg-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.26);
+  --tg-bg-main:
+    radial-gradient(circle at 50% 0%, rgba(154, 94, 42, 0.22), transparent 44%),
+    linear-gradient(180deg, var(--tg-bg-2), var(--tg-bg-0));
+
+  color: var(--tg-text) !important;
+  color-scheme: dark;
+  background: var(--tg-bg-main) !important;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.application.fbl-tavern,
+.window-app.fbl-tavern,
+.app.fbl-tavern,
+form.fbl-tavern {
+  color: var(--tg-text) !important;
+  background: var(--tg-bg-main) !important;
+}
+
+.application.fbl-tavern .window-content,
+.window-app.fbl-tavern .window-content,
+.app.fbl-tavern .window-content,
+.fbl-tavern .window-content {
+  padding: 0 !important;
+  color: var(--tg-text) !important;
+  background: var(--tg-bg-main) !important;
+  overflow: hidden !important;
+}
+
+.application.fbl-tavern .window-content > form,
+.window-app.fbl-tavern .window-content > form,
+.app.fbl-tavern .window-content > form,
+form.fbl-tavern {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fbl-tavern *,
+.fbl-tavern *::before,
+.fbl-tavern *::after {
+  box-sizing: border-box;
+}
+
+/* -------------------------------------------------------------------------
+   Layout
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-lg);
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: var(--tg-pad-lg);
+  color: var(--tg-text) !important;
+  background: transparent !important;
+}
+
+.fbl-tavern .tg-header,
+.fbl-tavern .tg-title-row,
+.fbl-tavern .tg-player-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--tg-gap-lg);
+}
+
+.fbl-tavern .tg-player-topbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: center;
+  min-height: 62px;
+}
+
+.fbl-tavern .tg-heading-block,
+.fbl-tavern .tg-header > div:first-child,
+.fbl-tavern .tg-title-row > div:first-child,
+.fbl-tavern .tg-player-title {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-payment-inline {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: var(--tg-gap);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-menu-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-lg);
+}
+
+.fbl-tavern .tg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tg-gap-lg);
+  align-items: start;
+}
+
+.fbl-tavern .tg-panel-full {
+  width: 100%;
+}
+
+.fbl-tavern .tg-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-sm);
+  flex: 0 0 288px;
+  min-width: 250px;
+  max-width: 330px;
+}
+
+/* GM application tabs */
+.fbl-tavern .tg-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-gap-sm);
+  margin: calc(-1 * var(--tg-pad-lg)) calc(-1 * var(--tg-pad-lg)) 0;
+  padding: 10px var(--tg-pad-lg);
+  border-bottom: 1px solid var(--tg-border);
+  background: color-mix(in srgb, var(--tg-bg-1) 96%, transparent);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.fbl-tavern .tg-tab-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  width: auto;
+  margin: 0;
+  padding: 7px 13px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  color: var(--tg-text-muted) !important;
+  background: rgba(0, 0, 0, 0.18) !important;
+}
+
+.fbl-tavern .tg-tab-button small {
+  color: var(--tg-text-faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.fbl-tavern .tg-tab-button:hover:not(:disabled),
+.fbl-tavern .tg-tab-button.is-active {
+  border-color: var(--tg-accent);
+  color: var(--tg-text-strong) !important;
+  background: color-mix(in srgb, var(--tg-accent) 15%, var(--tg-surface-0)) !important;
+}
+
+.fbl-tavern .tg-tab-button.is-active {
+  box-shadow: inset 0 -2px 0 var(--tg-accent), 0 0 0 1px color-mix(in srgb, var(--tg-accent) 22%, transparent);
+}
+
+.fbl-tavern .tg-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-lg);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-gm-only-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--tg-accent) 42%, var(--tg-border-soft));
+  border-radius: var(--tg-radius-sm);
+  color: var(--tg-text-muted);
+  background: color-mix(in srgb, var(--tg-accent) 7%, var(--tg-surface-0));
+}
+
+.fbl-tavern .tg-gm-only-note i {
+  color: var(--tg-accent-strong);
+}
+
+/* -------------------------------------------------------------------------
+   Scrollbar
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-wrap::-webkit-scrollbar {
+  width: 10px;
+}
+
+.fbl-tavern .tg-wrap::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.fbl-tavern .tg-wrap::-webkit-scrollbar-thumb {
+  background: rgba(214, 161, 90, 0.48);
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+}
+
+.fbl-tavern .tg-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(240, 199, 127, 0.62);
+}
+
+/* -------------------------------------------------------------------------
+   Typography
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern h1,
+.fbl-tavern h2,
+.fbl-tavern h3,
+.fbl-tavern p,
+.fbl-tavern small,
+.fbl-tavern strong,
+.fbl-tavern span,
+.fbl-tavern label {
+  color: inherit;
+}
+
+.fbl-tavern h1,
+.fbl-tavern h2,
+.fbl-tavern h3 {
+  margin: 0;
+  line-height: 1.14;
+  color: var(--tg-text-strong) !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.78);
+}
+
+.fbl-tavern h1 { font-size: 28px; }
+.fbl-tavern h2 { font-size: 26px; }
+.fbl-tavern h3 { font-size: 20px; }
+
+.fbl-tavern p {
+  margin: 4px 0 0;
+  color: var(--tg-text-muted) !important;
+}
+
+.fbl-tavern small {
+  display: block;
+  margin-top: 3px;
+  line-height: 1.25;
+  color: var(--tg-text-muted) !important;
+}
+
+.fbl-tavern .tg-entry-name {
+  display: inline-block;
+  color: var(--tg-text-strong) !important;
+  cursor: help;
+  text-decoration: underline dotted rgba(240, 199, 127, 0.48);
+  text-underline-offset: 3px;
+}
+
+/* -------------------------------------------------------------------------
+   Cards and panels
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-controls,
+.fbl-tavern .tg-scene-controls,
+.fbl-tavern .tg-saved-row,
+.fbl-tavern .tg-tavern-card,
+.fbl-tavern .tg-panel,
+.fbl-tavern .tg-empty,
+.fbl-tavern .tg-wallet-card {
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius);
+  background: var(--tg-surface-0) !important;
+  box-shadow: var(--tg-shadow-card);
+}
+
+.fbl-tavern .tg-tavern-card,
+.fbl-tavern .tg-panel,
+.fbl-tavern .tg-empty,
+.fbl-tavern .tg-wallet-card {
+  padding: var(--tg-pad);
+}
+
+.fbl-tavern .tg-controls,
+.fbl-tavern .tg-scene-controls,
+.fbl-tavern .tg-saved-row {
+  padding: var(--tg-pad);
+  background: var(--tg-surface-1) !important;
+}
+
+.fbl-tavern .tg-panel {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-gap);
+  margin-bottom: var(--tg-gap);
+}
+
+.fbl-tavern .tg-panel-head h3 {
+  min-width: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Controls and forms
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-controls,
+.fbl-tavern .tg-scene-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: var(--tg-gap);
+  align-items: end;
+}
+
+.fbl-tavern .tg-scene-controls {
+  grid-template-columns: minmax(150px, 0.8fr) minmax(150px, 0.8fr) minmax(260px, 1.6fr) auto;
+}
+
+.fbl-tavern .tg-scene-path {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-scene-actions {
+  align-self: end;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
+.fbl-tavern .tg-scene-flags {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-gap-sm) var(--tg-gap);
+  align-items: center;
+  padding-top: 2px;
+}
+
+.fbl-tavern .tg-check-inline {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px !important;
+  width: auto;
+  color: var(--tg-text-muted) !important;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.fbl-tavern .tg-check-inline > span {
+  color: var(--tg-text-muted) !important;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (max-width: 840px) {
+  .fbl-tavern .tg-scene-controls {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+.fbl-tavern .tg-controls label,
+.fbl-tavern .tg-scene-controls label,
+.fbl-tavern .tg-saved-row label,
+.fbl-tavern .tg-actor-picker,
+.fbl-tavern .tg-lodging-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-xs);
+}
+
+.fbl-tavern .tg-controls label > span,
+.fbl-tavern .tg-scene-controls label > span,
+.fbl-tavern .tg-saved-row label > span,
+.fbl-tavern .tg-actor-picker > span,
+.fbl-tavern .tg-lodging-edit label > span,
+.fbl-tavern .tg-wallet-card__title,
+.fbl-tavern .tg-inline-label {
+  color: var(--tg-accent-strong) !important;
+  font-size: 11px;
+  line-height: 1.1;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.fbl-tavern select,
+.fbl-tavern input,
+.fbl-tavern button {
+  color: var(--tg-text) !important;
+  font: inherit;
+}
+
+.fbl-tavern select,
+.fbl-tavern input[type="text"],
+.fbl-tavern input[type="number"] {
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 1px solid var(--tg-border) !important;
+  border-radius: var(--tg-radius-sm);
+  background: rgba(10, 8, 5, 0.82) !important;
+  box-shadow: var(--tg-shadow-inset);
+}
+
+.fbl-tavern select:focus,
+.fbl-tavern input:focus {
+  outline: none;
+  border-color: var(--tg-accent-strong) !important;
+  box-shadow: 0 0 0 1px var(--tg-focus), var(--tg-shadow-inset);
+}
+
+.fbl-tavern select option,
+.fbl-tavern option {
+  color: var(--tg-text) !important;
+  background: var(--tg-bg-1) !important;
+}
+
+.fbl-tavern input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--tg-accent);
+}
+
+.fbl-tavern input:disabled,
+.fbl-tavern select:disabled {
+  opacity: 0.45;
+}
+
+
+.fbl-tavern .tg-saved-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: var(--tg-gap);
+  align-items: end;
+}
+
+/* -------------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--tg-border) !important;
+  border-radius: var(--tg-radius-sm);
+  color: var(--tg-text-strong) !important;
+  background: linear-gradient(180deg, rgba(94, 66, 39, 0.98), rgba(47, 34, 21, 0.98)) !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.42);
+  cursor: pointer;
+}
+
+.fbl-tavern button:hover:not(:disabled) {
+  color: #fff8e8 !important;
+  border-color: var(--tg-accent-strong) !important;
+  box-shadow: 0 0 0 1px rgba(240, 199, 127, 0.25) inset, 0 1px 3px rgba(0, 0, 0, 0.42);
+}
+
+.fbl-tavern button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.fbl-tavern button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.fbl-tavern .tg-panel-head button,
+.fbl-tavern .tg-buy-block button,
+.fbl-tavern .tg-gm-entry-actions button {
+  min-height: 26px;
+  padding: 3px 8px;
+}
+
+.fbl-tavern .tg-gm-entry-actions button {
+  min-width: 28px;
+  color: #ffd8cb !important;
+  border-color: rgba(207, 120, 97, 0.42) !important;
+}
+
+/* -------------------------------------------------------------------------
+   Action bars and tags
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-actions-main {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-param-actions {
+  grid-column: 1 / -1;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.fbl-tavern .tg-param-actions button,
+.fbl-tavern .tg-scene-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  min-width: 38px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  font-size: 14px;
+}
+
+.fbl-tavern .tg-param-actions button i {
+  margin: 0;
+}
+
+.fbl-tavern .tg-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-gap-sm);
+  margin-top: var(--tg-gap);
+}
+
+.fbl-tavern .tg-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  padding: 3px 8px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: 999px;
+  color: var(--tg-text-muted) !important;
+  background: rgba(0, 0, 0, 0.28) !important;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------------------------
+   Money badges
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-money-list,
+.fbl-tavern .tg-price,
+.chat-message .tg-chat-price {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 7px;
+}
+
+.fbl-tavern .tg-money,
+.chat-message .tg-money {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+  color: var(--tg-text-strong, #fff1cf) !important;
+  font-weight: 700;
+}
+
+.fbl-tavern .tg-money__amount,
+.chat-message .tg-money__amount {
+  color: var(--tg-text-strong, #fff1cf) !important;
+}
+
+.fbl-tavern .tg-coin,
+.chat-message .tg-coin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+.fbl-tavern .tg-coin--gold,
+.chat-message .tg-coin--gold {
+  color: var(--tg-coin-gold-fg, #1a1005) !important;
+  background: var(--tg-coin-gold-bg, #b8862c) !important;
+}
+
+.fbl-tavern .tg-coin--silver,
+.chat-message .tg-coin--silver {
+  color: var(--tg-coin-silver-fg, #f3f8ff) !important;
+  background: var(--tg-coin-silver-bg, #5f7898) !important;
+}
+
+.fbl-tavern .tg-coin--copper,
+.chat-message .tg-coin--copper {
+  color: var(--tg-coin-copper-fg, #fff0df) !important;
+  background: var(--tg-coin-copper-bg, #a86139) !important;
+}
+
+/* -------------------------------------------------------------------------
+   Lists and rows
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-list.tg-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--tg-card-min), 1fr));
+  gap: var(--tg-gap-sm);
+  align-items: stretch;
+}
+
+.fbl-tavern .tg-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--tg-gap-sm);
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: var(--tg-row-bg) !important;
+}
+
+.fbl-tavern .tg-shop-row {
+  min-height: 54px;
+}
+
+.fbl-tavern .tg-row[data-tooltip],
+.fbl-tavern .tg-row[title] {
+  cursor: help;
+}
+
+.fbl-tavern .tg-row:hover {
+  border-color: rgba(240, 199, 127, 0.32);
+  background: rgba(13, 10, 7, 0.46) !important;
+}
+
+.fbl-tavern .tg-lodging-grid {
+  --tg-card-min: 300px;
+}
+
+.fbl-tavern .tg-row-edit {
+  align-items: start;
+}
+
+.fbl-tavern .tg-entry-main {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-price {
+  justify-content: flex-end;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.fbl-tavern .tg-buy-block,
+.fbl-tavern .tg-gm-entry-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-lodging-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-gap-sm);
+  margin-top: 7px;
+}
+
+.fbl-tavern .tg-lodging-edit label {
+  min-width: 72px;
+}
+
+.fbl-tavern .tg-lodging-edit input[type="number"] {
+  width: 72px;
+  min-height: 26px;
+  padding: 3px 6px;
+}
+
+.fbl-tavern .tg-lodging-edit .tg-check {
+  flex-direction: row;
+  align-items: center;
+  min-width: 130px;
+  padding-top: 15px;
+  color: var(--tg-text-muted) !important;
+  font-size: 12px;
+}
+
+/* -------------------------------------------------------------------------
+   Wallet and empty state
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-wallet-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-wallet-inline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 3px 8px;
+  min-width: 275px;
+  min-height: 44px;
+  padding: 5px 9px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(10, 8, 5, 0.62) !important;
+}
+
+.fbl-tavern .tg-wallet-inline .tg-money-list {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-wallet-note {
+  grid-column: 2;
+  margin: 0;
+  color: var(--tg-text-muted) !important;
+  font-size: 11px;
+}
+
+.fbl-tavern .tg-wallet-note.is-warning {
+  color: #f0c480 !important;
+}
+
+.fbl-tavern .tg-wallet-total {
+  color: var(--tg-text-strong) !important;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.fbl-tavern .tg-empty {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  text-align: center;
+}
+
+.fbl-tavern .tg-empty i {
+  color: var(--tg-accent-strong) !important;
+  font-size: 42px;
+  opacity: 0.88;
+}
+
+/* -------------------------------------------------------------------------
+   Compact windows
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 980px) {
+  .fbl-tavern .tg-player-topbar {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .fbl-tavern .tg-payment-inline {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .fbl-tavern .tg-header,
+  .fbl-tavern .tg-title-row {
+    flex-direction: column;
+  }
+
+  .fbl-tavern .tg-side {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .fbl-tavern .tg-grid,
+  .fbl-tavern .tg-saved-row {
+    grid-template-columns: 1fr;
+  }
+
+  .fbl-tavern .tg-payment-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fbl-tavern .tg-list.tg-card-grid {
+    --tg-card-min: 210px;
+  }
+
+  .fbl-tavern .tg-row {
+    grid-template-columns: 1fr;
+  }
+
+  .fbl-tavern .tg-buy-block,
+  .fbl-tavern .tg-gm-entry-actions,
+  .fbl-tavern .tg-price {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
+  }
+}
+
+.chat-message .tg-money,
+.chat-message .tg-money__amount {
+  color: #2b2118 !important;
+}
+
+/* -------------------------------------------------------------------------
+   Canvas tavern scene button
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern-scene-button {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  z-index: 70;
+  pointer-events: auto;
+}
+
+.fbl-tavern-scene-button button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 170px;
+  max-width: 360px;
+  min-height: 38px;
+  padding: 8px 14px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 181, 103, 0.58);
+  border-radius: 10px;
+  color: #fff1cf;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(214, 161, 90, 0.28), transparent 52%),
+    rgba(25, 16, 10, 0.94);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 235, 190, 0.08);
+  font: inherit;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
+  cursor: pointer;
+}
+
+.fbl-tavern-scene-button button:hover {
+  border-color: rgba(240, 199, 127, 0.86);
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(240, 199, 127, 0.34), transparent 54%),
+    rgba(37, 25, 15, 0.97);
+}
+
+.fbl-tavern-scene-button button:active {
+  transform: translateY(1px);
+}
+
+.fbl-tavern-scene-button span {
+  max-width: 300px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+
+/* -------------------------------------------------------------------------
+   Purchase sound settings
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-sound-settings {
+  gap: var(--tg-gap);
+}
+
+.fbl-tavern .tg-sound-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap);
+  margin-top: var(--tg-gap-lg);
+}
+
+.fbl-tavern .tg-sound-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--tg-gap);
+  align-items: end;
+  padding: var(--tg-pad-sm);
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius);
+  background: var(--tg-row-bg);
+}
+
+.fbl-tavern .tg-sound-row label {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-sound-actions {
+  display: inline-flex;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-sound-actions button {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.fbl-tavern .tg-volume-row {
+  max-width: 180px;
+  margin-top: var(--tg-gap-lg);
+}
+
+.fbl-tavern .tg-sound-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tg-gap);
+}
+
+/* -------------------------------------------------------------------------
+   Tavernkeeper integration
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-tavernkeeper-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-gap);
+  margin-top: var(--tg-gap);
+  padding: var(--tg-pad-sm);
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(0, 0, 0, 0.22) !important;
+}
+
+.fbl-tavern .tg-tavernkeeper-main {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-gap);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-tavernkeeper-img,
+.fbl-tavern .tg-tavernkeeper-placeholder {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--tg-border);
+  border-radius: 7px;
+  background: rgba(10, 8, 5, 0.74) !important;
+}
+
+.fbl-tavern .tg-tavernkeeper-img {
+  object-fit: cover;
+}
+
+.fbl-tavern .tg-tavernkeeper-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tg-text-muted) !important;
+  font-size: 18px;
+}
+
+.fbl-tavern .tg-tavernkeeper-main strong {
+  display: block;
+  color: var(--tg-text-strong) !important;
+}
+
+.fbl-tavern .tg-tavernkeeper-actions {
+  flex-wrap: nowrap;
+}
+
+.fbl-tavern .tg-tavernkeeper-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+
+/* -------------------------------------------------------------------------
+   Purchase quantity controls
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-purchase-controls {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fbl-tavern .tg-purchase-controls--lodging {
+  min-width: 126px;
+}
+
+.fbl-tavern .tg-qty-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--tg-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fbl-tavern .tg-qty-field input {
+  width: 48px;
+  min-width: 48px;
+  height: 28px;
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.fbl-tavern .tg-purchase-total {
+  min-width: 72px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--tg-accent);
+}
+
+/* -------------------------------------------------------------------------
+   Cart purchase flow
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-payment-inline {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: var(--tg-gap);
+}
+
+.fbl-tavern .tg-cart-button,
+.fbl-tavern .tg-add-cart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fbl-tavern .tg-cart-button {
+  align-self: stretch;
+  gap: 8px;
+  width: auto;
+  min-width: 160px;
+  min-height: 44px;
+  padding: 5px 10px;
+  white-space: nowrap;
+}
+
+.fbl-tavern .tg-cart-button i,
+.fbl-tavern .tg-add-cart i {
+  margin: 0;
+}
+
+.fbl-tavern .tg-cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #211407 !important;
+  background: var(--tg-accent-strong) !important;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.fbl-tavern .tg-cart-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: none;
+  overflow: visible;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.fbl-tavern .tg-add-cart {
+  width: 34px;
+  min-width: 34px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.fbl-tavern-cart .window-content,
+.fbl-tavern-quantity-dialog .window-content {
+  background: var(--tg-bg-main) !important;
+}
+
+.fbl-tavern .tg-cart-box,
+.fbl-tavern .tg-quantity-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap);
+  padding: var(--tg-pad-lg);
+  min-height: 0;
+}
+
+.fbl-tavern .tg-cart-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-sm);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.fbl-tavern .tg-cart-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--tg-gap-sm);
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: var(--tg-row-bg) !important;
+}
+
+.fbl-tavern .tg-cart-main {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-cart-main strong {
+  display: block;
+  overflow: hidden;
+  color: var(--tg-text-strong) !important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fbl-tavern .tg-cart-price {
+  color: var(--tg-text-strong) !important;
+  font-weight: 800;
+  text-align: right;
+}
+
+.fbl-tavern .tg-cart-row button {
+  width: 30px;
+  min-width: 30px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.fbl-tavern .tg-cart-total,
+.fbl-tavern .tg-quantity-total,
+.fbl-tavern .tg-quantity-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-gap);
+  padding: 8px 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(0, 0, 0, 0.3) !important;
+}
+
+.fbl-tavern .tg-cart-total span,
+.fbl-tavern .tg-quantity-total span,
+.fbl-tavern .tg-quantity-price span {
+  color: var(--tg-text-muted) !important;
+  font-size: 12px;
+}
+
+.fbl-tavern .tg-cart-total strong,
+.fbl-tavern .tg-quantity-total strong,
+.fbl-tavern .tg-quantity-price strong {
+  color: var(--tg-text-strong) !important;
+  font-size: 15px;
+}
+
+.fbl-tavern .tg-cart-actions,
+.fbl-tavern .tg-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-cart-empty {
+  min-height: 220px;
+}
+
+.fbl-tavern .tg-quantity-head h3 {
+  margin: 3px 0 4px;
+  color: var(--tg-text-strong) !important;
+}
+
+.fbl-tavern .tg-quantity-head p {
+  margin: 0;
+  color: var(--tg-text-muted) !important;
+}
+
+.fbl-tavern .tg-cart-category {
+  color: var(--tg-accent-strong) !important;
+  font-size: 11px;
+  line-height: 1.1;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.fbl-tavern .tg-quantity-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--tg-gap);
+}
+
+.fbl-tavern .tg-quantity-fields.is-lodging {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fbl-tavern .tg-quantity-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-xs);
+}
+
+.fbl-tavern .tg-quantity-fields label > span {
+  color: var(--tg-accent-strong) !important;
+  font-size: 11px;
+  line-height: 1.1;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.fbl-tavern .tg-quantity-fields input {
+  height: 34px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------------------
+   Cart dialog fixes 0.6.2
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern-quantity-dialog {
+  height: auto !important;
+  max-height: 430px !important;
+}
+
+.fbl-tavern-quantity-dialog .window-content {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+
+.fbl-tavern .tg-quantity-box {
+  min-height: unset !important;
+}
+
+.fbl-tavern .tg-quantity-stock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tg-gap);
+  padding: 8px 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(0, 0, 0, 0.24) !important;
+}
+
+.fbl-tavern .tg-quantity-stock span {
+  color: var(--tg-text-muted) !important;
+  font-size: 12px;
+}
+
+.fbl-tavern .tg-quantity-stock strong {
+  color: var(--tg-text-strong) !important;
+  font-size: 13px;
+  text-align: right;
+}
+
+/* -------------------------------------------------------------------------
+   Heavy-luxury QoL additions 0.7.0
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-panel-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tg-gap-sm);
+}
+
+.fbl-tavern .tg-panel-head-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  padding-inline: 7px;
+}
+
+.fbl-tavern .tg-gm-entry-actions button.is-pinned,
+.fbl-tavern .tg-gm-entry-actions button[aria-pressed="true"] {
+  color: #fff2c7 !important;
+  border-color: var(--tg-accent-strong) !important;
+  background: rgba(145, 101, 42, 0.55) !important;
+  box-shadow: 0 0 0 1px rgba(240, 199, 127, 0.24) inset;
+}
+
+.fbl-tavern .tg-player-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-gap);
+  padding: 0 var(--tg-pad);
+}
+
+.fbl-tavern .tg-search-field,
+.fbl-tavern .tg-actor-picker-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--tg-gap-sm);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-search-field {
+  flex: 1 1 320px;
+  padding: 0 10px;
+  border: 1px solid var(--tg-border);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(0, 0, 0, 0.24) !important;
+}
+
+.fbl-tavern .tg-search-field i {
+  flex: 0 0 auto;
+  color: var(--tg-text-muted) !important;
+}
+
+.fbl-tavern .tg-search-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.fbl-tavern .tg-actor-picker-inline {
+  flex: 0 1 280px;
+}
+
+.fbl-tavern .tg-actor-picker-inline > span {
+  color: var(--tg-text-muted) !important;
+  white-space: nowrap;
+}
+
+.fbl-tavern .tg-actor-picker-inline select {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-shop-row[hidden] {
+  display: none !important;
+}
+
+.fbl-tavern .tg-panel.is-search-empty .tg-card-grid::after {
+  content: "Совпадений нет";
+  display: block;
+  grid-column: 1 / -1;
+  padding: 18px;
+  color: var(--tg-text-muted) !important;
+  text-align: center;
+  font-style: italic;
+}
+
+.fbl-tavern .tg-cart-quantity {
+  display: inline-grid;
+  grid-template-columns: 26px minmax(28px, auto) 26px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.fbl-tavern .tg-cart-quantity button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-width: 26px;
+  min-height: 24px;
+  padding: 0;
+}
+
+.fbl-tavern .tg-cart-quantity span {
+  color: var(--tg-text-strong) !important;
+  text-align: center;
+  font-weight: 700;
+}
+
+.fbl-tavern .tg-cart-note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  color: var(--tg-text-muted) !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  font-size: 12px;
+}
+
+.fbl-tavern-entry-editor {
+  height: auto !important;
+  max-height: min(760px, 92vh) !important;
+}
+
+.fbl-tavern-entry-editor .window-content {
+  overflow: auto !important;
+}
+
+.fbl-tavern .tg-entry-editor-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap);
+  min-height: 0;
+  padding: var(--tg-pad);
+}
+
+.fbl-tavern .tg-entry-editor-head h3 {
+  margin: 4px 0 0;
+  color: var(--tg-text-strong) !important;
+}
+
+.fbl-tavern .tg-entry-editor-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--tg-gap);
+}
+
+.fbl-tavern .tg-entry-editor-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tg-gap-xs);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-entry-editor-fields label > span {
+  color: var(--tg-accent-strong) !important;
+  font-size: 11px;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.fbl-tavern .tg-entry-editor-fields .tg-field-wide {
+  grid-column: 1 / -1;
+}
+
+.fbl-tavern .tg-entry-editor-fields textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.fbl-tavern .tg-entry-editor-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tg-gap) 18px;
+  padding: 9px 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+
+@media (max-width: 760px) {
+  .fbl-tavern .tg-player-tools,
+  .fbl-tavern .tg-actor-picker-inline {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .fbl-tavern .tg-entry-editor-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .fbl-tavern .tg-entry-editor-fields .tg-field-wide {
+    grid-column: auto;
+  }
+}
+
+/* Living tavern */
+.fbl-tavern .tg-life-dashboard,
+.fbl-tavern .tg-player-life {
+  display: grid;
+  gap: 12px;
+}
+
+.fbl-tavern .tg-life-dashboard {
+  margin: 0;
+}
+
+.fbl-tavern .tg-life-overview .tg-panel-head p,
+.fbl-tavern .tg-life-mood-text,
+.fbl-tavern .tg-life-entry p,
+.fbl-tavern .tg-incident-card p,
+.fbl-tavern .tg-player-life p {
+  margin: 4px 0 0;
+}
+
+.fbl-tavern .tg-life-grid,
+.fbl-tavern .tg-player-life-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fbl-tavern .tg-life-list,
+.fbl-tavern .tg-player-life-list {
+  display: grid;
+  gap: 8px;
+}
+
+.fbl-tavern .tg-life-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tg-surface-0) 88%, transparent);
+}
+
+.fbl-tavern .tg-life-entry-main {
+  min-width: 0;
+}
+
+.fbl-tavern .tg-life-entry small {
+  display: block;
+  margin-top: 6px;
+}
+
+.fbl-tavern .tg-life-entry details,
+.fbl-tavern .tg-incident-card details {
+  margin-top: 7px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--tg-accent);
+  background: color-mix(in srgb, var(--tg-accent) 8%, transparent);
+}
+
+.fbl-tavern .tg-life-entry summary,
+.fbl-tavern .tg-incident-card summary,
+.fbl-tavern .tg-player-life-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.fbl-tavern .tg-life-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.fbl-tavern .tg-life-actions button,
+.fbl-tavern .tg-panel-head-actions button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.fbl-tavern .tg-life-actions button.is-pinned {
+  border-color: var(--tg-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tg-accent) 55%, transparent);
+}
+
+.fbl-tavern .tg-player-life {
+  margin: 2px 0 14px;
+}
+
+.fbl-tavern .tg-player-mood,
+.fbl-tavern .tg-player-life-panel,
+.fbl-tavern .tg-player-incident {
+  padding: 11px 13px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--tg-surface-0) 92%, transparent);
+}
+
+.fbl-tavern .tg-player-mood {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.fbl-tavern .tg-player-mood strong,
+.fbl-tavern .tg-player-mood small,
+.fbl-tavern .tg-player-incident strong {
+  display: block;
+}
+
+.fbl-tavern .tg-life-kicker {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.fbl-tavern .tg-player-life-panel > summary {
+  list-style-position: inside;
+}
+
+.fbl-tavern .tg-player-life-panel[open] > summary {
+  margin-bottom: 8px;
+}
+
+.fbl-tavern .tg-player-life-list article {
+  padding-top: 7px;
+  border-top: 1px solid var(--tg-border-soft);
+}
+
+.fbl-tavern .tg-player-life-list article:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.fbl-tavern .tg-player-incident {
+  border-color: var(--tg-accent);
+}
+
+.tg-chat-life {
+  display: grid;
+  gap: 5px;
+}
+
+.tg-chat-life header {
+  font-size: 0.78rem;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+.tg-chat-life h3,
+.tg-chat-life p {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .fbl-tavern .tg-life-grid,
+  .fbl-tavern .tg-player-life-grid,
+  .fbl-tavern .tg-player-mood {
+    grid-template-columns: 1fr;
+  }
+
+  .fbl-tavern .tg-life-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .fbl-tavern .tg-life-actions {
+    justify-content: flex-end;
+  }
+}
+
+
+/* -------------------------------------------------------------------------
+   0.7.2 compact player header controls
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-header-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.fbl-tavern .tg-header-search {
+  position: relative;
+  display: flex;
+  align-self: stretch;
+  flex: 0 0 44px;
+  z-index: 30;
+}
+
+.fbl-tavern .tg-search-indicator {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tg-accent-strong) !important;
+  box-shadow: 0 0 0 2px rgba(20, 13, 8, 0.9);
+}
+
+.fbl-tavern .tg-header-search.has-query .tg-search-indicator {
+  display: block;
+}
+
+.fbl-tavern .tg-header-search-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: min(380px, 72vw);
+  min-height: 42px;
+  padding: 6px 7px 6px 11px;
+  border: 1px solid var(--tg-border);
+  border-radius: var(--tg-radius-sm);
+  background: color-mix(in srgb, var(--tg-surface-0) 96%, black) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.48);
+}
+
+.fbl-tavern .tg-header-search.is-open .tg-header-search-panel {
+  display: flex;
+}
+
+.fbl-tavern .tg-header-search-panel > i {
+  flex: 0 0 auto;
+  color: var(--tg-text-muted) !important;
+}
+
+.fbl-tavern .tg-header-search-panel input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.fbl-tavern .tg-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+@media (max-width: 760px) {
+  .fbl-tavern .tg-header-action,
+  .fbl-tavern .tg-header-search {
+    align-self: auto;
+    min-height: 38px;
+  }
+
+  .fbl-tavern .tg-header-search-panel {
+    width: min(360px, 82vw);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Compact quantity rows, crowd availability and close control 0.7.3
+   ------------------------------------------------------------------------- */
+
+.fbl-tavern .tg-quantity-fields.is-standard {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fbl-tavern .tg-quantity-fields.is-lodging {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fbl-tavern .tg-quantity-total-inline {
+  min-width: 0;
+  padding: 6px 8px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--tg-gap-xs);
+  text-align: center;
+}
+
+.fbl-tavern .tg-quantity-total-inline strong {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.fbl-tavern .tg-life-availability {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--tg-gap-sm);
+  margin-top: var(--tg-gap);
+}
+
+.fbl-tavern .tg-life-availability > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(0, 0, 0, 0.22) !important;
+}
+
+.fbl-tavern .tg-life-availability span {
+  color: var(--tg-text-faint) !important;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.fbl-tavern .tg-life-availability strong {
+  color: var(--tg-text-strong) !important;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.fbl-tavern .tg-life-availability-note {
+  margin: 7px 0 0;
+  color: var(--tg-text-muted) !important;
+  font-size: 12px;
+}
+
+/* Foundry v13 may render the inherited close control as a tiny dot under
+   heavily themed ApplicationV2 windows. Force the conventional x-mark. */
+.application.fbl-tavern > .window-header [data-action="close"],
+.window-app.fbl-tavern > .window-header [data-action="close"],
+.application.fbl-tavern > .window-header .close,
+.window-app.fbl-tavern > .window-header .close {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+}
+
+.application.fbl-tavern > .window-header [data-action="close"] > i,
+.window-app.fbl-tavern > .window-header [data-action="close"] > i,
+.application.fbl-tavern > .window-header .close > i,
+.window-app.fbl-tavern > .window-header .close > i {
+  display: none !important;
+}
+
+.application.fbl-tavern > .window-header [data-action="close"]::before,
+.window-app.fbl-tavern > .window-header [data-action="close"]::before,
+.application.fbl-tavern > .window-header .close::before,
+.window-app.fbl-tavern > .window-header .close::before {
+  content: "\f00d" !important;
+  display: block !important;
+  color: currentColor !important;
+  font-family: "Font Awesome 6 Pro", "Font Awesome 6 Free" !important;
+  font-size: 15px !important;
+  font-style: normal !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+@media (max-width: 760px) {
+  .fbl-tavern .tg-life-availability {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+
+/* 0.7.4: labeled occupancy commit action */
+.fbl-tavern .tg-panel-head-actions button.tg-apply-crowd {
+  width: auto;
+  min-width: 0;
+  padding: 0 10px;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.fbl-tavern .tg-panel-head-actions button.tg-apply-crowd span {
+  color: inherit !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .fbl-tavern .tg-panel-head-actions button.tg-apply-crowd span {
+    display: none;
+  }
+
+  .fbl-tavern .tg-panel-head-actions button.tg-apply-crowd {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+  }
+}
+
+/* 0.7.5: visible GM-only new-day action in the ApplicationV2 window header */
+.application.fbl-tavern-gm > .window-header .tg-header-new-day,
+.window-app.fbl-tavern-gm > .window-header .tg-header-new-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  min-width: max-content;
+  height: 28px;
+  margin-left: 6px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--tg-panel, #f4ede0) 86%, transparent);
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.application.fbl-tavern-gm > .window-header .tg-header-new-day:hover:not(:disabled),
+.window-app.fbl-tavern-gm > .window-header .tg-header-new-day:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tg-accent, #8b5a2b) 18%, var(--tg-panel, #f4ede0));
+}
+
+.application.fbl-tavern-gm > .window-header .tg-header-new-day:disabled,
+.window-app.fbl-tavern-gm > .window-header .tg-header-new-day:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.application.fbl-tavern-gm > .window-header .tg-header-new-day i,
+.window-app.fbl-tavern-gm > .window-header .tg-header-new-day i {
+  width: 14px;
+  margin: 0;
+  font-size: 13px;
+}
