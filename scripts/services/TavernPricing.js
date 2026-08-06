@@ -75,14 +75,16 @@ export class TavernPricing {
     const currentCandidates = [seasonKey, seasonLabel].filter(Boolean).map((value) => String(value).toLocaleLowerCase("ru-RU"));
 
     if (seasons.length && seasons.some((season) => currentCandidates.includes(season))) {
-      return Number.isFinite(inSeasonMultiplier) ? inSeasonMultiplier : DEFAULT_SEASONAL_MULTIPLIERS.inSeason;
+      return this.normalizeMultiplier(Number.isFinite(inSeasonMultiplier) ? inSeasonMultiplier : DEFAULT_SEASONAL_MULTIPLIERS.inSeason);
     }
 
     if (offSeasons.length && offSeasons.some((season) => currentCandidates.includes(season))) {
-      return Number.isFinite(outOfSeasonMultiplier) ? outOfSeasonMultiplier : DEFAULT_SEASONAL_MULTIPLIERS.outOfSeason;
+      return this.normalizeMultiplier(Number.isFinite(outOfSeasonMultiplier) ? outOfSeasonMultiplier : DEFAULT_SEASONAL_MULTIPLIERS.outOfSeason);
     }
 
-    if (seasons.length) return Number.isFinite(outOfSeasonMultiplier) ? outOfSeasonMultiplier : DEFAULT_SEASONAL_MULTIPLIERS.outOfSeason;
+    if (seasons.length) {
+      return this.normalizeMultiplier(Number.isFinite(outOfSeasonMultiplier) ? outOfSeasonMultiplier : DEFAULT_SEASONAL_MULTIPLIERS.outOfSeason);
+    }
     return 1;
   }
 
@@ -101,7 +103,8 @@ export class TavernPricing {
 
     for (const list of Object.values(clone.inventory ?? {})) {
       for (const entry of list ?? []) {
-        const base = Math.max(1, Number(entry.basePrice ?? entry.price ?? 1));
+        const rawBase = Number(entry.basePrice ?? entry.price ?? 1);
+        const base = Number.isFinite(rawBase) ? Math.max(1, Math.trunc(rawBase)) : 1;
         entry.basePrice = base;
         entry.price = Math.max(1, Math.round(base * normalized));
       }

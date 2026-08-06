@@ -2,7 +2,7 @@
   "id": "fbl-tavern-generator",
   "title": "FBL Tavern Generator",
   "description": "Генератор и менеджер живых таверн для Forbidden Lands в Foundry VTT v13.",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "authors": [
     {
       "name": "Хозяин + ChatGPT"

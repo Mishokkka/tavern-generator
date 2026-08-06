@@ -202,6 +202,7 @@ export class TavernInventory {
       type: item.type,
       desc: item.desc,
       local: Boolean(item.local),
+      quality: Array.isArray(item.quality) ? foundry.utils.deepClone(item.quality) : null,
       basePrice,
       price,
       stock,

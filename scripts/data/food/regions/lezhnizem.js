@@ -1,7 +1,7 @@
 // Regional food entries for lezhnizem.
 
 export const LEZHNIZEM_FOOD_TABLE = [
-  {
+{
     "name": "Щи с кислой капустой",
     "type": "food",
     "regions": [
@@ -19,25 +19,25 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 10,
     "desc": "Кислая капуста, коренья и мясной бульон."
   },
-  {
-    "name": "Гречневая каша с грибами",
-    "type": "food",
-    "regions": [
-      "lezhnizem"
-    ],
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road",
-      "wilderness"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 9,
-    "desc": "Гречневая крупа с жареными грибами и луком."
-  },
-  {
+{
+  "name": "Гречневая каша с грибами",
+  "type": "food",
+  "regions": [
+    "lezhnizem"
+  ],
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "road",
+    "wilderness"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 9,
+  "desc": "Гречневая каша с жареными грибами и луком."
+},
+{
     "name": "Уха из речной рыбы",
     "type": "food",
     "regions": [
@@ -55,7 +55,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 8,
     "desc": "Прозрачный рыбный суп с луком и травами."
   },
-  {
+{
     "name": "Кулебяка с капустой и рыбой",
     "type": "food",
     "regions": [
@@ -72,7 +72,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 6,
     "desc": "Пирог с капустой, рыбой и крупой."
   },
-  {
+{
     "name": "Жаркое в горшке",
     "type": "food",
     "regions": [
@@ -89,7 +89,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 7,
     "desc": "Мясо и коренья, запеченные в глиняном горшке."
   },
-  {
+{
     "name": "Блины с творогом",
     "type": "food",
     "regions": [
@@ -106,24 +106,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 6,
     "desc": "Тонкие блины с творожной начинкой."
   },
-  {
-    "name": "Греча с грибами",
-    "type": "food",
-    "regions": [
-      "lezhnizem"
-    ],
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ],
-    "min": 4,
-    "max": 9,
-    "weight": 8,
-    "desc": "Гречневая каша с грибами и луком."
-  },
-  {
+{
     "name": "Пирожки с капустой",
     "type": "food",
     "regions": [
@@ -140,7 +123,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 8,
     "desc": "Небольшие пирожки с капустной начинкой."
   },
-  {
+{
     "name": "Рыба под рассолом",
     "type": "food",
     "regions": [
@@ -157,7 +140,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
     "weight": 7,
     "desc": "Рыба, выдержанная в крепком рассоле."
   },
-  {
+{
     "name": "Щи с солониной",
     "type": "food",
     "regions": [
@@ -175,7 +158,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Гречневики с грибами",
     "type": "food",
     "regions": [
@@ -192,7 +175,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Гусь с яблоками и репой",
     "type": "food",
     "regions": [
@@ -208,7 +191,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "town"
     ]
   },
-  {
+{
     "name": "Пироги с рыбой",
     "type": "food",
     "regions": [
@@ -226,7 +209,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "port"
     ]
   },
-  {
+{
     "name": "Овсяный кисель с медом",
     "type": "food",
     "regions": [
@@ -243,7 +226,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "wilderness"
     ]
   },
-  {
+{
     "name": "Картофель с луком и сметаной",
     "type": "food",
     "regions": [
@@ -260,7 +243,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Талькомежская клановая миска",
     "type": "food",
     "regions": [
@@ -278,7 +261,7 @@ export const LEZHNIZEM_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Воеводская похлебка пяти дочерей",
     "type": "food",
     "regions": [

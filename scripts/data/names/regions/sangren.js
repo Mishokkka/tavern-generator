@@ -30,7 +30,7 @@ export const SANGREN_NAMES = {
       "Vicolo",
       "Cortile",
       "Ponte",
-      "Lodgia",
+      "Loggia",
       "Campanile",
       "Fiera"
     ],

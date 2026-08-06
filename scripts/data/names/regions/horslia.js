@@ -2,16 +2,16 @@
 
 export const HORSLIA_NAMES = {
   "patterns": [
-    "U {adj}ho {noun}",
-    "Hostinec U {noun}",
-    "Na {terrain}",
+    "Hostinec {noun}",
     "Dům {noun}",
-    "Stará {terrain}",
-    "U Tří {noun}",
-    "Pod {noun}",
-    "Krčma {adj}",
+    "Krčma {noun}",
     "{noun} a {noun}",
-    "U Knížecího {noun}"
+    "Hostinec {terrain}",
+    "Dům {terrain}",
+    "Krčma {terrain}",
+    "Pivnice {noun}",
+    "Pivnice {terrain}",
+    "Dvůr {noun}"
   ],
   "terrain": {
     "city": [

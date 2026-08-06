@@ -55,7 +55,7 @@ export const NAERDER_FOOD_TABLE = [
     "desc": "Чечевица, лук, масло и кислый сок."
   },
   {
-    "name": "Рис с финиками и бараним жиром",
+    "name": "Рис с финиками и бараньим жиром",
     "type": "food",
     "regions": [
       "naerder"

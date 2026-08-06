@@ -87,7 +87,12 @@ export class TavernSoundSettingsApp extends HandlebarsApplicationMixin(Applicati
       await PurchaseSoundService.setPath(input.dataset.soundPath, input.value);
     }
 
-    const volumePercent = Number(this.element.querySelector("[name='volumePercent']")?.value ?? 55);
+    const volumeInput = this.element.querySelector("[name='volumePercent']");
+    const rawVolume = String(volumeInput?.value ?? "").trim();
+    const parsedVolume = Number(rawVolume);
+    const volumePercent = rawVolume && Number.isFinite(parsedVolume)
+      ? Math.min(100, Math.max(0, parsedVolume))
+      : 55;
     await PurchaseSoundService.setVolume(volumePercent / 100);
     ui.notifications.info("Звуки покупок таверны сохранены.");
     this.close();

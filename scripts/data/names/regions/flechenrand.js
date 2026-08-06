@@ -2,16 +2,16 @@
 
 export const FLECHENRAND_NAMES = {
   "patterns": [
-    "Zum {adj}en {noun}",
-    "Der {noun}keller",
     "Gasthaus {noun}",
-    "Bei der {terrain}",
-    "Zur {terrain}",
-    "{noun} und {noun}",
-    "Die {adj}e {terrain}",
-    "Schänke am {terrain}",
     "Haus {noun}",
-    "Zum Alten {noun}"
+    "{noun} und {noun}",
+    "{noun}haus",
+    "{noun}keller",
+    "{noun}stube",
+    "{terrain}haus",
+    "{terrain}schänke",
+    "Gasthaus {terrain}",
+    "Haus {terrain}"
   ],
   "terrain": {
     "city": [

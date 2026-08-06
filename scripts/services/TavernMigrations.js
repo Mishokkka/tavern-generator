@@ -164,7 +164,9 @@ export class TavernMigrations {
     }
 
     entry.stock = Math.max(0, Math.trunc(Number(entry.stock ?? 0) || 0));
-    entry.maxStock = Math.max(entry.stock, Math.trunc(Number(entry.maxStock ?? entry.stock ?? 1) || 1));
+    const rawMaxStock = Number(entry.maxStock ?? entry.stock ?? 0);
+    const maxStock = Number.isFinite(rawMaxStock) ? Math.trunc(rawMaxStock) : entry.stock;
+    entry.maxStock = Math.max(entry.stock, maxStock);
   }
 
   static #normalizeLifeEntries(entries) {

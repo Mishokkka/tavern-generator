@@ -119,6 +119,9 @@ export class TavernPurchaseService {
         if (result?.message) cleanlinessMessages.push(result.message);
       } catch (error) {
         console.warn("fbl-tavern-generator | Cleanliness effect failed after committed purchase", error);
+        const message = `Помытость не применена автоматически: ${error?.message ?? error}. ГМ должен проверить состояние актера.`;
+        cleanlinessMessages.push(message);
+        globalThis.ui?.notifications?.warn?.(message);
       }
     }
 

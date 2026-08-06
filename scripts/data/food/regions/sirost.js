@@ -25,6 +25,12 @@ export const SIROST_FOOD_TABLE = [
       "sirost"
     ],
     "local": true,
+    "terrains": [
+      "city",
+      "town",
+      "village",
+      "road"
+    ],
     "min": 4,
     "max": 10,
     "weight": 9,

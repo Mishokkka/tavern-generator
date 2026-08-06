@@ -189,7 +189,7 @@ export const TIRABOR_FOOD_TABLE = [
     ]
   },
   {
-    "name": "Тироборские грибные лепешки",
+    "name": "Тираборские грибные лепешки",
     "type": "food",
     "regions": [
       "tirabor"

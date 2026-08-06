@@ -1,7 +1,7 @@
 // Regional food entries for boltrask.
 
 export const BOLTRASK_FOOD_TABLE = [
-  {
+{
     "name": "Зерновая миска Гринвейла",
     "type": "food",
     "regions": ["boltrask"],
@@ -12,7 +12,7 @@ export const BOLTRASK_FOOD_TABLE = [
     "desc": "Каша из зерновых равнин с маслом, луком и дешевой подливой.",
     "terrains": ["city", "town", "village", "road"]
   },
-  {
+{
     "name": "Фабричный пирог Стального Пояса",
     "type": "food",
     "regions": ["boltrask"],
@@ -23,7 +23,7 @@ export const BOLTRASK_FOOD_TABLE = [
     "desc": "Закрытый пирог с мясом, зерном и перцем; еда рабочего перерыва.",
     "terrains": ["city", "town", "road"]
   },
-  {
+{
     "name": "Угольная похлебка Дикого Севера",
     "type": "food",
     "regions": ["boltrask"],
@@ -34,28 +34,6 @@ export const BOLTRASK_FOOD_TABLE = [
     "desc": "Темная похлебка с фасолью, копченым мясом и кореньями из шахтерских поселений.",
     "terrains": ["mountain", "wilderness", "town"]
   },
-  {
-    "name": "Таррийский железнодорожный завтрак",
-    "type": "food",
-    "regions": ["boltrask"],
-    "local": true,
-    "min": 8,
-    "max": 20,
-    "weight": 6,
-    "desc": "Яйца, хлеб, колбаса и горячая крупа для пассажиров раннего поезда.",
-    "terrains": ["city", "town", "road"]
-  },
-  {
-    "name": "Пембриджская портовая тарелка",
-    "type": "food",
-    "regions": ["boltrask"],
-    "local": true,
-    "min": 9,
-    "max": 22,
-    "weight": 6,
-    "desc": "Жареная рыба, картофель и кислый соус с воздуха большого порта.",
-    "terrains": ["port", "city"]
-  },
 {
   "name": "Пембриджская рыба с жареным картофелем",
   "type": "food",
@@ -64,9 +42,9 @@ export const BOLTRASK_FOOD_TABLE = [
   ],
   "local": true,
   "min": 7,
-  "max": 18,
+  "max": 22,
   "weight": 8,
-  "desc": "Горячая рыба в хрустящей корке с картофелем и уксусным соусом; портовая классика Болтраска.",
+  "desc": "Горячая рыба в хрустящей корке с жареным картофелем и кислым уксусным соусом; портовая классика Болтраска.",
   "terrains": [
     "port",
     "city",
@@ -133,14 +111,14 @@ export const BOLTRASK_FOOD_TABLE = [
     "boltrask"
   ],
   "local": true,
-  "min": 10,
+  "min": 8,
   "max": 24,
-  "weight": 5,
-  "desc": "Яйца, сосиски, фасоль, жареный хлеб и крепкий чай; тарелка для тех, кто спешит на ранний поезд.",
+  "weight": 6,
+  "desc": "Яйца, сосиски, фасоль, жареный хлеб, горячая крупа и крепкий чай для пассажиров раннего поезда.",
   "terrains": [
     "city",
     "town",
     "road"
   ]
 }
- ];
+];

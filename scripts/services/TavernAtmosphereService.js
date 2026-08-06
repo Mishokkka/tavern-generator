@@ -193,7 +193,12 @@ export class TavernAtmosphereService {
 
   static #pickOne(table, tavern, random, excluded = new Set()) {
     const matching = table.filter((item) => !excluded.has(`${this.#kindForTable(table)}:${item.title ?? item.name ?? item.id ?? "entry"}`) && this.#matches(item, tavern));
-    const fallback = matching.length ? matching : table.filter((item) => this.#matches(item, { ...tavern, region: "common", terrain: null }));
+    const fallback = matching.length
+      ? matching
+      : table.filter((item) => {
+        const key = `${this.#kindForTable(table)}:${item.title ?? item.name ?? item.id ?? "entry"}`;
+        return !excluded.has(key) && this.#matches(item, { ...tavern, region: "common", terrain: null });
+      });
     if (!fallback.length) return null;
 
     const total = fallback.reduce((sum, item) => sum + Math.max(0.01, Number(item.weight ?? 1)), 0);

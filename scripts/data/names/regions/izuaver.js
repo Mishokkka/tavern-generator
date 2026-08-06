@@ -2,16 +2,16 @@
 
 export const IZUAVER_NAMES = {
   "patterns": [
-    "Taberna {adj}",
     "Hospitium {noun}",
-    "Ad {terrain}",
-    "Sub {noun}",
     "Domus {noun}",
-    "{noun} {adj}",
+    "Caupona {noun}",
+    "Mensa {noun}",
+    "{noun} et {noun}",
+    "Hospitium {terrain}",
     "Caupona {terrain}",
-    "Ad Tres {noun}",
-    "In {terrain}",
-    "Mensa {adj}"
+    "Domus {terrain}",
+    "Mensa {terrain}",
+    "Taberna {noun}"
   ],
   "terrain": {
     "city": [

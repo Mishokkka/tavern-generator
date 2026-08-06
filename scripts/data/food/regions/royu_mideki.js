@@ -269,7 +269,7 @@ export const ROYU_MIDEKI_FOOD_TABLE = [
     "min": 3,
     "max": 8,
     "weight": 7,
-    "desc": "Небольшие паровые пирожки с сладкой фасолевой начинкой.",
+    "desc": "Небольшие паровые пирожки со сладкой фасолевой начинкой.",
     "local": true,
     "terrains": [
       "city",

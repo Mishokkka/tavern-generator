@@ -1,7 +1,7 @@
 // Regional food entries for kaldvelg.
 
 export const KALDVELG_FOOD_TABLE = [
-  {
+{
     "name": "Рыбная похлебка Кальдвельга",
     "type": "food",
     "regions": [
@@ -19,7 +19,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 10,
     "desc": "Густая похлебка из рыбы, молока и кореньев."
   },
-  {
+{
     "name": "Сушеная рыба с маслом",
     "type": "food",
     "regions": [
@@ -36,7 +36,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Сушеная рыба, хлеб и сливочное масло."
   },
-  {
+{
     "name": "Баранья похлебка",
     "type": "food",
     "regions": [
@@ -53,7 +53,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Баранина, капуста и коренья в плотном бульоне."
   },
-  {
+{
     "name": "Ржаная каша с сыром",
     "type": "food",
     "regions": [
@@ -70,7 +70,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Ржаная каша с твердым соленым сыром."
   },
-  {
+{
     "name": "Копченая оленина",
     "type": "food",
     "regions": [
@@ -88,24 +88,25 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 5,
     "desc": "Тонко нарезанная копченая оленина с хлебом."
   },
-  {
-    "name": "Пирог с рыбой и луком",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "terrains": [
-      "port",
-      "town",
-      "road"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 6,
-    "desc": "Закрытый пирог с рыбой, луком и крупой."
-  },
-  {
+{
+  "name": "Пирог с рыбой и луком",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "terrains": [
+    "port",
+    "city",
+    "town",
+    "road"
+  ],
+  "min": 5,
+  "max": 14,
+  "weight": 7,
+  "desc": "Закрытый пирог с рыбой, луком, крупой и овсяной коркой."
+},
+{
     "name": "Суп из трески с кореньями",
     "type": "food",
     "regions": [
@@ -122,7 +123,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Треска, коренья и плотный бульон."
   },
-  {
+{
     "name": "Оленина с можжевельником",
     "type": "food",
     "regions": [
@@ -139,7 +140,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 5,
     "desc": "Оленина, можжевельник и мясная подлива."
   },
-  {
+{
     "name": "Каша с сушеными ягодами",
     "type": "food",
     "regions": [
@@ -156,7 +157,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Каша с кислыми сушеными ягодами."
   },
-  {
+{
     "name": "Плоский хлеб с копченой рыбой",
     "type": "food",
     "regions": [
@@ -173,7 +174,7 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Плоский хлеб и тонкая копченая рыба."
   },
-  {
+{
     "name": "Соленая треска с картофелем",
     "type": "food",
     "regions": [
@@ -191,7 +192,7 @@ export const KALDVELG_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Похлебка из морской капусты",
     "type": "food",
     "regions": [
@@ -208,7 +209,7 @@ export const KALDVELG_FOOD_TABLE = [
       "town"
     ]
   },
-  {
+{
     "name": "Копченая баранина с репой",
     "type": "food",
     "regions": [
@@ -226,7 +227,7 @@ export const KALDVELG_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Овсяный хлеб с сыром",
     "type": "food",
     "regions": [
@@ -245,7 +246,7 @@ export const KALDVELG_FOOD_TABLE = [
       "mountain"
     ]
   },
-  {
+{
     "name": "Рагу из северного оленя",
     "type": "food",
     "regions": [
@@ -262,24 +263,7 @@ export const KALDVELG_FOOD_TABLE = [
       "wilderness"
     ]
   },
-  {
-    "name": "Рыбный пирог с луком",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "min": 5,
-    "max": 13,
-    "weight": 7,
-    "desc": "Закрытый пирог с рыбой, луком и овсяной коркой.",
-    "local": true,
-    "terrains": [
-      "port",
-      "city",
-      "town"
-    ]
-  },
-  {
+{
     "name": "Пиратская доля с верфи",
     "type": "food",
     "regions": [
@@ -296,7 +280,7 @@ export const KALDVELG_FOOD_TABLE = [
       "road"
     ]
   },
-  {
+{
     "name": "Стылый суп Лентахервы",
     "type": "food",
     "regions": [

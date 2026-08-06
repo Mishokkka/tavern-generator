@@ -14,7 +14,7 @@
         {{/if}}
 
         <div class="tg-header-search {{#if searchExpanded}}is-open{{/if}} {{#if searchQuery}}has-query{{/if}}">
-          <button type="button" class="tg-header-action tg-search-toggle" data-action="toggle-search" data-tooltip="Поиск по меню" aria-label="Раскрыть поиск по меню" aria-expanded="{{#if searchExpanded}}true{{else}}false{{/if}}">
+          <button type="button" class="tg-header-action tg-search-toggle" data-action="toggle-search" data-tooltip="Поиск по меню" aria-label="{{#if searchExpanded}}Скрыть поиск по меню{{else}}Раскрыть поиск по меню{{/if}}" aria-expanded="{{#if searchExpanded}}true{{else}}false{{/if}}">
             <i class="fa-solid fa-magnifying-glass"></i>
             <span class="tg-search-indicator" aria-hidden="true"></span>
           </button>
@@ -61,7 +61,7 @@
         <h3>Еда</h3>
         <div class="tg-list tg-card-grid">
           {{#each tavern.food}}
-            <article class="tg-row tg-shop-row" data-category="food" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+            <article class="tg-row tg-shop-row" data-category="food" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-search-text="{{desc}}" data-tooltip-direction="UP">
               <div class="tg-entry-main">
                 <strong class="tg-entry-name">{{name}}</strong>
                 <small>{{#if local}}местное · {{/if}}осталось: {{stockLabel}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
@@ -85,7 +85,7 @@
         <h3>Напитки</h3>
         <div class="tg-list tg-card-grid">
           {{#each tavern.drinks}}
-            <article class="tg-row tg-shop-row" data-category="drinks" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+            <article class="tg-row tg-shop-row" data-category="drinks" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-search-text="{{desc}}" data-tooltip-direction="UP">
               <div class="tg-entry-main">
                 <strong class="tg-entry-name">{{name}}</strong>
                 <small>{{#if local}}местное · {{/if}}осталось: {{stockLabel}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
@@ -111,7 +111,7 @@
         <h3>Ночлег</h3>
         <div class="tg-list tg-card-grid">
           {{#each tavern.lodging}}
-            <article class="tg-row tg-shop-row" data-category="lodging" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+            <article class="tg-row tg-shop-row" data-category="lodging" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-search-text="{{desc}}" data-tooltip-direction="UP">
               <div class="tg-entry-main">
                 <strong class="tg-entry-name">{{name}}</strong>
                 <small>свободно: {{freeLabel}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
@@ -137,7 +137,7 @@
           <h3>Услуги</h3>
           <div class="tg-list tg-card-grid">
             {{#each tavern.services}}
-              <article class="tg-row tg-shop-row" data-category="services" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <article class="tg-row tg-shop-row" data-category="services" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-search-text="{{desc}}" data-tooltip-direction="UP">
                 <div class="tg-entry-main">
                   <strong class="tg-entry-name">{{name}}</strong>
                   <small>осталось: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>

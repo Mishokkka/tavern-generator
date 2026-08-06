@@ -1,17 +1,17 @@
 <section class="tg-wrap">
   <nav class="tg-tabs" role="tablist" aria-label="Разделы генератора таверны">
-    <button type="button" class="tg-tab-button {{#if tabs.tavern.active}}is-active{{/if}}" data-action="selectTab" data-tab="tavern" role="tab" aria-selected="{{#if tabs.tavern.active}}true{{else}}false{{/if}}">
+    <button type="button" id="tg-tab-tavern" class="tg-tab-button {{#if tabs.tavern.active}}is-active{{/if}}" data-action="selectTab" data-tab="tavern" role="tab" aria-controls="tg-panel-tavern" aria-selected="{{#if tabs.tavern.active}}true{{else}}false{{/if}}" tabindex="{{#if tabs.tavern.active}}0{{else}}-1{{/if}}">
       <i class="fa-solid fa-beer-mug-empty"></i><span>Таверна</span>
     </button>
     {{#if isGM}}
-      <button type="button" class="tg-tab-button {{#if tabs.life.active}}is-active{{/if}}" data-action="selectTab" data-tab="life" role="tab" aria-selected="{{#if tabs.life.active}}true{{else}}false{{/if}}" {{#unless tavern}}disabled{{/unless}}>
-        <i class="fa-solid fa-user-shield"></i><span>Жизнь таверны</span><small>только ГМ</small>
+      <button type="button" id="tg-tab-life" class="tg-tab-button {{#if tabs.life.active}}is-active{{/if}}" data-action="selectTab" data-tab="life" role="tab" aria-controls="tg-panel-life" aria-selected="{{#if tabs.life.active}}true{{else}}false{{/if}}" tabindex="{{#if tabs.life.active}}0{{else}}-1{{/if}}" data-tooltip="{{#unless tavern}}Сначала сгенерируй или открой таверну{{/unless}}" {{#unless tavern}}disabled{{/unless}}>
+        <i class="fa-solid fa-user-shield"></i><span>Жизнь таверны</span>
       </button>
     {{/if}}
   </nav>
 
   {{#if tabs.tavern.active}}
-    <div class="tg-tab-panel is-active" data-tab-panel="tavern">
+    <div id="tg-panel-tavern" class="tg-tab-panel is-active" data-tab-panel="tavern" role="tabpanel" aria-labelledby="tg-tab-tavern">
   <section class="tg-controls">
     <label>
       <span>Регион / страна</span>
@@ -295,7 +295,7 @@
 
   {{#if isGM}}
     {{#if tabs.life.active}}
-      <div class="tg-tab-panel is-active" data-tab-panel="life">
+      <div id="tg-panel-life" class="tg-tab-panel is-active" data-tab-panel="life" role="tabpanel" aria-labelledby="tg-tab-life">
         {{#if tavern}}
     <section class="tg-life-dashboard">
       <div class="tg-gm-only-note"><i class="fa-solid fa-user-shield"></i><span>Эта вкладка доступна только ГМу. Игроки увидят запись лишь после ручной отправки в чат.</span></div>

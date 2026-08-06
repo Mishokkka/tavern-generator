@@ -65,9 +65,17 @@ export class FoundryDocumentUtils {
   }
 
   static async unlockPack(pack) {
-    if (!pack?.locked) return;
+    if (!pack?.locked) return false;
     if (typeof pack.configure === "function") await pack.configure({ locked: false });
     else pack.locked = false;
+    return true;
+  }
+
+  static async relockPack(pack, wasUnlocked = false) {
+    if (!pack || !wasUnlocked) return false;
+    if (typeof pack.configure === "function") await pack.configure({ locked: true });
+    else pack.locked = true;
+    return true;
   }
 
   static async findIndexEntryByFlag(pack, flagPath, expectedValue) {

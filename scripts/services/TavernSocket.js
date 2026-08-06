@@ -5,19 +5,42 @@ import { TavernPlayerApp } from "../apps/TavernPlayerApp.js";
 import { PurchaseSoundService } from "./PurchaseSoundService.js";
 import { TavernPurchaseService } from "./TavernPurchaseService.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
+import { TavernSocketIdentity } from "./TavernSocketIdentity.js";
 
 const RESULT_CACHE_TTL = 5 * 60 * 1000;
 
 export class TavernSocket {
   static #registered = false;
+  static #available = false;
+  static #registrationError = null;
   static #routes = new Map();
   static #processedRequests = new Map();
   static #inFlightRequests = new Map();
 
-  static register() {
-    if (this.#registered) return;
+  static async register() {
+    if (this.#registered) return this.#available;
     this.#registered = true;
-    game.socket.on(SOCKET_NAME, (payload) => this.#onMessage(payload));
+
+    try {
+      await TavernSocketIdentity.initialize();
+      game.socket.on(SOCKET_NAME, (payload) => {
+        void this.#onMessage(payload).catch((error) => {
+          console.warn(`${MODULE_ID} | Rejected or failed socket message`, error);
+        });
+      });
+      this.#available = true;
+      this.#registrationError = null;
+    } catch (error) {
+      this.#available = false;
+      this.#registrationError = error;
+      console.error(`${MODULE_ID} | Secure socket features are unavailable`, error);
+    }
+
+    return this.#available;
+  }
+
+  static get available() {
+    return this.#available;
   }
 
   static on(type, handler) {
@@ -26,12 +49,22 @@ export class TavernSocket {
     this.#routes.set(key, handler);
   }
 
-  static emit(payload) {
-    game.socket.emit(SOCKET_NAME, payload);
+  static async emit(payload) {
+    if (!this.#available) {
+      throw this.#registrationError ?? new Error("Защищённый канал таверны недоступен на этом клиенте.");
+    }
+    const signed = await TavernSocketIdentity.sign(payload);
+    game.socket.emit(SOCKET_NAME, signed);
+    return signed;
   }
 
   static openForPlayers() {
-    this.emit({ type: "open-player", sender: game.user.id, tavernData: TavernAtmosphereService.publicView(TavernState.getCurrent()) });
+    if (!game.user?.isGM) return;
+    if (!this.#available) return ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+    void this.#safeEmit({
+      type: "open-player",
+      tavernData: TavernAtmosphereService.publicView(TavernState.getCurrent())
+    });
   }
 
   static refreshAll(tavernData = null) {
@@ -42,11 +75,11 @@ export class TavernSocket {
       });
     }
     this.refreshLocal(publicData);
-    this.emit({ type: "refresh", sender: game.user.id, tavernData: publicData });
+    if (game.user?.isGM && this.#available) void this.#safeEmit({ type: "refresh", tavernData: publicData });
   }
 
   static refreshLocal(tavernData = null) {
-    if (tavernData) TavernPlayerApp.receiveTavernUpdate(tavernData);
+    TavernPlayerApp.receiveTavernUpdate(tavernData);
     TavernPlayerApp.renderOpenInstances();
     Hooks.callAll(`${MODULE_ID}.refresh`, { sender: game.user.id, tavernData });
   }
@@ -54,26 +87,51 @@ export class TavernSocket {
   static async #syncLinkedSceneSnapshot(tavern, publicData) {
     const sceneId = tavern?.scene?.id ?? null;
     const scene = sceneId ? game.scenes?.get?.(sceneId) : null;
-    if (!scene?.setFlag) return false;
+    if (!scene) return false;
 
-    await scene.setFlag(MODULE_ID, "tavernData", publicData);
     const link = scene.getFlag?.(MODULE_ID, "shopButton") ?? scene.flags?.[MODULE_ID]?.shopButton;
+    const update = {
+      [`flags.${MODULE_ID}.tavernPublicView`]: publicData,
+      [`flags.${MODULE_ID}.-=tavernData`]: null
+    };
     if (link) {
-      const nextLink = foundry.utils.deepClone(link);
-      nextLink.tavernId = tavern.id;
-      nextLink.tavernName = tavern.name;
-      nextLink.tavernData = publicData;
-      nextLink.updatedAt = Date.now();
-      await scene.setFlag(MODULE_ID, "shopButton", nextLink);
+      const nextLink = {
+        ...foundry.utils.deepClone(link),
+        tavernId: tavern.id,
+        tavernName: tavern.name,
+        tavernPublicView: publicData,
+        updatedAt: Date.now()
+      };
+      delete nextLink.tavernData;
+      update[`flags.${MODULE_ID}.shopButton`] = nextLink;
+    }
+
+    if (typeof scene.update === "function") await scene.update(update);
+    else {
+      await scene.setFlag?.(MODULE_ID, "tavernPublicView", publicData);
+      await scene.unsetFlag?.(MODULE_ID, "tavernData");
+      if (update[`flags.${MODULE_ID}.shopButton`]) {
+        await scene.setFlag?.(MODULE_ID, "shopButton", update[`flags.${MODULE_ID}.shopButton`]);
+      }
     }
     return true;
   }
 
   static async requestPurchase({ actorId, category, entryId, quantity = 1, days = 1, tavernId = null, sceneId = null, requestId = foundry.utils.randomID(20) }) {
+    if (!this.#available && !game.user?.isGM) {
+      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+      return null;
+    }
+    const targetGM = this.responsibleGMId();
+    if (!targetGM) {
+      ui.notifications.warn("Нет активного ГМа, который может обработать покупку.");
+      return null;
+    }
+
     const payload = {
       type: "purchase-request",
       requestId,
-      sender: game.user.id,
+      targetGM,
       actorId,
       category,
       entryId,
@@ -83,84 +141,101 @@ export class TavernSocket {
       sceneId
     };
 
-    if (this.isResponsibleGM()) await this.#handlePurchase(payload);
-    else if (!this.#hasActiveGM()) {
-      ui.notifications.warn("Нет активного ГМа, который может обработать покупку.");
-      return null;
-    } else this.emit(payload);
+    if (targetGM === game.user.id) {
+      payload.sender = game.user.id;
+      await this.#handlePurchase(payload);
+    } else {
+      await this.emit(payload);
+    }
     return requestId;
   }
 
   static async requestCartPurchase({ actorId, items = [], tavernId = null, sceneId = null, requestId = foundry.utils.randomID(20) }) {
+    if (!this.#available && !game.user?.isGM) {
+      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+      return null;
+    }
+    const targetGM = this.responsibleGMId();
+    if (!targetGM) {
+      ui.notifications.warn("Нет активного ГМа, который может обработать оплату корзины.");
+      return null;
+    }
+
     const payload = {
       type: "cart-purchase-request",
       requestId,
-      sender: game.user.id,
+      targetGM,
       actorId,
       items,
       tavernId,
       sceneId
     };
 
-    if (this.isResponsibleGM()) await this.#handleCartPurchase(payload);
-    else if (!this.#hasActiveGM()) {
-      ui.notifications.warn("Нет активного ГМа, который может обработать оплату корзины.");
-      return null;
-    } else this.emit(payload);
+    if (targetGM === game.user.id) {
+      payload.sender = game.user.id;
+      await this.#handleCartPurchase(payload);
+    } else {
+      await this.emit(payload);
+    }
     return requestId;
   }
 
-  static isResponsibleGM() {
-    if (!game.user.isGM) return false;
-    const activeGMs = game.users.filter((user) => user.active && user.isGM).sort((a, b) => a.id.localeCompare(b.id));
-    return activeGMs[0]?.id === game.user.id;
+  static responsibleGMId() {
+    const users = typeof game.users?.filter === "function"
+      ? game.users.filter((user) => user.active && user.isGM)
+      : [...(game.users ?? [])].filter((user) => user.active && user.isGM);
+    return users.sort((a, b) => a.id.localeCompare(b.id))[0]?.id ?? null;
   }
 
-  static #hasActiveGM() {
-    return game.users.some((user) => user.active && user.isGM);
+  static isResponsibleGM() {
+    return Boolean(game.user?.isGM && this.responsibleGMId() === game.user.id);
   }
 
   static async #onMessage(payload) {
     const type = String(payload?.type ?? "").trim();
     if (!type) return;
 
+    const sender = await TavernSocketIdentity.verify(payload);
+    if (!sender) {
+      console.warn(`${MODULE_ID} | Ignored unsigned, stale, replayed, or invalid socket message`, type);
+      return;
+    }
+
     if (type === "open-player") {
-      if (!game.user.isGM) TavernPlayerApp.openSingleton(payload.tavernData ? { tavern: payload.tavernData } : {});
+      if (!sender.isGM || game.user.isGM) return;
+      TavernPlayerApp.openSingleton({ tavern: payload.tavernData ?? null });
       return;
     }
 
     if (type === "refresh") {
-      if (payload.sender !== game.user.id) this.refreshLocal(payload.tavernData ?? null);
+      if (!sender.isGM || sender.id === game.user.id) return;
+      this.refreshLocal(payload.tavernData ?? null);
       return;
     }
 
     if (type === "purchase-result") {
-      if (payload.userId !== game.user.id) return;
-      if (payload.tavernData) TavernPlayerApp.receiveTavernUpdate(payload.tavernData);
-      TavernPlayerApp.receivePurchaseResult(payload);
-
-      if (payload.ok) {
-        PurchaseSoundService.playForCategory(payload.category).catch((error) => console.debug(`${MODULE_ID} | Purchase sound failed`, error));
-        ui.notifications.info(payload.message);
-      } else {
-        ui.notifications.warn(payload.message);
-      }
-      TavernPlayerApp.renderOpenInstances();
+      if (!sender.isGM || payload.userId !== game.user.id) return;
+      this.#deliverPurchaseResultLocally(payload);
       return;
     }
 
     if (type === "purchase-request") {
-      if (this.isResponsibleGM()) await this.#handlePurchase(payload);
+      if (!game.user.isGM || payload.targetGM !== game.user.id || !this.isResponsibleGM()) return;
+      await this.#handlePurchase(payload);
       return;
     }
 
     if (type === "cart-purchase-request") {
-      if (this.isResponsibleGM()) await this.#handleCartPurchase(payload);
+      if (!game.user.isGM || payload.targetGM !== game.user.id || !this.isResponsibleGM()) return;
+      await this.#handleCartPurchase(payload);
       return;
     }
 
+    if (type === "tavern-link-request" && (!game.user.isGM || payload.targetGM !== game.user.id || !this.isResponsibleGM())) return;
+    if (type === "tavern-link-result" && !sender.isGM) return;
+
     const route = this.#routes.get(type);
-    if (route) await route(payload);
+    if (route) await route(payload, sender);
   }
 
   static async #handlePurchase(payload) {
@@ -181,14 +256,14 @@ export class TavernSocket {
     const cacheKey = this.#requestKey(payload?.sender, requestId);
     const cached = this.#getCachedResult(cacheKey);
     if (cached) {
-      this.#emitPurchaseResult(cached);
+      await this.#emitPurchaseResult(cached);
       return cached;
     }
 
     const inFlight = this.#inFlightRequests.get(cacheKey);
     if (inFlight) {
       const result = await inFlight;
-      this.#emitPurchaseResult(result);
+      await this.#emitPurchaseResult(result);
       return result;
     }
 
@@ -216,13 +291,14 @@ export class TavernSocket {
       });
 
       const firstLine = purchase.lines[0];
+      const soundLine = [...purchase.lines].sort((a, b) => Number(b.total ?? 0) - Number(a.total ?? 0))[0] ?? firstLine;
       const result = {
         type: "purchase-result",
         requestId,
         userId: payload.sender,
         ok: true,
         cart,
-        category: firstLine?.category ?? "food",
+        category: soundLine?.category ?? "food",
         message: cart
           ? `Корзина оплачена. Списано: ${TavernGenerator.formatPrice(purchase.total)}.`
           : firstLine?.lodging
@@ -232,21 +308,32 @@ export class TavernSocket {
       };
 
       this.#rememberResult(cacheKey, result);
-      this.#emitPurchaseResult(result);
+      await this.#emitPurchaseResult(result);
       this.refreshAll(purchase.tavern);
       return result;
     } catch (error) {
       console.error(`${MODULE_ID} | Purchase failed`, error);
+      let tavernData = null;
+      try {
+        tavernData = TavernAtmosphereService.publicView(TavernState.resolveTrustedTavern({
+          tavernId: payload.tavernId,
+          sceneId: payload.sceneId
+        }));
+      } catch (_resolveError) {
+        tavernData = TavernAtmosphereService.publicView(TavernState.getCurrent());
+      }
+
       const result = {
         type: "purchase-result",
         requestId,
         userId: payload.sender,
         ok: false,
         cart,
-        message: error.message ?? String(error)
+        message: error.message ?? String(error),
+        tavernData
       };
       this.#rememberResult(cacheKey, result);
-      this.#emitPurchaseResult(result);
+      await this.#emitPurchaseResult(result);
       return result;
     }
   }
@@ -282,12 +369,28 @@ export class TavernSocket {
     });
   }
 
-  static #emitPurchaseResult(payload) {
+  static async #emitPurchaseResult(payload) {
     if (payload.userId === game.user.id) {
-      this.#onMessage(payload);
+      this.#deliverPurchaseResultLocally(payload);
       return;
     }
-    this.emit(payload);
+    await this.emit(payload);
+  }
+
+  static #deliverPurchaseResultLocally(payload) {
+    if (payload.tavernData) TavernPlayerApp.receiveTavernUpdate(payload.tavernData);
+    const accepted = TavernPlayerApp.receivePurchaseResult(payload);
+    if (accepted === false) return;
+
+    if (payload.ok) {
+      void PurchaseSoundService.playForCategory(payload.category).catch((error) => {
+        console.debug(`${MODULE_ID} | Purchase sound failed`, error);
+      });
+      ui.notifications.info(payload.message);
+    } else {
+      ui.notifications.warn(payload.message);
+    }
+    TavernPlayerApp.renderOpenInstances();
   }
 
   static #rememberResult(cacheKey, result) {
@@ -308,10 +411,18 @@ export class TavernSocket {
     return foundry.utils.deepClone(record.result);
   }
 
-
   static #requestKey(userId, requestId) {
     return `${String(userId ?? "unknown")}:${String(requestId ?? "")}`;
   }
+
+  static async #safeEmit(payload) {
+    try {
+      await this.emit(payload);
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Could not emit signed socket message`, error);
+    }
+  }
+
   static #escapeHtml(value) {
     const text = String(value ?? "");
     if (typeof foundry.utils.escapeHTML === "function") return foundry.utils.escapeHTML(text);

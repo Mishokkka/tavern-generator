@@ -6,12 +6,12 @@ export const DICHTBEIR_NAMES = {
     "Трапезна {adj}",
     "У {noun}",
     "При {terrain}",
-    "Подъ {noun}",
     "Обитель {adj}",
-    "Скитъ {terrain}",
-    "{noun} и {noun}",
-    "У Трехъ {noun}",
-    "Покой {adj}"
+    "Скитъ у {terrain}",
+    "Домъ у {terrain}",
+    "Трапезна у {terrain}",
+    "Покой {adj}",
+    "Обитель у {noun}"
   ],
   "terrain": {
     "city": [

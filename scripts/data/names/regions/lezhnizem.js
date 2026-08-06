@@ -4,14 +4,14 @@ export const LEZHNIZEM_NAMES = {
   "patterns": [
     "У {adj} {noun}",
     "Двор {noun}",
-    "Корчма «{noun}»",
-    "На {terrain}",
-    "Под {noun}",
-    "Старый {terrain}",
+    "Корчма у {noun}",
     "Домъ {adj} {noun}",
-    "{noun} да {noun}",
-    "У Трех {noun}",
-    "Гостиный двор {terrain}"
+    "Под знаком {noun}",
+    "Домъ у {terrain}",
+    "Ночлег у {terrain}",
+    "Гостиный двор у {terrain}",
+    "{noun} у дороги",
+    "Двор {adj} {noun}"
   ],
   "terrain": {
     "city": [
