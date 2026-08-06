@@ -73,7 +73,9 @@ export class TavernMigrations {
     const atmosphere = tavern.atmosphere;
     atmosphere.revision = Math.max(0, Math.trunc(Number(atmosphere.revision ?? 0) || 0));
     atmosphere.updatedAt = Number(atmosphere.updatedAt ?? Date.now()) || Date.now();
-    atmosphere.crowd = Math.max(0, Math.min(100, Math.trunc(Number(atmosphere.crowd ?? atmosphere.mood?.crowd ?? 50) || 50)));
+    const crowdValue = Number(atmosphere.crowd ?? atmosphere.mood?.crowd ?? 50);
+    const crowd = Number.isFinite(crowdValue) ? crowdValue : 50;
+    atmosphere.crowd = Math.max(0, Math.min(100, Math.trunc(crowd)));
     atmosphere.crowdLabel = String(atmosphere.crowdLabel ?? "");
     atmosphere.rumors = this.#normalizeLifeEntries(atmosphere.rumors);
     atmosphere.regulars = this.#normalizeLifeEntries(atmosphere.regulars);

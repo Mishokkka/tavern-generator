@@ -72,18 +72,21 @@ export class CurrencyAdapter {
   }
 
   static async addFlagWallet(actor, coins = {}) {
-    const current = this.#sanitizeWallet(actor.getFlag(MODULE_ID, "wallet") ?? {});
-    const next = {
-      gold: current.gold + (Number(coins.gold) || 0),
-      silver: current.silver + (Number(coins.silver) || 0),
-      copper: current.copper + (Number(coins.copper) || 0)
-    };
-    await actor.setFlag(MODULE_ID, "wallet", next);
-    return next;
+    return this.#addToWallet(actor, coins, { forceFlags: true });
   }
 
   static async addMoney(actor, coins = {}) {
-    const wallet = this.getWallet(actor);
+    return this.#addToWallet(actor, coins);
+  }
+
+  static async #addToWallet(actor, coins, { forceFlags = false } = {}) {
+    const wallet = forceFlags
+      ? {
+          source: "flags",
+          paths: null,
+          coins: this.#sanitizeWallet(actor.getFlag(MODULE_ID, "wallet") ?? {})
+        }
+      : this.getWallet(actor);
     const delta = this.#sanitizeWallet(coins);
     const next = {
       gold: wallet.coins.gold + delta.gold,

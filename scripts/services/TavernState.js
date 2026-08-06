@@ -81,10 +81,10 @@ export class TavernState {
     return TavernMigrations.migrate(game.settings.get(MODULE_ID, "currentTavern"));
   }
 
-  static async setCurrent(tavern) {
+  static async setCurrent(tavern, { touch = true } = {}) {
     if (!game.user.isGM) throw new Error("Only a GM can set the active tavern.");
     const migrated = TavernMigrations.migrate(tavern);
-    migrated.updatedAt = Date.now();
+    if (touch || !Number.isFinite(Number(migrated.updatedAt))) migrated.updatedAt = Date.now();
     if (TavernPrivateStore.active) {
       const state = TavernPrivateStore.state;
       state.current = foundry.utils.deepClone(migrated);
@@ -107,8 +107,8 @@ export class TavernState {
   }
 
   static getSaved() {
+    if (!game.user?.isGM) return [];
     if (TavernPrivateStore.active) {
-      if (!game.user?.isGM) return [];
       return TavernMigrations.migrateMany(TavernPrivateStore.state.saved);
     }
     const saved = game.settings.get(MODULE_ID, "savedTaverns");
@@ -227,7 +227,7 @@ export class TavernState {
 
     const current = this.getCurrent();
     if (snapshot.currentMatched) {
-      await this.setCurrent(foundry.utils.deepClone(snapshot.current));
+      await this.setCurrent(foundry.utils.deepClone(snapshot.current), { touch: false });
     } else if (current?.id === id) {
       await this.clearCurrent();
     }
@@ -246,8 +246,8 @@ export class TavernState {
     const current = this.getCurrent();
     const saved = this.getSavedById(updated.id);
 
-    if (current?.id === updated.id) updated = await this.setCurrent(updated);
     if (saved) updated = await this.saveTavern(updated);
+    if (current?.id === updated.id) updated = await this.setCurrent(updated, { touch: !saved });
     if (current?.id !== updated.id && !saved) {
       throw new Error("Таверна не сохранена в доверенном состоянии ГМа. Сначала сохрани или активируй её.");
     }

@@ -45,7 +45,10 @@ const API = {
   getCurrent: () => TavernState.getCurrent(),
   getSaved: () => TavernState.getSaved(),
   saveCurrent: () => TavernState.saveTavern(TavernState.getCurrent()),
-  addFlagMoney: async (actor, coins) => CurrencyAdapter.addMoney(actor, coins),
+  addFlagMoney: async (actor, coins) => {
+    if (!game.user?.isGM) throw new Error("Только ГМ может изменять кошелёк через API таверны.");
+    return CurrencyAdapter.addMoney(actor, coins);
+  },
   setCleanlinessHandler: (handler) => CleanlinessAdapter.setHandler(handler),
   validateData: () => TavernDataValidator.validate(),
   createScene: (tavern, config) => TavernSceneService.createSceneForTavern(tavern ?? TavernState.getCurrent(), config),
@@ -91,7 +94,15 @@ Hooks.once("setup", () => {
 });
 
 Hooks.once("ready", async () => {
-  await TavernState.initialize();
+  try {
+    await TavernState.initialize();
+  } catch (error) {
+    console.error(`${MODULE_ID} | Failed to initialize tavern state`, error);
+    if (game.user?.isGM) {
+      ui.notifications.error(`FBL Tavern Generator: не удалось инициализировать закрытое хранилище таверн. ${error?.message ?? error}`);
+    }
+  }
+
   if (game.user.isGM && dataValidationReport?.errors?.length) {
     ui.notifications.error(`FBL Tavern Generator: найдено ошибок данных: ${dataValidationReport.errors.length}. Подробности в консоли F12.`);
   } else if (game.user.isGM && dataValidationReport?.warnings?.length) {

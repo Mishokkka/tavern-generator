@@ -7,7 +7,7 @@ import { TavernPurchaseService } from "./TavernPurchaseService.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
 import { TavernSocketIdentity } from "./TavernSocketIdentity.js";
 
-const RESULT_CACHE_TTL = 5 * 60 * 1000;
+const RESULT_CACHE_TTL = 30 * 60 * 1000;
 
 export class TavernSocket {
   static #registered = false;
@@ -118,13 +118,13 @@ export class TavernSocket {
   }
 
   static async requestPurchase({ actorId, category, entryId, quantity = 1, days = 1, tavernId = null, sceneId = null, requestId = foundry.utils.randomID(20) }) {
-    if (!this.#available && !game.user?.isGM) {
-      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
-      return null;
-    }
     const targetGM = this.responsibleGMId();
     if (!targetGM) {
       ui.notifications.warn("Нет активного ГМа, который может обработать покупку.");
+      return null;
+    }
+    if (targetGM !== game.user.id && !this.#available) {
+      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
       return null;
     }
 
@@ -151,13 +151,13 @@ export class TavernSocket {
   }
 
   static async requestCartPurchase({ actorId, items = [], tavernId = null, sceneId = null, requestId = foundry.utils.randomID(20) }) {
-    if (!this.#available && !game.user?.isGM) {
-      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
-      return null;
-    }
     const targetGM = this.responsibleGMId();
     if (!targetGM) {
       ui.notifications.warn("Нет активного ГМа, который может обработать оплату корзины.");
+      return null;
+    }
+    if (targetGM !== game.user.id && !this.#available) {
+      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
       return null;
     }
 
@@ -256,14 +256,14 @@ export class TavernSocket {
     const cacheKey = this.#requestKey(payload?.sender, requestId);
     const cached = this.#getCachedResult(cacheKey);
     if (cached) {
-      await this.#emitPurchaseResult(cached);
+      await this.#safeEmitPurchaseResult(cached);
       return cached;
     }
 
     const inFlight = this.#inFlightRequests.get(cacheKey);
     if (inFlight) {
       const result = await inFlight;
-      await this.#emitPurchaseResult(result);
+      await this.#safeEmitPurchaseResult(result);
       return result;
     }
 
@@ -308,8 +308,12 @@ export class TavernSocket {
       };
 
       this.#rememberResult(cacheKey, result);
-      await this.#emitPurchaseResult(result);
-      this.refreshAll(purchase.tavern);
+      try {
+        this.refreshAll(purchase.tavern);
+      } catch (error) {
+        console.warn(`${MODULE_ID} | Purchase committed, but tavern refresh failed`, error);
+      }
+      await this.#safeEmitPurchaseResult(result);
       return result;
     } catch (error) {
       console.error(`${MODULE_ID} | Purchase failed`, error);
@@ -333,7 +337,7 @@ export class TavernSocket {
         tavernData
       };
       this.#rememberResult(cacheKey, result);
-      await this.#emitPurchaseResult(result);
+      await this.#safeEmitPurchaseResult(result);
       return result;
     }
   }
@@ -375,6 +379,16 @@ export class TavernSocket {
       return;
     }
     await this.emit(payload);
+  }
+
+  static async #safeEmitPurchaseResult(payload) {
+    try {
+      await this.#emitPurchaseResult(payload);
+      return true;
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Could not deliver purchase result`, error);
+      return false;
+    }
   }
 
   static #deliverPurchaseResultLocally(payload) {
