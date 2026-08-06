@@ -64,15 +64,17 @@ export class TavernPrivateStore {
 
   static async write(state) {
     if (!game.user?.isGM || !this.#active || !this.#journal) return false;
+    const journal = this.#journal;
     const next = this.#sanitize(state);
+    await journal.setFlag(MODULE_ID, STORE_FLAG, foundry.utils.deepClone(next));
+    if (!this.#active || this.#journal !== journal) return false;
     this.#state = next;
-    await this.#journal.setFlag(MODULE_ID, STORE_FLAG, foundry.utils.deepClone(next));
     return true;
   }
 
   static #findJournal(configuredId = "") {
     const byId = configuredId ? game.journal.get?.(configuredId) : null;
-    if (byId) return byId;
+    if (byId?.getFlag?.(MODULE_ID, STORE_MARKER) === true) return byId;
     return game.journal.find?.((entry) => entry.getFlag?.(MODULE_ID, STORE_MARKER) === true) ?? null;
   }
 

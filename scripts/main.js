@@ -95,11 +95,15 @@ Hooks.once("setup", () => {
 
 Hooks.once("ready", async () => {
   try {
-    await TavernState.initialize();
+    const stateReady = await TavernState.initialize();
+    if (game.user?.isGM && !stateReady) {
+      throw new Error("Закрытое хранилище таверн недоступно.");
+    }
   } catch (error) {
     console.error(`${MODULE_ID} | Failed to initialize tavern state`, error);
     if (game.user?.isGM) {
       ui.notifications.error(`FBL Tavern Generator: не удалось инициализировать закрытое хранилище таверн. ${error?.message ?? error}`);
+      return;
     }
   }
 

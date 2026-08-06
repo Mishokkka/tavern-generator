@@ -54,7 +54,10 @@ export class TavernState {
 
   static async initialize() {
     const active = await TavernPrivateStore.initialize();
-    if (!active) return false;
+    if (!active) {
+      if (game.user?.isGM) throw new Error("Закрытое хранилище таверн недоступно.");
+      return false;
+    }
 
     const stored = TavernPrivateStore.state;
     const storedCurrent = TavernMigrations.migrate(stored.current);
@@ -68,7 +71,7 @@ export class TavernState {
       ? { current: storedCurrent, saved: storedSaved }
       : { current: legacyCurrent, saved: legacySaved };
 
-    await TavernPrivateStore.write(state);
+    await this.#writePrivateState(state);
     await this.#mirrorPublicState(state.current);
     if (legacySaved.length) await game.settings.set(MODULE_ID, "savedTaverns", []);
     return true;
@@ -83,49 +86,38 @@ export class TavernState {
 
   static async setCurrent(tavern, { touch = true } = {}) {
     if (!game.user.isGM) throw new Error("Only a GM can set the active tavern.");
+    this.#assertPrivateStoreWritable();
     const migrated = TavernMigrations.migrate(tavern);
     if (touch || !Number.isFinite(Number(migrated.updatedAt))) migrated.updatedAt = Date.now();
-    if (TavernPrivateStore.active) {
-      const state = TavernPrivateStore.state;
-      state.current = foundry.utils.deepClone(migrated);
-      await TavernPrivateStore.write(state);
-      await this.#mirrorPublicState(migrated);
-    } else {
-      await game.settings.set(MODULE_ID, "currentTavern", foundry.utils.deepClone(migrated));
-    }
+    const state = TavernPrivateStore.state;
+    state.current = foundry.utils.deepClone(migrated);
+    await this.#writePrivateState(state);
+    await this.#mirrorPublicState(migrated);
     return migrated;
   }
 
   static async clearCurrent() {
     if (!game.user.isGM) throw new Error("Only a GM can clear the active tavern.");
-    if (TavernPrivateStore.active) {
-      const state = TavernPrivateStore.state;
-      state.current = null;
-      await TavernPrivateStore.write(state);
-    }
+    this.#assertPrivateStoreWritable();
+    const state = TavernPrivateStore.state;
+    state.current = null;
+    await this.#writePrivateState(state);
     await game.settings.set(MODULE_ID, "currentTavern", null);
   }
 
   static getSaved() {
-    if (!game.user?.isGM) return [];
-    if (TavernPrivateStore.active) {
-      return TavernMigrations.migrateMany(TavernPrivateStore.state.saved);
-    }
-    const saved = game.settings.get(MODULE_ID, "savedTaverns");
-    return TavernMigrations.migrateMany(Array.isArray(saved) ? saved : []);
+    if (!game.user?.isGM || !TavernPrivateStore.active) return [];
+    return TavernMigrations.migrateMany(TavernPrivateStore.state.saved);
   }
 
   static async setSavedMany(taverns) {
     if (!game.user.isGM) throw new Error("Only a GM can update saved taverns.");
+    this.#assertPrivateStoreWritable();
     const migrated = TavernMigrations.migrateMany(taverns ?? []);
     migrated.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    if (TavernPrivateStore.active) {
-      const state = TavernPrivateStore.state;
-      state.saved = foundry.utils.deepClone(migrated);
-      await TavernPrivateStore.write(state);
-    } else {
-      await game.settings.set(MODULE_ID, "savedTaverns", migrated);
-    }
+    const state = TavernPrivateStore.state;
+    state.saved = foundry.utils.deepClone(migrated);
+    await this.#writePrivateState(state);
     return migrated;
   }
 
@@ -388,6 +380,20 @@ export class TavernState {
     }
 
     return null;
+  }
+
+  static #assertPrivateStoreWritable() {
+    if (!TavernPrivateStore.active) {
+      throw new Error("Закрытое хранилище таверн недоступно. Изменения не сохранены.");
+    }
+  }
+
+  static async #writePrivateState(state) {
+    this.#assertPrivateStoreWritable();
+    const written = await TavernPrivateStore.write(state);
+    if (!written) {
+      throw new Error("Закрытое хранилище таверн стало недоступно. Изменения не сохранены.");
+    }
   }
 
   static async #mirrorPublicState(tavern) {

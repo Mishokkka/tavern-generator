@@ -71,13 +71,25 @@ export class FoundryDocumentUtils {
 
     const existing = this.#packUnlocks.get(key);
     if (existing) {
+      if (existing.relocking) {
+        try {
+          await existing.relocking;
+        } catch (_error) {
+          // A failed relock leaves the pack available and the record retryable.
+        }
+        return this.unlockPack(pack);
+      }
+      if (existing.count === 0 && pack.locked) {
+        this.#packUnlocks.delete(key);
+        return this.unlockPack(pack);
+      }
       existing.count += 1;
       await existing.ready;
       return true;
     }
     if (!pack.locked) return false;
 
-    const record = { count: 1, ready: null };
+    const record = { count: 1, ready: null, relocking: null };
     record.ready = (async () => {
       if (typeof pack.configure === "function") await pack.configure({ locked: false });
       else pack.locked = false;
@@ -100,13 +112,23 @@ export class FoundryDocumentUtils {
     if (!record) return false;
 
     await record.ready;
-    record.count -= 1;
-    if (record.count > 0) return true;
-    this.#packUnlocks.delete(key);
+    if (record.relocking) return record.relocking;
 
-    if (typeof pack.configure === "function") await pack.configure({ locked: true });
-    else pack.locked = true;
-    return true;
+    if (record.count > 0) record.count -= 1;
+    if (record.count > 0) return true;
+
+    record.relocking = (async () => {
+      if (typeof pack.configure === "function") await pack.configure({ locked: true });
+      else pack.locked = true;
+      if (this.#packUnlocks.get(key) === record) this.#packUnlocks.delete(key);
+      return true;
+    })();
+
+    try {
+      return await record.relocking;
+    } finally {
+      if (this.#packUnlocks.get(key) === record) record.relocking = null;
+    }
   }
 
   static async findIndexEntryByFlag(pack, flagPath, expectedValue) {

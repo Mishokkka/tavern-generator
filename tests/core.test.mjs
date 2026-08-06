@@ -238,9 +238,9 @@ test("manual new day advances and persists only the selected tavern", async () =
   setSetting("dailyInventoryRefreshEnabled", false);
   setSetting("dailyMenuRotationEnabled", false);
   setSetting("dailyAtmosphereRefreshEnabled", false);
-  setSetting("currentTavern", selected);
-  setSetting("savedTaverns", [selected, untouched]);
-  game.user = { id: "gm-manual-day", isGM: true };
+  const store = await activatePrivateStore();
+  await store.write({ current: selected, saved: [selected, untouched] });
+  setSetting("currentTavern", TavernAtmosphereService.publicView(selected));
 
   const result = await TavernDailyService.advanceTavern(selected, {
     dayKey: "manual:test",
@@ -255,7 +255,7 @@ test("manual new day advances and persists only the selected tavern", async () =
   assert.equal(getSetting("currentTavern").id, selected.id);
   assert.equal(getSetting("currentTavern").refreshState.lastReason, "gm-header");
 
-  const saved = getSetting("savedTaverns");
+  const saved = store.state.saved;
   assert.equal(saved.find((entry) => entry.id === selected.id).refreshState.lastReason, "gm-header");
   assert.deepEqual(saved.find((entry) => entry.id === untouched.id).refreshState, {});
 });
@@ -283,8 +283,9 @@ test("authoritative purchase changes trusted stock and wallet", async () => {
   tavern.atmosphere.mood.crowd = 0;
 
   setSetting("currencyMode", "flags");
-  setSetting("currentTavern", tavern);
-  setSetting("savedTaverns", []);
+  const store = await activatePrivateStore();
+  await store.write({ current: tavern, saved: [] });
+  setSetting("currentTavern", TavernAtmosphereService.publicView(tavern));
 
   const user = { id: "user-1", name: "Игрок", active: true };
   const actor = makeActor({ copper: 100 });
@@ -301,6 +302,7 @@ test("authoritative purchase changes trusted stock and wallet", async () => {
 
   assert.equal(result.total, 10);
   assert.equal(actor.wallet().copper, 90);
+  assert.equal(store.state.current.inventory.food.find((entry) => entry.id === item.id).stock, item.stock - 2);
   assert.equal(getSetting("currentTavern").inventory.food.find((entry) => entry.id === item.id).stock, item.stock - 2);
 });
 
@@ -315,8 +317,9 @@ test("failed tavern persistence restores wallet and trusted storage", async () =
   tavern.atmosphere.mood.crowd = 0;
 
   setSetting("currencyMode", "flags");
-  setSetting("currentTavern", tavern);
-  setSetting("savedTaverns", []);
+  const store = await activatePrivateStore();
+  await store.write({ current: tavern, saved: [] });
+  setSetting("currentTavern", TavernAtmosphereService.publicView(tavern));
 
   const user = { id: "user-2", name: "Игрок", active: true };
   const actor = makeActor({ id: "actor-2", copper: 100 });
@@ -346,6 +349,7 @@ test("failed tavern persistence restores wallet and trusted storage", async () =
   }
 
   assert.equal(actor.wallet().copper, 100);
+  assert.equal(store.state.current.inventory.food.find((entry) => entry.id === item.id).stock, item.stock);
   assert.equal(getSetting("currentTavern").inventory.food.find((entry) => entry.id === item.id).stock, item.stock);
 });
 
@@ -416,6 +420,73 @@ test("private GM store strips explicit player ownership", async () => {
 
   await store.initialize();
   assert.deepEqual(privateStoreJournal.ownership, { default: 0 });
+});
+
+test("private GM store ignores an unmarked configured journal", async () => {
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0 } };
+  const staleJournal = {
+    id: "unrelated-journal",
+    ownership: { default: 2, "player-explicit": 2 },
+    flags: {},
+    updates: 0,
+    getFlag(moduleId, key) { return this.flags?.[moduleId]?.[key]; },
+    async update() {
+      this.updates += 1;
+      return this;
+    }
+  };
+  let createdJournal = null;
+  const journals = new Map([[staleJournal.id, staleJournal]]);
+  game.journal = {
+    get: (id) => journals.get(id) ?? null,
+    find: (predicate) => [...journals.values()].find(predicate) ?? null
+  };
+  globalThis.JournalEntry = {
+    create: async (data) => {
+      createdJournal = {
+        id: "replacement-private-store",
+        ownership: structuredClone(data.ownership),
+        flags: structuredClone(data.flags),
+        getFlag(moduleId, key) { return this.flags?.[moduleId]?.[key]; },
+        async setFlag(moduleId, key, value) {
+          this.flags[moduleId] ??= {};
+          this.flags[moduleId][key] = structuredClone(value);
+          return value;
+        },
+        async update() { return this; }
+      };
+      journals.set(createdJournal.id, createdJournal);
+      privateStoreJournal = createdJournal;
+      return createdJournal;
+    }
+  };
+
+  const gm = { id: "gm-private-store-marker", isGM: true, active: true };
+  game.user = gm;
+  game.users = [gm];
+  setSetting("privateStateJournalId", staleJournal.id);
+
+  assert.equal(await TavernPrivateStore.initialize(), true);
+  assert.equal(staleJournal.updates, 0);
+  assert.deepEqual(staleJournal.ownership, { default: 2, "player-explicit": 2 });
+  assert.equal(createdJournal?.getFlag("fbl-tavern-generator", "privateStateStore"), true);
+  assert.equal(getSetting("privateStateJournalId"), createdJournal.id);
+});
+
+test("tavern state writes fail closed while the private store is inactive", async () => {
+  setSetting("savedTaverns", [{ id: "legacy-private", name: "Legacy private tavern" }]);
+  game.user = { id: "player-reset-store", isGM: false, active: true };
+  game.users = [game.user];
+  assert.equal(await TavernPrivateStore.initialize(), false);
+
+  const gm = { id: "gm-fail-closed", isGM: true, active: true };
+  game.user = gm;
+  game.users = [gm];
+  await assert.rejects(
+    () => TavernState.setSavedMany([{ id: "must-not-persist", name: "Must not persist" }]),
+    /Закрытое хранилище таверн недоступно/
+  );
+  assert.deepEqual(getSetting("savedTaverns"), [{ id: "legacy-private", name: "Legacy private tavern" }]);
 });
 
 test("partial entry edits preserve the unlimited flag", () => {
@@ -527,6 +598,33 @@ test("concurrent compendium writers keep a module-unlocked pack open until all f
   assert.equal(await FoundryDocumentUtils.relockPack(pack, true), true);
   assert.equal(pack.locked, true);
   assert.deepEqual(calls, [false, true]);
+});
+
+
+test("failed compendium relock remains retryable", async () => {
+  let relockAttempts = 0;
+  const calls = [];
+  const pack = {
+    collection: "world.retry-relock-pack",
+    locked: true,
+    async configure({ locked }) {
+      calls.push(locked);
+      if (locked && relockAttempts++ === 0) throw new Error("simulated relock failure");
+      this.locked = locked;
+    }
+  };
+
+  assert.equal(await FoundryDocumentUtils.unlockPack(pack), true);
+  assert.equal(pack.locked, false);
+  await assert.rejects(
+    () => FoundryDocumentUtils.relockPack(pack, true),
+    /simulated relock failure/
+  );
+  assert.equal(pack.locked, false);
+
+  assert.equal(await FoundryDocumentUtils.relockPack(pack, true), true);
+  assert.equal(pack.locked, true);
+  assert.deepEqual(calls, [false, true, true]);
 });
 
 test("socket signatures survive JSON omission of undefined object properties", async () => {
