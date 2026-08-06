@@ -315,7 +315,7 @@ export class TavernSceneService {
     });
     Hooks.on("canvasTearDown", () => this.#removeSceneMenuButton());
     Hooks.on("updateScene", (scene) => {
-      if (scene?.id !== canvas?.scene?.id) return;
+      if (scene?.id !== globalThis.canvas?.scene?.id) return;
       this.refreshSceneMenuButton();
     });
   }
@@ -325,7 +325,7 @@ export class TavernSceneService {
     this.#socketHandlersRegistered = true;
 
     TavernSocket.on("tavern-link-request", async (payload) => {
-      if (!TavernSocket.isResponsibleGM()) return;
+      if (!game.user?.isGM) return;
       await this.#handleTavernLinkRequest(payload);
     });
 
@@ -434,7 +434,7 @@ export class TavernSceneService {
       sceneData.height = dimensions.height;
     }
 
-    const tavernData = TavernAtmosphereService.publicView(tavern);
+    const tavernPublicView = TavernAtmosphereService.publicView(tavern);
     sceneData.flags ??= {};
     sceneData.flags[MODULE_ID] = {
       tavernId: tavern.id,
@@ -442,7 +442,7 @@ export class TavernSceneService {
       region: tavern.region,
       quality: tavern.quality,
       imagePath,
-      tavernData,
+      tavernPublicView,
       createdAt: Date.now()
     };
 
@@ -495,19 +495,24 @@ export class TavernSceneService {
     if (!scene) return { updated: false, scene: null };
 
     const publicData = TavernAtmosphereService.publicView(tavern);
-    await scene.setFlag(MODULE_ID, "tavernData", publicData);
+    const update = {
+      [`flags.${MODULE_ID}.tavernPublicView`]: publicData,
+      [`flags.${MODULE_ID}.-=tavernData`]: null
+    };
 
     const existingLink = scene.getFlag?.(MODULE_ID, "shopButton") ?? scene.flags?.[MODULE_ID]?.shopButton;
     if (existingLink) {
       const nextLink = foundry.utils.deepClone(existingLink);
       nextLink.tavernId = tavern.id;
       nextLink.tavernName = tavern.name;
-      nextLink.tavernData = publicData;
+      nextLink.tavernPublicView = publicData;
+      delete nextLink.tavernData;
       nextLink.updatedAt = Date.now();
-      await scene.setFlag(MODULE_ID, "shopButton", nextLink);
+      update[`flags.${MODULE_ID}.shopButton`] = nextLink;
     }
+    await scene.update(update);
 
-    if (canvas?.scene?.id === scene.id) this.refreshSceneMenuButton();
+    if (globalThis.canvas?.scene?.id === scene.id) this.refreshSceneMenuButton();
     return { updated: true, scene };
   }
 
@@ -519,16 +524,22 @@ export class TavernSceneService {
 
     for (const scene of scenes) {
       let changed = false;
-      const tavernData = scene.getFlag?.(MODULE_ID, "tavernData") ?? scene.flags?.[MODULE_ID]?.tavernData;
-      if (this.#containsPrivateAtmosphere(tavernData)) {
-        await scene.setFlag(MODULE_ID, "tavernData", TavernAtmosphereService.publicView(tavernData));
+      const legacyTavernData = scene.getFlag?.(MODULE_ID, "tavernData") ?? scene.flags?.[MODULE_ID]?.tavernData;
+      const tavernPublicView = scene.getFlag?.(MODULE_ID, "tavernPublicView") ?? scene.flags?.[MODULE_ID]?.tavernPublicView;
+      if (legacyTavernData || this.#containsPrivateAtmosphere(tavernPublicView)) {
+        const source = legacyTavernData ?? tavernPublicView;
+        await scene.update({
+          [`flags.${MODULE_ID}.tavernPublicView`]: TavernAtmosphereService.publicView(source),
+          [`flags.${MODULE_ID}.-=tavernData`]: null
+        });
         changed = true;
       }
 
       const link = scene.getFlag?.(MODULE_ID, "shopButton") ?? scene.flags?.[MODULE_ID]?.shopButton;
-      if (this.#containsPrivateAtmosphere(link?.tavernData)) {
+      if (link?.tavernData || this.#containsPrivateAtmosphere(link?.tavernPublicView)) {
         const sanitizedLink = foundry.utils.deepClone(link);
-        sanitizedLink.tavernData = TavernAtmosphereService.publicView(link.tavernData);
+        sanitizedLink.tavernPublicView = TavernAtmosphereService.publicView(link.tavernData ?? link.tavernPublicView);
+        delete sanitizedLink.tavernData;
         await scene.setFlag(MODULE_ID, "shopButton", sanitizedLink);
         changed = true;
       }
@@ -553,10 +564,12 @@ export class TavernSceneService {
       compendium: tavern.scene?.compendium ?? scene.getFlag?.(MODULE_ID, "compendium") ?? null
     });
 
-    await scene.setFlag(MODULE_ID, "shopButton", link);
-    await scene.setFlag(MODULE_ID, "shopButtonEnabled", true);
+    await scene.update({
+      [`flags.${MODULE_ID}.shopButton`]: link,
+      [`flags.${MODULE_ID}.shopButtonEnabled`]: true
+    });
 
-    if (canvas?.scene?.id === scene.id) this.refreshSceneMenuButton();
+    if (globalThis.canvas?.scene?.id === scene.id) this.refreshSceneMenuButton();
 
     return {
       id: "scene-shop-button",
@@ -618,54 +631,58 @@ export class TavernSceneService {
     if (!scene) throw new Error("Сцена для архивации не найдена.");
 
     const pack = await this.#ensureScenePack();
-    await this.#unlockPack(pack);
-
-    const data = scene.toObject();
-    delete data._id;
-    delete data._stats;
-    data.folder = await this.#ensurePackFolder(pack, this.#regionLabel(tavern?.region ?? data.flags?.[MODULE_ID]?.region), "Scene");
-    data.thumb = null;
-    data.flags ??= {};
-    data.flags[MODULE_ID] ??= {};
-    data.flags[MODULE_ID].tavernId = tavern?.id ?? data.flags[MODULE_ID].tavernId;
-    data.flags[MODULE_ID].tavernName = tavern?.name ?? data.flags[MODULE_ID].tavernName;
-    data.flags[MODULE_ID].sourceSceneId = scene.id;
-    data.flags[MODULE_ID].sourceSceneUuid = scene.uuid;
-    data.flags[MODULE_ID].archivedAt = Date.now();
-
-    const existing = tavern?.id ? await this.#findArchivedScene(pack, tavern.id) : null;
-    let archived;
-
-    if (existing?._id) {
-      const update = foundry.utils.deepClone(data);
-      update._id = existing._id;
-      const updated = await Scene.implementation.updateDocuments([update], { pack: pack.collection });
-      archived = updated?.[0] ?? await pack.getDocument(existing._id);
-    } else {
-      const created = await Scene.implementation.createDocuments([data], { pack: pack.collection });
-      archived = created?.[0];
-    }
-
-    if (!archived) throw new Error("Не удалось сохранить сцену в компендиум.");
-
-    const archiveMeta = {
-      pack: pack.collection,
-      id: archived.id,
-      uuid: archived.uuid,
-      name: archived.name,
-      archivedAt: Date.now()
-    };
+    const wasUnlocked = await this.#unlockPack(pack);
 
     try {
-      await Scene.implementation.updateDocuments([{
-        _id: archived.id,
-        [`flags.${MODULE_ID}.compendium`]: archiveMeta
-      }], { pack: pack.collection });
-    } catch (error) {
-      console.debug(`${MODULE_ID} | Could not write self compendium flag`, error);
-    }
+      const data = scene.toObject();
+      delete data._id;
+      delete data._stats;
+      data.folder = await this.#ensurePackFolder(pack, this.#regionLabel(tavern?.region ?? data.flags?.[MODULE_ID]?.region), "Scene");
+      data.thumb = null;
+      data.flags ??= {};
+      data.flags[MODULE_ID] ??= {};
+      data.flags[MODULE_ID].tavernId = tavern?.id ?? data.flags[MODULE_ID].tavernId;
+      data.flags[MODULE_ID].tavernName = tavern?.name ?? data.flags[MODULE_ID].tavernName;
+      data.flags[MODULE_ID].sourceSceneId = scene.id;
+      data.flags[MODULE_ID].sourceSceneUuid = scene.uuid;
+      data.flags[MODULE_ID].archivedAt = Date.now();
 
-    return archiveMeta;
+      const existing = tavern?.id ? await this.#findArchivedScene(pack, tavern.id) : null;
+      let archived;
+
+      if (existing?._id) {
+        const update = foundry.utils.deepClone(data);
+        update._id = existing._id;
+        const updated = await Scene.implementation.updateDocuments([update], { pack: pack.collection });
+        archived = updated?.[0] ?? await pack.getDocument(existing._id);
+      } else {
+        const created = await Scene.implementation.createDocuments([data], { pack: pack.collection });
+        archived = created?.[0];
+      }
+
+      if (!archived) throw new Error("Не удалось сохранить сцену в компендиум.");
+
+      const archiveMeta = {
+        pack: pack.collection,
+        id: archived.id,
+        uuid: archived.uuid,
+        name: archived.name,
+        archivedAt: Date.now()
+      };
+
+      try {
+        await Scene.implementation.updateDocuments([{
+          _id: archived.id,
+          [`flags.${MODULE_ID}.compendium`]: archiveMeta
+        }], { pack: pack.collection });
+      } catch (error) {
+        console.debug(`${MODULE_ID} | Could not write self compendium flag`, error);
+      }
+
+      return archiveMeta;
+    } finally {
+      await FoundryDocumentUtils.relockPack(pack, wasUnlocked);
+    }
   }
 
   static async randomImagePath({ region = "common", quality = "modest" } = {}) {
@@ -683,7 +700,7 @@ export class TavernSceneService {
   static refreshSceneMenuButton() {
     this.#removeSceneMenuButton();
 
-    const scene = canvas?.scene;
+    const scene = globalThis.canvas?.scene;
     if (!scene) return;
 
     const link = this.#linkFromScene(scene);
@@ -736,12 +753,14 @@ export class TavernSceneService {
       const tavern = this.#recoverPublicTavernFromLink(normalized);
       if (tavern) {
         TavernPlayerApp.openSingleton({ tavern });
-        return { scene: canvas?.scene ?? null, tavern };
+        return { scene: globalThis.canvas?.scene ?? null, tavern };
       }
 
-      TavernSocket.emit({
+      const targetGM = TavernSocket.responsibleGMId();
+      if (!targetGM) throw new Error("Нет активного ГМа, который может открыть связанную таверну.");
+      await TavernSocket.emit({
         type: "tavern-link-request",
-        sender: game.user.id,
+        targetGM,
         link: normalized
       });
       return null;
@@ -757,7 +776,7 @@ export class TavernSceneService {
   static async #handleTavernLinkRequest(payload) {
     try {
       const result = await this.#openTavernLinkAsGM(payload.link, { requestingUserId: payload.sender });
-      TavernSocket.emit({
+      await TavernSocket.emit({
         type: "tavern-link-result",
         userId: payload.sender,
         ok: true,
@@ -768,7 +787,7 @@ export class TavernSceneService {
       });
     } catch (error) {
       console.error(`${MODULE_ID} | Tavern link activation failed`, error);
-      TavernSocket.emit({
+      await TavernSocket.emit({
         type: "tavern-link-result",
         userId: payload.sender,
         ok: false,
@@ -812,10 +831,13 @@ export class TavernSceneService {
   }
 
   static #recoverPublicTavernFromLink(link) {
+    if (link?.tavernPublicView) return TavernAtmosphereService.publicView(link.tavernPublicView);
     if (link?.tavernData) return TavernAtmosphereService.publicView(link.tavernData);
 
     const worldScene = link?.sceneId ? game.scenes?.get(link.sceneId) : null;
-    const sceneTavernData = worldScene?.getFlag?.(MODULE_ID, "tavernData")
+    const sceneTavernData = worldScene?.getFlag?.(MODULE_ID, "tavernPublicView")
+      ?? worldScene?.getFlag?.(MODULE_ID, "tavernData")
+      ?? worldScene?.getFlag?.(MODULE_ID, "shopButton")?.tavernPublicView
       ?? worldScene?.getFlag?.(MODULE_ID, "shopButton")?.tavernData
       ?? null;
     return sceneTavernData ? TavernAtmosphereService.publicView(sceneTavernData) : null;
@@ -828,12 +850,6 @@ export class TavernSceneService {
       const saved = TavernState.getSavedById(link.tavernId);
       if (saved) return foundry.utils.deepClone(saved);
     }
-
-    if (link?.tavernData) return foundry.utils.deepClone(link.tavernData);
-
-    const worldScene = link?.sceneId ? game.scenes?.get(link.sceneId) : null;
-    const sceneTavernData = worldScene?.getFlag?.(MODULE_ID, "tavernData");
-    if (sceneTavernData) return foundry.utils.deepClone(sceneTavernData);
 
     return null;
   }
@@ -868,7 +884,10 @@ export class TavernSceneService {
     if (!archived) throw new Error("Архивная сцена не найдена в компендиуме.");
 
     const archivedData = archived.toObject();
-    const region = archivedData.flags?.[MODULE_ID]?.region ?? archivedData.flags?.[MODULE_ID]?.tavernData?.region ?? null;
+    const region = archivedData.flags?.[MODULE_ID]?.region
+      ?? archivedData.flags?.[MODULE_ID]?.tavernPublicView?.region
+      ?? archivedData.flags?.[MODULE_ID]?.tavernData?.region
+      ?? null;
     const worldFolder = await this.#ensureWorldSceneFolder(region);
 
     let scene = null;
@@ -948,18 +967,22 @@ export class TavernSceneService {
   }
 
   static #defaultTavernkeeperTokenPosition(scene, base = {}) {
-    const width = Number(scene?.width ?? canvas?.dimensions?.sceneWidth ?? 1456);
-    const height = Number(scene?.height ?? canvas?.dimensions?.sceneHeight ?? 816);
-    const gridSize = Number(scene?.grid?.size ?? scene?.grid?.distance ?? canvas?.grid?.size ?? 100) || 100;
+    const dimensions = scene?.dimensions ?? globalThis.canvas?.dimensions ?? {};
+    const sceneX = Number(dimensions.sceneX ?? 0) || 0;
+    const sceneY = Number(dimensions.sceneY ?? 0) || 0;
+    const width = Number(dimensions.sceneWidth ?? scene?.width ?? 1456) || 1456;
+    const height = Number(dimensions.sceneHeight ?? scene?.height ?? 816) || 816;
+    const gridSize = Number(scene?.grid?.size ?? scene?.grid?.distance ?? globalThis.canvas?.grid?.size ?? 100) || 100;
     const tokenWidth = Math.max(1, Number(base.width ?? 1)) * gridSize;
     const tokenHeight = Math.max(1, Number(base.height ?? 1)) * gridSize;
-
-    const x = Math.round((width * 0.5) - (tokenWidth / 2));
-    const y = Math.round((height * 0.68) - (tokenHeight / 2));
+    const x = Math.round(sceneX + (width * 0.5) - (tokenWidth / 2));
+    const y = Math.round(sceneY + (height * 0.68) - (tokenHeight / 2));
+    const maxX = Math.max(sceneX, sceneX + width - tokenWidth);
+    const maxY = Math.max(sceneY, sceneY + height - tokenHeight);
 
     return {
-      x: Math.max(0, Math.min(Math.max(0, width - tokenWidth), x)),
-      y: Math.max(0, Math.min(Math.max(0, height - tokenHeight), y))
+      x: Math.max(sceneX, Math.min(maxX, x)),
+      y: Math.max(sceneY, Math.min(maxY, y))
     };
   }
 
@@ -1074,7 +1097,10 @@ export class TavernSceneService {
       });
     }
 
-    const tavernData = scene.getFlag?.(MODULE_ID, "tavernData") ?? scene.flags?.[MODULE_ID]?.tavernData;
+    const tavernData = scene.getFlag?.(MODULE_ID, "tavernPublicView")
+      ?? scene.flags?.[MODULE_ID]?.tavernPublicView
+      ?? scene.getFlag?.(MODULE_ID, "tavernData")
+      ?? scene.flags?.[MODULE_ID]?.tavernData;
     if (!tavernData) return null;
 
     return this.#normalizeLink(this.#linkData({
@@ -1096,7 +1122,7 @@ export class TavernSceneService {
       type,
       tavernId: tavern.id,
       tavernName: tavern.name,
-      tavernData: TavernAtmosphereService.publicView(tavern),
+      tavernPublicView: TavernAtmosphereService.publicView(tavern),
       sceneId,
       sceneUuid,
       imagePath,
@@ -1109,13 +1135,6 @@ export class TavernSceneService {
     if (!link || typeof link !== "object") return null;
     return foundry.utils.deepClone(link);
   }
-
-  static #refreshTavernWindows() {
-    TavernPlayerApp.renderOpenInstances();
-    Hooks.callAll(`${MODULE_ID}.refresh`, { sender: game.user.id });
-    TavernSocket.emit({ type: "refresh", sender: game.user.id });
-  }
-
 
   static async #waitForScene(sceneId, attempts = 10) {
     if (!sceneId) return null;
@@ -1130,7 +1149,7 @@ export class TavernSceneService {
   }
 
   static #missingImagesMessage(tried) {
-    const escaped = tried.map((path) => foundry.utils.escapeHTML(path));
+    const escaped = tried.map((path) => this.#escapeHtml(path));
     return `Не нашел изображений таверны.<br><br>Проверенные папки:<br>${escaped.join("<br>")}`;
   }
 
@@ -1186,8 +1205,7 @@ export class TavernSceneService {
     }
   }
 
-  static #template(templateId) {
-    if (templateId !== "standard") return STANDARD_TEMPLATE;
+  static #template(_templateId) {
     return STANDARD_TEMPLATE;
   }
 

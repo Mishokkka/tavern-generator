@@ -33,7 +33,7 @@ export class TavernEditor {
     const index = entryId ? list.findIndex((entry) => entry.id === entryId) : -1;
     const current = index >= 0 ? list[index] : {};
     const type = key === "drinks" ? "drink" : key === "lodging" ? "room" : key === "services" ? "service" : "food";
-    const unlimited = Boolean(patch.unlimited);
+    const unlimited = Boolean(patch.unlimited ?? current.unlimited);
     const basePrice = Math.max(1, Math.trunc(Number(patch.basePrice ?? current.basePrice ?? current.price ?? 1) || 1));
     const price = Math.max(1, Math.round(basePrice * TavernPricing.normalizeMultiplier(clone.priceMultiplier ?? 1)));
 
@@ -112,8 +112,10 @@ export class TavernEditor {
         room.maxStock = null;
         room.occupied = 0;
       } else {
-        room.total = Math.max(1, Number(room.total ?? 1));
-        room.stock = Math.max(0, Math.min(Number(room.stock ?? room.total), room.total));
+        const rawTotal = Number(room.total ?? 1);
+        room.total = Number.isFinite(rawTotal) ? Math.max(1, rawTotal) : 1;
+        const rawStock = Number(room.stock ?? room.total);
+        room.stock = Math.max(0, Math.min(Number.isFinite(rawStock) ? rawStock : room.total, room.total));
         room.maxStock = room.total;
         room.occupied = Math.max(0, room.total - room.stock);
       }

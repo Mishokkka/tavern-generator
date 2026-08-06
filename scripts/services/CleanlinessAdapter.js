@@ -35,6 +35,7 @@ const LEVEL_TO_WASH_STATE = Object.freeze({
 
 export class CleanlinessAdapter {
   static customHandler = null;
+  static #washSourceCache = new Map();
 
   static setHandler(handler) {
     this.customHandler = typeof handler === "function" ? handler : null;
@@ -138,13 +139,24 @@ export class CleanlinessAdapter {
       .filter((item) => item.type === "criticalInjury" && this.#isWashName(item.name))
       .map((item) => item.id);
 
-    if (oldWashIds.length) await actor.deleteEmbeddedDocuments("Item", oldWashIds);
-
     const source = await this.#findWashConditionSource(targetState);
     const itemData = source ? source.toObject() : this.#makeFallbackWashItem(targetState);
     delete itemData._id;
 
     const created = await actor.createEmbeddedDocuments("Item", [itemData]);
+    const createdId = created?.[0]?.id;
+    try {
+      if (oldWashIds.length) await actor.deleteEmbeddedDocuments("Item", oldWashIds);
+    } catch (error) {
+      if (createdId) {
+        try {
+          await actor.deleteEmbeddedDocuments("Item", [createdId]);
+        } catch (rollbackError) {
+          console.warn(`${MODULE_ID} | Failed to roll back new wash condition`, rollbackError);
+        }
+      }
+      throw error;
+    }
     const resultingState = created?.[0]?.name ?? targetState;
     const finalPayload = {
       ...payload,
@@ -201,10 +213,12 @@ export class CleanlinessAdapter {
     const activeModuleId = LEGACY_API_MODULE_IDS.find((id) => game.modules.get(id)?.active);
     if (!activeModuleId) return null;
 
-    await actor.setFlag(activeModuleId, "washState", payload.targetState);
-    await actor.setFlag(activeModuleId, "cleanliness", payload.level);
-    await actor.setFlag(activeModuleId, "cleanlinessSource", payload.source);
-    await actor.setFlag(MODULE_ID, "lastCleanlinessService", payload);
+    await actor.update({
+      [`flags.${activeModuleId}.washState`]: payload.targetState,
+      [`flags.${activeModuleId}.cleanliness`]: payload.level,
+      [`flags.${activeModuleId}.cleanlinessSource`]: payload.source,
+      [`flags.${MODULE_ID}.lastCleanlinessService`]: payload
+    });
     Hooks.callAll(`${MODULE_ID}.cleanlinessPurchased`, actor, null, payload);
     return {
       applied: true,
@@ -221,29 +235,56 @@ export class CleanlinessAdapter {
 
   static async #findWashConditionSource(name) {
     const normalized = this.#normalize(name);
+    const cachedUuid = this.#washSourceCache.get(normalized);
+    if (cachedUuid) {
+      try {
+        const cached = await globalThis.fromUuid?.(cachedUuid);
+        if (cached?.type === "criticalInjury") return cached;
+      } catch (_error) {
+        this.#washSourceCache.delete(normalized);
+      }
+    }
+
     const configuredUuids = this.#getSetting(EXPANDED_CONDITIONS_ID, "washStateUuids", {}) ?? {};
     const configuredUuid = configuredUuids[name] || configuredUuids[this.#displayWashName(name)] || configuredUuids[normalized];
 
     if (configuredUuid) {
       try {
-        const document = await fromUuid(configuredUuid);
-        if (document?.type === "criticalInjury") return document;
+        const document = await globalThis.fromUuid?.(configuredUuid);
+        if (document?.type === "criticalInjury") return this.#cacheWashSource(normalized, document);
       } catch (error) {
         console.warn(`${MODULE_ID} | Failed to resolve wash UUID ${configuredUuid}`, error);
       }
     }
 
     const worldItem = game.items.find((item) => item.type === "criticalInjury" && this.#normalize(item.name) === normalized);
-    if (worldItem) return worldItem;
+    if (worldItem) return this.#cacheWashSource(normalized, worldItem);
 
-    for (const pack of game.packs) {
+    const packs = Array.from(game.packs ?? [])
+      .filter((pack) => pack.documentName === "Item")
+      .sort((left, right) => this.#packPriority(right) - this.#packPriority(left));
+
+    for (const pack of packs) {
       if (pack.documentName !== "Item") continue;
       const index = await pack.getIndex({ fields: ["name", "type"] });
       const entry = index.find((item) => item.type === "criticalInjury" && this.#normalize(item.name) === normalized);
-      if (entry) return pack.getDocument(entry._id);
+      if (entry) {
+        const document = await pack.getDocument(entry._id);
+        if (document) return this.#cacheWashSource(normalized, document);
+      }
     }
 
     return null;
+  }
+
+  static #cacheWashSource(normalizedName, document) {
+    if (document?.uuid) this.#washSourceCache.set(normalizedName, document.uuid);
+    return document;
+  }
+
+  static #packPriority(pack) {
+    const haystack = `${pack?.collection ?? ""} ${pack?.metadata?.packageName ?? ""} ${pack?.metadata?.label ?? ""}`.toLocaleLowerCase("en-US");
+    return haystack.includes(EXPANDED_CONDITIONS_ID) || haystack.includes("expanded-condition") ? 1 : 0;
   }
 
   static #makeFallbackWashItem(name) {

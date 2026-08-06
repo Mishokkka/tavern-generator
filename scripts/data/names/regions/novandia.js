@@ -132,7 +132,7 @@ export const NOVANDIA_NAMES = {
     "Le Petit Tonneau",
     "La Vigne Libre",
     "Hôtel des Trois Cerfs",
-    "Le Relais de Longterre",
+    "Le Relais de Lonterre",
     "La Fontaine Dorée",
     "Au Sabot Gris",
     "La Grange du Bon Vin",
@@ -173,6 +173,6 @@ export const NOVANDIA_NAMES = {
     "Le Pain et la Rose",
     "Auberge de la Colline Douce",
     "Le Merle Ivre",
-    "La Table de Takhit"
+    "La Table de Tahit"
   ]
 };

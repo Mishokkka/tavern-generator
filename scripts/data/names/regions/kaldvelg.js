@@ -3,15 +3,15 @@
 export const KALDVELG_NAMES = {
   "patterns": [
     "{noun}hus",
-    "{adj} {noun}",
+    "{noun} Kro",
     "{terrain} Kro",
-    "Gamla {noun}",
     "Ved {terrain}",
     "{noun} og {noun}",
     "{noun}stuga",
     "{terrain} Talo",
-    "{adj} Tupa",
-    "Tre {noun}"
+    "{terrain}hus",
+    "Tre {noun}",
+    "Hus {noun}"
   ],
   "terrain": {
     "city": [

@@ -67,9 +67,10 @@ export class TavernCartApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.element.querySelector("[data-action='checkout-cart']")?.addEventListener("click", async (event) => {
       event.preventDefault();
       if (this.owner?.checkoutPending) return;
-      event.currentTarget.disabled = true;
+      const button = event.currentTarget;
+      button.disabled = true;
       await this.owner?.checkoutCart?.();
-      if (!this.owner?.checkoutPending && event.currentTarget.isConnected) event.currentTarget.disabled = false;
+      if (!this.owner?.checkoutPending && button.isConnected) button.disabled = false;
     });
   }
 }

@@ -117,15 +117,22 @@ export class CharacterForgeAdapter {
 
     // Compatibility fallback for older Character Forge settings that do not yet have izuaver.
     if (region === "izuaver" && nameSets.sirostyen) return "sirostyen";
+    console.warn(`${MODULE_ID} | Character Forge name set '${key}' is unavailable for region '${region}', using a random set.`);
     return this.#randomNameSetKey(nameSets) || null;
   }
 
-  static nameSetLabelForRegion(region) {
+  static nameSetLabelForRegion(region, resolvedKey = null) {
     const api = this.api();
     const nameSets = api?.getNameSets?.() ?? {};
-    const key = this.mapRegionToNameSet(region);
-    if (!key) return "нет набора";
-    return nameSets[key]?.label || key;
+    const requestedKey = REGION_TO_FORGE_NAME_SET[region] || "random";
+    if (resolvedKey) {
+      const label = nameSets[resolvedKey]?.label || resolvedKey;
+      return requestedKey === "random" ? `случайный набор (${label})` : label;
+    }
+    if (requestedKey === "random") return "случайный набор";
+    if (nameSets[requestedKey]) return nameSets[requestedKey]?.label || requestedKey;
+    if (region === "izuaver" && nameSets.sirostyen) return nameSets.sirostyen?.label || "sirostyen";
+    return `нет набора (${requestedKey})`;
   }
 
   static getActorMeta(tavern) {
@@ -156,7 +163,7 @@ export class CharacterForgeAdapter {
     const nameSetKey = this.mapRegionToNameSet(tavern.region);
     if (!nameSetKey) throw new Error("Character Forge не вернул подходящий набор имен.");
 
-    const artSet = String(game.settings.get(MODULE_ID, "tavernkeeperArtSet") || "").trim() || null;
+    const artSet = String(this.#setting("tavernkeeperArtSet", "") || "").trim() || null;
     const folderId = await this.#ensureWorldActorFolder(tavern.region);
 
     const result = await api.createActor({
@@ -199,6 +206,7 @@ export class CharacterForgeAdapter {
 
     return this.#metaFromActor(result.actor, tavern, {
       nameSet: result.nameDetails?.setKey || nameSetKey,
+      nameSetLabel: this.nameSetLabelForRegion(tavern.region, result.nameDetails?.setKey || nameSetKey),
       resolvedGender: result.nameDetails?.gender || null,
       artSet: artSet || null,
       artSubset: result.art?.artSubsetKey || null,
@@ -214,55 +222,59 @@ export class CharacterForgeAdapter {
     if (!actor) throw new Error("Актер тавернщика не найден.");
 
     const pack = await this.#ensureActorPack();
-    await this.#unlockPack(pack);
-
-    const data = actor.toObject();
-    delete data._id;
-    delete data._stats;
-    data.folder = await this.#ensurePackFolder(pack, this.#regionLabel(tavern?.region), "Actor");
-    data.flags ??= {};
-    data.flags[MODULE_ID] ??= {};
-    data.flags[MODULE_ID].role = "tavernkeeper";
-    data.flags[MODULE_ID].tavernId = tavern?.id ?? data.flags[MODULE_ID].tavernId;
-    data.flags[MODULE_ID].tavernName = tavern?.name ?? data.flags[MODULE_ID].tavernName;
-    data.flags[MODULE_ID].region = tavern?.region ?? data.flags[MODULE_ID].region;
-    data.flags[MODULE_ID].sourceActorId = actor.id;
-    data.flags[MODULE_ID].sourceActorUuid = actor.uuid;
-    data.flags[MODULE_ID].archivedAt = Date.now();
-
-    const existing = tavern?.id ? await this.#findArchivedActor(pack, tavern.id) : null;
-    let archived;
-
-    if (existing?._id) {
-      const update = foundry.utils.deepClone(data);
-      update._id = existing._id;
-      const updated = await Actor.implementation.updateDocuments([update], { pack: pack.collection });
-      archived = updated?.[0] ?? await pack.getDocument(existing._id);
-    } else {
-      const created = await Actor.implementation.createDocuments([data], { pack: pack.collection });
-      archived = created?.[0];
-    }
-
-    if (!archived) throw new Error("Не удалось сохранить тавернщика в компендиум.");
-
-    const archiveMeta = {
-      pack: pack.collection,
-      id: archived.id,
-      uuid: archived.uuid,
-      name: archived.name,
-      archivedAt: Date.now()
-    };
+    const wasUnlocked = await this.#unlockPack(pack);
 
     try {
-      await Actor.implementation.updateDocuments([{
-        _id: archived.id,
-        [`flags.${MODULE_ID}.compendium`]: archiveMeta
-      }], { pack: pack.collection });
-    } catch (error) {
-      console.debug(`${MODULE_ID} | Could not write actor self compendium flag`, error);
-    }
+      const data = actor.toObject();
+      delete data._id;
+      delete data._stats;
+      data.folder = await this.#ensurePackFolder(pack, this.#regionLabel(tavern?.region), "Actor");
+      data.flags ??= {};
+      data.flags[MODULE_ID] ??= {};
+      data.flags[MODULE_ID].role = "tavernkeeper";
+      data.flags[MODULE_ID].tavernId = tavern?.id ?? data.flags[MODULE_ID].tavernId;
+      data.flags[MODULE_ID].tavernName = tavern?.name ?? data.flags[MODULE_ID].tavernName;
+      data.flags[MODULE_ID].region = tavern?.region ?? data.flags[MODULE_ID].region;
+      data.flags[MODULE_ID].sourceActorId = actor.id;
+      data.flags[MODULE_ID].sourceActorUuid = actor.uuid;
+      data.flags[MODULE_ID].archivedAt = Date.now();
 
-    return archiveMeta;
+      const existing = tavern?.id ? await this.#findArchivedActor(pack, tavern.id) : null;
+      let archived;
+
+      if (existing?._id) {
+        const update = foundry.utils.deepClone(data);
+        update._id = existing._id;
+        const updated = await Actor.implementation.updateDocuments([update], { pack: pack.collection });
+        archived = updated?.[0] ?? await pack.getDocument(existing._id);
+      } else {
+        const created = await Actor.implementation.createDocuments([data], { pack: pack.collection });
+        archived = created?.[0];
+      }
+
+      if (!archived) throw new Error("Не удалось сохранить тавернщика в компендиум.");
+
+      const archiveMeta = {
+        pack: pack.collection,
+        id: archived.id,
+        uuid: archived.uuid,
+        name: archived.name,
+        archivedAt: Date.now()
+      };
+
+      try {
+        await Actor.implementation.updateDocuments([{
+          _id: archived.id,
+          [`flags.${MODULE_ID}.compendium`]: archiveMeta
+        }], { pack: pack.collection });
+      } catch (error) {
+        console.debug(`${MODULE_ID} | Could not write actor self compendium flag`, error);
+      }
+
+      return archiveMeta;
+    } finally {
+      await FoundryDocumentUtils.relockPack(pack, wasUnlocked);
+    }
   }
 
   static async resolveTavernkeeperActor(metaOrTavern, { importFromCompendium = true } = {}) {

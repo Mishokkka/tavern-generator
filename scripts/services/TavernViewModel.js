@@ -13,8 +13,10 @@ export class TavernViewModel {
     if (!migrated) return migrated;
 
     const decorate = (entry, category) => {
+      if (!entry || typeof entry !== "object") return null;
       const effectivePrice = TavernPricing.effectiveEntryPrice(entry, migrated, { category });
-      const rawPrice = Math.max(1, Number(entry.price ?? entry.basePrice ?? 1));
+      const rawValue = Number(entry.price ?? entry.basePrice ?? 1);
+      const rawPrice = Number.isFinite(rawValue) ? Math.max(1, rawValue) : 1;
       const seasonalChanged = effectivePrice !== rawPrice;
       const availability = TavernAvailabilityService.forEntry(migrated, category, entry);
       return {
@@ -36,9 +38,9 @@ export class TavernViewModel {
     };
 
     const inventory = migrated.inventory ?? { food: [], drinks: [], lodging: [], services: [] };
-    const food = (inventory.food ?? []).map((entry) => decorate(entry, "food"));
-    const drinks = (inventory.drinks ?? []).map((entry) => decorate(entry, "drinks"));
-    const lodging = (inventory.lodging ?? []).map((room) => {
+    const food = (inventory.food ?? []).map((entry) => decorate(entry, "food")).filter(Boolean);
+    const drinks = (inventory.drinks ?? []).map((entry) => decorate(entry, "drinks")).filter(Boolean);
+    const lodging = (inventory.lodging ?? []).filter((room) => room && typeof room === "object").map((room) => {
       const decorated = decorate(room, "lodging");
       const stock = Number(room.stock ?? 0);
       const total = Number(room.total ?? 0);
@@ -52,7 +54,7 @@ export class TavernViewModel {
         purchaseDefaultDays: 1
       };
     });
-    const services = (inventory.services ?? []).map((entry) => decorate(entry, "services"));
+    const services = (inventory.services ?? []).map((entry) => decorate(entry, "services")).filter(Boolean);
 
     return {
       ...migrated,

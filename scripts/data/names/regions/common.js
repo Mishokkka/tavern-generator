@@ -3,15 +3,15 @@
 export const COMMON_NAMES = {
   "patterns": [
     "У {adj} {noun}",
-    "Старый {noun}",
-    "Постоялый двор «{noun}»",
+    "Постоялый двор у {noun}",
     "Трактир у {noun}",
     "Дом {adj} {noun}",
-    "Последний {noun}",
     "Под знаком {noun}",
-    "На {terrain}",
-    "За {terrain}",
-    "{noun} у дороги"
+    "Дом у {terrain}",
+    "Ночлег у {terrain}",
+    "Постоялый двор у {terrain}",
+    "{noun} у дороги",
+    "Двор {adj} {noun}"
   ],
   "terrain": {
     "city": [

@@ -19,6 +19,8 @@ const CATEGORY_LABELS = {
   services: "Услуги"
 };
 
+const CHECKOUT_TIMEOUT_MS = 20_000;
+
 export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "fbl-tavern-player",
@@ -47,6 +49,8 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.renderedTavern = null;
     this.checkoutPending = false;
     this.activeRequestId = null;
+    this.checkoutTimer = null;
+    this.checkoutSnapshots = new Map();
     this.searchQuery = "";
     this.searchExpanded = false;
   }
@@ -64,7 +68,16 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   static receiveTavernUpdate(tavern) {
-    if (!singleton?.rendered || !tavern?.id) return;
+    if (!singleton) return;
+    if (!tavern?.id) {
+      singleton.setTavern(null);
+      singleton.#resetCheckout();
+      singleton.checkoutSnapshots.clear();
+      singleton.clearCart({ render: false, notify: false });
+      if (singleton.rendered) singleton.render();
+      TavernCartApp.refreshOpen();
+      return;
+    }
 
     const active = TavernState.getCurrent();
     const overrideMatches = singleton.tavernOverride?.id === tavern.id;
@@ -73,23 +86,34 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!overrideMatches && !activeMatches) return;
 
     singleton.setTavern(tavern);
-    singleton.render();
+    if (singleton.rendered) singleton.render();
     TavernCartApp.refreshOpen();
   }
 
   static receivePurchaseResult(payload) {
-    if (!singleton || !payload) return;
-    if (!singleton.activeRequestId || !payload.requestId || singleton.activeRequestId === payload.requestId) {
-      singleton.checkoutPending = false;
-      singleton.activeRequestId = null;
-    }
-    if (payload.ok && payload.cart) singleton.clearCart({ render: false, notify: false });
-    singleton.render();
+    if (!payload) return false;
+    if (!singleton) return true;
+
+    const requestId = String(payload.requestId ?? "").trim();
+    const snapshot = requestId ? singleton.checkoutSnapshots.get(requestId) ?? null : null;
+    const isActive = Boolean(requestId && singleton.activeRequestId === requestId);
+    if (singleton.activeRequestId && requestId && !isActive && !snapshot) return false;
+
+    if (isActive || !singleton.activeRequestId) singleton.#resetCheckout();
+    if (payload.ok && payload.cart && snapshot) singleton.#removePurchasedSnapshot(snapshot);
+    if (requestId) singleton.checkoutSnapshots.delete(requestId);
+    if (singleton.rendered) singleton.render();
     TavernCartApp.refreshOpen();
+    return true;
   }
 
   setTavern(tavern) {
     this.tavernOverride = tavern ? foundry.utils.deepClone(tavern) : null;
+  }
+
+  async _onClose(options) {
+    this.#resetCheckout();
+    return super._onClose?.(options);
   }
 
   async _prepareContext(options) {
@@ -124,7 +148,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       game.fblTaverns?.openGM?.({
         tavern,
         tavernId: tavern.id,
-        sceneId: tavern.scene?.id ?? canvas?.scene?.id ?? null,
+        sceneId: tavern.scene?.id ?? globalThis.canvas?.scene?.id ?? null,
         tab: "life"
       });
     });
@@ -135,6 +159,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const shell = this.element.querySelector(".tg-header-search");
       shell?.classList.toggle("is-open", this.searchExpanded);
       event.currentTarget.setAttribute("aria-expanded", this.searchExpanded ? "true" : "false");
+      event.currentTarget.setAttribute("aria-label", this.searchExpanded ? "Скрыть поиск по меню" : "Раскрыть поиск по меню");
       if (this.searchExpanded) this.element.querySelector("[data-action='menu-search']")?.focus();
     });
 
@@ -175,6 +200,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async #onAddToCart(event) {
     event.preventDefault();
+    if (this.checkoutPending) return ui.notifications.warn("Дождись завершения текущей оплаты.");
     const button = event.currentTarget;
     const category = button.dataset.category;
     const entryId = button.dataset.entryId;
@@ -203,6 +229,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #addCartItem({ category, entry, quantity = 1, days = 1 }) {
+    if (this.checkoutPending) return;
     const lodging = this.#isLodging(category);
     const safeQuantity = Math.max(1, Math.trunc(Number(quantity) || 1));
     const safeDays = Math.max(1, Math.trunc(Number(days) || 1));
@@ -250,27 +277,31 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   removeCartItem(key) {
+    if (this.checkoutPending) return;
     this.cart = this.cart.filter((item) => item.key !== key);
     this.render();
     TavernCartApp.refreshOpen();
   }
 
   adjustCartItem(key, delta) {
+    if (this.checkoutPending) return;
     const item = this.cart.find((entry) => entry.key === key);
     if (!item) return;
 
     const otherQuantity = this.cart
       .filter((entry) => entry !== item && entry.category === item.category && entry.entryId === item.entryId)
       .reduce((sum, entry) => sum + Math.max(1, Math.trunc(Number(entry.quantity) || 1)), 0);
-    const aggregateMax = Math.max(1, Math.trunc(Number(item.maxQuantity ?? 99) || 99));
-    const lineMax = Math.max(1, aggregateMax - otherQuantity);
-    const next = Math.max(1, Math.min(lineMax, item.quantity + Math.trunc(Number(delta) || 0)));
-    item.quantity = next;
+    const aggregateMax = Math.max(0, Math.trunc(Number(item.maxQuantity ?? 99) || 0));
+    const lineMax = Math.max(0, aggregateMax - otherQuantity);
+    const next = Math.max(0, Math.min(lineMax, item.quantity + Math.trunc(Number(delta) || 0)));
+    if (next <= 0) this.cart = this.cart.filter((entry) => entry !== item);
+    else item.quantity = next;
     this.render();
     TavernCartApp.refreshOpen();
   }
 
   clearCart({ render = true, notify = true } = {}) {
+    if (this.checkoutPending) return;
     this.cart = [];
     if (notify) ui.notifications.info("Корзина очищена.");
     if (render) {
@@ -289,6 +320,8 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const tavern = this.tavernOverride ?? TavernState.getCurrent();
     const requestId = foundry.utils.randomID(20);
+    const snapshot = this.cart.map((item) => foundry.utils.deepClone(item));
+    this.checkoutSnapshots.set(requestId, snapshot);
     this.checkoutPending = true;
     this.activeRequestId = requestId;
     this.render();
@@ -305,17 +338,19 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
           days: item.days
         })),
         tavernId: tavern?.id ?? null,
-        sceneId: tavern?.scene?.id ?? canvas?.scene?.id ?? null
+        sceneId: tavern?.scene?.id ?? globalThis.canvas?.scene?.id ?? null
       });
       if (!sent) {
-        this.checkoutPending = false;
-        this.activeRequestId = null;
+        this.checkoutSnapshots.delete(requestId);
+        this.#resetCheckout();
         this.render();
         TavernCartApp.refreshOpen();
+      } else {
+        this.#startCheckoutTimeout(requestId);
       }
     } catch (error) {
-      this.checkoutPending = false;
-      this.activeRequestId = null;
+      this.checkoutSnapshots.delete(requestId);
+      this.#resetCheckout();
       this.render();
       TavernCartApp.refreshOpen();
       throw error;
@@ -422,7 +457,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #applySearchFilter() {
     const query = this.searchQuery.trim().toLocaleLowerCase("ru-RU");
     for (const row of this.element?.querySelectorAll?.(".tg-shop-row") ?? []) {
-      const haystack = row.textContent.toLocaleLowerCase("ru-RU");
+      const haystack = `${row.textContent} ${row.dataset.searchText ?? ""}`.toLocaleLowerCase("ru-RU");
       row.hidden = Boolean(query && !haystack.includes(query));
     }
 
@@ -462,9 +497,36 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const userActor = game.user?.character;
     if (userActor && actors.some((actor) => actor.id === userActor.id)) return userActor;
 
-    const controlledActor = canvas.tokens?.controlled?.[0]?.actor;
+    const controlledActor = globalThis.canvas?.tokens?.controlled?.[0]?.actor;
     if (controlledActor && actors.some((actor) => actor.id === controlledActor.id)) return controlledActor;
 
     return actors[0] ?? null;
+  }
+
+  #removePurchasedSnapshot(snapshot) {
+    for (const purchased of snapshot ?? []) {
+      const current = this.cart.find((item) => item.key === purchased.key);
+      if (!current) continue;
+      current.quantity = Math.max(0, Number(current.quantity ?? 0) - Math.max(1, Number(purchased.quantity ?? 1)));
+      if (current.quantity <= 0) this.cart = this.cart.filter((item) => item !== current);
+    }
+  }
+
+  #startCheckoutTimeout(requestId) {
+    if (this.checkoutTimer) window.clearTimeout(this.checkoutTimer);
+    this.checkoutTimer = window.setTimeout(() => {
+      if (!this.checkoutPending || this.activeRequestId !== requestId) return;
+      this.#resetCheckout();
+      ui.notifications.warn("ГМ не ответил на запрос оплаты. Корзина снова доступна, попробуй ещё раз.");
+      this.render();
+      TavernCartApp.refreshOpen();
+    }, CHECKOUT_TIMEOUT_MS);
+  }
+
+  #resetCheckout() {
+    if (this.checkoutTimer) window.clearTimeout(this.checkoutTimer);
+    this.checkoutTimer = null;
+    this.checkoutPending = false;
+    this.activeRequestId = null;
   }
 }

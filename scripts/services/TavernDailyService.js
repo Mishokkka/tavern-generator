@@ -13,7 +13,7 @@ export class TavernDailyService {
   static registerSettings() {
     game.settings.register(MODULE_ID, "calendariaIntegrationEnabled", {
       name: "Calendaria: обновление таверн по дням",
-      hint: "Если включено, модуль пытается реагировать на смену дня Calendaria. Есть запасной API game.fblTaverns.advanceTavernDay().",
+      hint: "Если включено, модуль реагирует на смену дня Calendaria. Без Calendaria автоматического триггера нет: используй кнопку «Новый день» или API game.fblTaverns.advanceTavernDay().",
       scope: "world",
       config: true,
       type: Boolean,
@@ -112,9 +112,10 @@ export class TavernDailyService {
     const wasSaved = Boolean(TavernState.getSavedById(tavernId));
     const result = this.refreshTavernForNewDay(tavern, { dayKey, reason });
 
-    let updated = await TavernState.saveTavern(result.tavern);
+    let updated = result.tavern;
+    if (wasSaved) updated = await TavernState.saveTavern(updated);
     if (wasCurrent) updated = await TavernState.setCurrent(updated);
-    if (broadcast) TavernSocket.refreshAll(updated);
+    if (broadcast && wasCurrent) TavernSocket.refreshAll(updated);
 
     return {
       ...result,
@@ -157,10 +158,11 @@ export class TavernDailyService {
     for (const key of REFRESHABLE_KEYS) {
       for (const entry of tavern.inventory?.[key] ?? []) {
         if (entry.unlimited) continue;
-        const max = Math.max(1, Number(entry.maxStock ?? entry.stock ?? 1));
+        const rawMax = Number(entry.maxStock ?? entry.stock ?? 1);
+        const max = Number.isFinite(rawMax) ? Math.max(1, rawMax) : 1;
         const low = key === "services" ? 0.45 : 0.7;
-        const high = key === "services" ? 1.05 : 1.35;
-        entry.stock = Math.max(0, Math.round(max * this.#float(low, high)));
+        const high = 1;
+        entry.stock = Math.min(max, Math.max(0, Math.round(max * this.#float(low, high))));
         entry.maxStock = max;
       }
     }
@@ -169,7 +171,8 @@ export class TavernDailyService {
   static #refreshRoomOccupancy(tavern) {
     for (const room of tavern.inventory?.lodging ?? []) {
       if (room.unlimited) continue;
-      const total = Math.max(0, Number(room.total ?? room.maxStock ?? room.stock ?? 0));
+      const rawTotal = Number(room.total ?? room.maxStock ?? room.stock ?? 0);
+      const total = Number.isFinite(rawTotal) ? Math.max(0, rawTotal) : 0;
       const playerBooked = TavernState.activeRoomBookingsForEntry(tavern, room.id);
       const currentOccupied = Math.max(playerBooked, Number(room.occupied ?? Math.max(0, total - Number(room.stock ?? 0))));
       const drift = this.#int(-2, 2);

@@ -4,11 +4,8 @@ export const ONTAKWA_NAMES = {
   "patterns": [
     "Pod {adj}m {noun}",
     "Gospoda Pod {noun}",
-    "Karczma {adj}",
     "U {noun}",
-    "Na {terrain}",
     "Dom {noun}",
-    "Stara {terrain}",
     "Pod Trzema {noun}",
     "{noun} i {noun}",
     "Dwór {adj}"

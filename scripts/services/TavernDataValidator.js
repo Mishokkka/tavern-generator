@@ -91,6 +91,10 @@ export class TavernDataValidator {
   static #validateRooms(report) {
     ROOM_TABLE.forEach((room, index) => {
       const label = `ROOM_TABLE[${index}] ${room?.name ?? "<без имени>"}`;
+      if (!room || typeof room !== "object") {
+        report.errors.push(`${label}: запись не является объектом.`);
+        return;
+      }
       if (!String(room.name ?? "").trim()) report.errors.push(`${label}: нет name.`);
       if (!String(room.desc ?? "").trim()) report.warnings.push(`${label}: нет desc.`);
       this.#validatePriceRange(report, label, room);
@@ -149,6 +153,10 @@ export class TavernDataValidator {
     const seen = new Set();
     for (const [index, item] of TAVERN_MOOD_TABLE.entries()) {
       const label = `TAVERN_MOOD_TABLE[${index}] ${item?.label ?? "<без названия>"}`;
+      if (!item || typeof item !== "object") {
+        report.errors.push(`${label}: запись не является объектом.`);
+        continue;
+      }
       if (!String(item?.id ?? "").trim()) report.errors.push(`${label}: нет id.`);
       if (!String(item?.label ?? "").trim()) report.errors.push(`${label}: нет label.`);
       if (!String(item?.text ?? "").trim()) report.errors.push(`${label}: нет text.`);
@@ -165,6 +173,10 @@ export class TavernDataValidator {
   static #validateLifeTable(report, table, tableName, { titleField, textFields }) {
     const seen = new Set();
     for (const [index, item] of table.entries()) {
+      if (!item || typeof item !== "object") {
+        report.errors.push(`${tableName}[${index}]: запись не является объектом.`);
+        continue;
+      }
       const title = String(item?.[titleField] ?? "").trim();
       const label = `${tableName}[${index}] ${title || "<без названия>"}`;
       if (!title) report.errors.push(`${label}: нет ${titleField}.`);

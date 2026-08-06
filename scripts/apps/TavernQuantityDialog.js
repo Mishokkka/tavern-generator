@@ -23,7 +23,7 @@ export class TavernQuantityDialog extends HandlebarsApplicationMixin(Application
     },
     position: {
       width: 390,
-      height: 342
+      height: "auto"
     }
   };
 
@@ -85,8 +85,7 @@ export class TavernQuantityDialog extends HandlebarsApplicationMixin(Application
 
     this.#updateTotal();
 
-    const desiredHeight = (this.category === "lodging" || this.category === "rooms") ? 350 : 326;
-    this.setPosition?.({ height: desiredHeight });
+    this.setPosition?.({ height: "auto" });
   }
 
   async close(options = {}) {

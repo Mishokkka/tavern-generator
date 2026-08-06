@@ -69,7 +69,7 @@ export class PurchaseSoundService {
   }
 
   static normalizeCategory(category) {
-    return CATEGORY_ALIASES[String(category ?? "").trim()] ?? null;
+    return CATEGORY_ALIASES[String(category ?? "").trim().toLocaleLowerCase("en-US")] ?? null;
   }
 
   static getPath(category) {
@@ -109,22 +109,32 @@ export class PurchaseSoundService {
   static async playForCategory(category) {
     const src = this.getPath(category);
     if (!src) return null;
-    return this.play(src, this.getVolume());
+    try {
+      return await this.play(src, this.getVolume());
+    } catch (error) {
+      console.debug(`${MODULE_ID} | Purchase sound playback failed`, error);
+      return null;
+    }
   }
 
   static async play(src, volume = 0.55) {
-    const normalizedSrc = this.normalizePath(src);
-    if (!normalizedSrc) return null;
+    try {
+      const normalizedSrc = this.normalizePath(src);
+      if (!normalizedSrc) return null;
 
-    const audioHelper = foundry.audio?.AudioHelper ?? globalThis.AudioHelper;
-    if (audioHelper?.play) {
-      return audioHelper.play({ src: normalizedSrc, volume, autoplay: true, loop: false }, false);
+      const audioHelper = foundry.audio?.AudioHelper ?? globalThis.AudioHelper;
+      if (audioHelper?.play) {
+        return await audioHelper.play({ src: normalizedSrc, volume, autoplay: true, loop: false }, false);
+      }
+
+      const audio = new Audio(normalizedSrc);
+      audio.volume = volume;
+      await audio.play();
+      return audio;
+    } catch (error) {
+      console.debug(`${MODULE_ID} | Purchase sound playback failed`, error);
+      return null;
     }
-
-    const audio = new Audio(normalizedSrc);
-    audio.volume = volume;
-    await audio.play();
-    return audio;
   }
 
   static #setting(key, fallback) {

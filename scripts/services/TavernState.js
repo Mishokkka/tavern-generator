@@ -1,6 +1,8 @@
 import { MODULE_ID } from "../constants.js";
 import { TavernMigrations } from "./TavernMigrations.js";
 import { TavernAvailabilityService } from "./TavernAvailabilityService.js";
+import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
+import { TavernPrivateStore } from "./TavernPrivateStore.js";
 
 export class TavernState {
   static registerSettings() {
@@ -18,6 +20,14 @@ export class TavernState {
       config: false,
       type: Object,
       default: []
+    });
+
+    game.settings.register(MODULE_ID, "privateStateJournalId", {
+      name: "Private Tavern State Journal",
+      scope: "world",
+      config: false,
+      type: String,
+      default: ""
     });
 
     game.settings.register(MODULE_ID, "currencyMode", {
@@ -42,7 +52,32 @@ export class TavernState {
     });
   }
 
+  static async initialize() {
+    const active = await TavernPrivateStore.initialize();
+    if (!active) return false;
+
+    const stored = TavernPrivateStore.state;
+    const storedCurrent = TavernMigrations.migrate(stored.current);
+    const storedSaved = TavernMigrations.migrateMany(stored.saved);
+    const legacyCurrent = TavernMigrations.migrate(game.settings.get(MODULE_ID, "currentTavern"));
+    const legacySavedRaw = game.settings.get(MODULE_ID, "savedTaverns");
+    const legacySaved = TavernMigrations.migrateMany(Array.isArray(legacySavedRaw) ? legacySavedRaw : []);
+
+    const hasPrivateData = Boolean(storedCurrent || storedSaved.length);
+    const state = hasPrivateData
+      ? { current: storedCurrent, saved: storedSaved }
+      : { current: legacyCurrent, saved: legacySaved };
+
+    await TavernPrivateStore.write(state);
+    await this.#mirrorPublicState(state.current);
+    if (legacySaved.length) await game.settings.set(MODULE_ID, "savedTaverns", []);
+    return true;
+  }
+
   static getCurrent() {
+    if (TavernPrivateStore.active && game.user?.isGM) {
+      return TavernMigrations.migrate(TavernPrivateStore.state.current);
+    }
     return TavernMigrations.migrate(game.settings.get(MODULE_ID, "currentTavern"));
   }
 
@@ -50,16 +85,32 @@ export class TavernState {
     if (!game.user.isGM) throw new Error("Only a GM can set the active tavern.");
     const migrated = TavernMigrations.migrate(tavern);
     migrated.updatedAt = Date.now();
-    await game.settings.set(MODULE_ID, "currentTavern", foundry.utils.deepClone(migrated));
+    if (TavernPrivateStore.active) {
+      const state = TavernPrivateStore.state;
+      state.current = foundry.utils.deepClone(migrated);
+      await TavernPrivateStore.write(state);
+      await this.#mirrorPublicState(migrated);
+    } else {
+      await game.settings.set(MODULE_ID, "currentTavern", foundry.utils.deepClone(migrated));
+    }
     return migrated;
   }
 
   static async clearCurrent() {
     if (!game.user.isGM) throw new Error("Only a GM can clear the active tavern.");
+    if (TavernPrivateStore.active) {
+      const state = TavernPrivateStore.state;
+      state.current = null;
+      await TavernPrivateStore.write(state);
+    }
     await game.settings.set(MODULE_ID, "currentTavern", null);
   }
 
   static getSaved() {
+    if (TavernPrivateStore.active) {
+      if (!game.user?.isGM) return [];
+      return TavernMigrations.migrateMany(TavernPrivateStore.state.saved);
+    }
     const saved = game.settings.get(MODULE_ID, "savedTaverns");
     return TavernMigrations.migrateMany(Array.isArray(saved) ? saved : []);
   }
@@ -68,7 +119,13 @@ export class TavernState {
     if (!game.user.isGM) throw new Error("Only a GM can update saved taverns.");
     const migrated = TavernMigrations.migrateMany(taverns ?? []);
     migrated.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    await game.settings.set(MODULE_ID, "savedTaverns", migrated);
+    if (TavernPrivateStore.active) {
+      const state = TavernPrivateStore.state;
+      state.saved = foundry.utils.deepClone(migrated);
+      await TavernPrivateStore.write(state);
+    } else {
+      await game.settings.set(MODULE_ID, "savedTaverns", migrated);
+    }
     return migrated;
   }
 
@@ -87,14 +144,14 @@ export class TavernState {
     else saved.push(clone);
 
     saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    await game.settings.set(MODULE_ID, "savedTaverns", saved);
+    await this.setSavedMany(saved);
     return clone;
   }
 
   static async deleteSaved(id) {
     if (!game.user.isGM) throw new Error("Only a GM can delete saved taverns.");
     const saved = this.getSaved().filter((entry) => entry.id !== id);
-    await game.settings.set(MODULE_ID, "savedTaverns", saved);
+    await this.setSavedMany(saved);
   }
 
   static getSavedById(id) {
@@ -132,11 +189,18 @@ export class TavernState {
 
     if (requestedSceneId) {
       const scene = game.scenes?.get(requestedSceneId);
-      const sceneTavern = scene?.getFlag?.(MODULE_ID, "tavernData")
-        ?? scene?.getFlag?.(MODULE_ID, "shopButton")?.tavernData
-        ?? null;
-      const migrated = TavernMigrations.migrate(sceneTavern);
-      if (migrated && (!requestedId || migrated.id === requestedId)) return migrated;
+      const linkedId = String(
+        scene?.getFlag?.(MODULE_ID, "shopButton")?.tavernId
+        ?? scene?.getFlag?.(MODULE_ID, "tavernPublicView")?.id
+        ?? scene?.getFlag?.(MODULE_ID, "tavernData")?.id
+        ?? ""
+      ).trim();
+      const trustedId = requestedId || linkedId;
+      if (trustedId) {
+        if (current?.id === trustedId) return foundry.utils.deepClone(current);
+        const saved = this.getSavedById(trustedId);
+        if (saved) return foundry.utils.deepClone(saved);
+      }
     }
 
     if (!requestedId && current) return foundry.utils.deepClone(current);
@@ -163,15 +227,15 @@ export class TavernState {
 
     const current = this.getCurrent();
     if (snapshot.currentMatched) {
-      await game.settings.set(MODULE_ID, "currentTavern", foundry.utils.deepClone(snapshot.current));
+      await this.setCurrent(foundry.utils.deepClone(snapshot.current));
     } else if (current?.id === id) {
-      await game.settings.set(MODULE_ID, "currentTavern", null);
+      await this.clearCurrent();
     }
 
     const saved = this.getSaved().filter((entry) => entry.id !== id);
     if (snapshot.savedMatched && snapshot.saved) saved.push(foundry.utils.deepClone(snapshot.saved));
     saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    await game.settings.set(MODULE_ID, "savedTaverns", saved);
+    await this.setSavedMany(saved);
   }
 
   static async persistPurchaseTavern(tavern) {
@@ -183,7 +247,10 @@ export class TavernState {
     const saved = this.getSavedById(updated.id);
 
     if (current?.id === updated.id) updated = await this.setCurrent(updated);
-    if (saved || current?.id !== updated.id) updated = await this.saveTavern(updated);
+    if (saved) updated = await this.saveTavern(updated);
+    if (current?.id !== updated.id && !saved) {
+      throw new Error("Таверна не сохранена в доверенном состоянии ГМа. Сначала сохрани или активируй её.");
+    }
     return updated;
   }
 
@@ -208,8 +275,22 @@ export class TavernState {
   }
 
   static decrementStockInData(tavern, category, entryId, amount = 1) {
-    const result = this.purchaseEntryInData(tavern, category, entryId, { quantity: amount, days: 1 });
-    return { tavern: result.tavern, entry: result.entry };
+    const migrated = TavernMigrations.migrate(tavern);
+    const record = this.#findEntryRecord(migrated, category, entryId);
+    if (!record?.entry) throw new Error("Позиция таверны не найдена.");
+    const count = Math.max(1, Math.trunc(Number(amount) || 1));
+    if (!record.entry.unlimited) {
+      const stock = Math.max(0, Math.trunc(Number(record.entry.stock) || 0));
+      if (stock < count) throw new Error(`${record.entry.name}: недостаточно запаса.`);
+      record.entry.stock = stock - count;
+      if (record.key === "lodging") {
+        record.entry.occupied = Math.min(
+          Number(record.entry.total ?? record.entry.occupied ?? 0),
+          Math.max(0, Number(record.entry.occupied ?? 0)) + count
+        );
+      }
+    }
+    return { tavern: migrated, entry: record.entry };
   }
 
   static purchaseEntryInData(tavern, category, entryId, { quantity = 1, days = 1, actorId = null, userId = null, actorName = null } = {}) {
@@ -307,5 +388,10 @@ export class TavernState {
     }
 
     return null;
+  }
+
+  static async #mirrorPublicState(tavern) {
+    const publicView = tavern ? TavernAtmosphereService.publicView(tavern) : null;
+    await game.settings.set(MODULE_ID, "currentTavern", publicView ? foundry.utils.deepClone(publicView) : null);
   }
 }

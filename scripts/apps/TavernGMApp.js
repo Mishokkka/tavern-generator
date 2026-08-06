@@ -127,6 +127,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     for (const button of this.element.querySelectorAll("[data-action='selectTab']")) {
       button.addEventListener("click", (event) => this.#onSelectTab(event));
+      button.addEventListener("keydown", (event) => this.#onTabKeydown(event));
     }
 
     this.element.querySelector("[data-action='generate']")?.addEventListener("click", (event) => this.#onGenerate(event));
@@ -280,6 +281,21 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
+  #onTabKeydown(event) {
+    if (!new Set(["ArrowLeft", "ArrowRight", "Home", "End"]).has(event.key)) return;
+    const tabs = [...this.element.querySelectorAll("[data-action='selectTab']:not(:disabled)")];
+    if (!tabs.length) return;
+    const currentIndex = Math.max(0, tabs.indexOf(event.currentTarget));
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? tabs.length - 1
+        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    event.preventDefault();
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
+  }
+
   #onGenerate(event) {
     event.preventDefault();
     this.#checkpoint();
@@ -324,22 +340,24 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
-  #onRerollName(event) {
+  async #onRerollName(event) {
     event.preventDefault();
     if (!this.draft) return;
     this.#checkpoint();
     const params = this.#paramsFromTavern(this.draft);
     const fresh = TavernGenerator.generate(params);
     this.draft.name = fresh.name;
+    await this.#persistLiveDraft();
     this.render();
   }
 
-  #onApplyPriceModifier(event) {
+  async #onApplyPriceModifier(event) {
     event.preventDefault();
     if (!this.draft) return ui.notifications.warn("Сначала сгенерируй таверну.");
     this.#checkpoint();
     this.#readParams();
     this.draft = TavernGenerator.applyPriceMultiplier(this.draft, this.params.priceMultiplier);
+    await this.#persistLiveDraft();
     this.render();
   }
 
@@ -359,6 +377,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!id) return ui.notifications.warn("Выбери сохраненную таверну.");
     const saved = TavernState.getSavedById(id);
     if (!saved) return ui.notifications.warn("Сохраненная таверна не найдена.");
+    this.#checkpoint();
     this.draft = foundry.utils.deepClone(saved);
     const current = TavernState.getCurrent();
     this.activeTavernId = current?.id === this.draft.id ? this.draft.id : null;
@@ -502,26 +521,29 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  #onRemoveEntry(event) {
+  async #onRemoveEntry(event) {
     event.preventDefault();
     if (!this.draft) return;
     this.#checkpoint();
     const button = event.currentTarget;
     this.draft = TavernGenerator.removeEntry(this.draft, button.dataset.category, button.dataset.entryId);
+    await this.#persistLiveDraft();
     this.render();
   }
 
-  #onAddRandom(event) {
+  async #onAddRandom(event) {
     event.preventDefault();
     if (!this.draft) return ui.notifications.warn("Сначала сгенерируй таверну.");
     const category = event.currentTarget.dataset.category;
     const before = this.#categoryLength(category);
+    const previousUndo = this.undoDraft ? foundry.utils.deepClone(this.undoDraft) : null;
     this.#checkpoint();
     this.draft = TavernGenerator.addRandomEntry(this.draft, category);
     if (this.#categoryLength(category) === before) {
-      this.undoDraft = null;
+      this.undoDraft = previousUndo;
       return ui.notifications.info("Больше уникальных позиций такого типа для параметров таверны нет.");
     }
+    await this.#persistLiveDraft();
     this.render();
   }
 
@@ -535,6 +557,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!patch) return;
     this.#checkpoint();
     this.draft = TavernGenerator.upsertEntry(this.draft, category, entryId, patch);
+    await this.#persistLiveDraft();
     this.render();
   }
 
@@ -546,33 +569,37 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!patch) return;
     this.#checkpoint();
     this.draft = TavernGenerator.upsertEntry(this.draft, category, null, patch);
+    await this.#persistLiveDraft();
     this.render();
   }
 
-  #onTogglePinned(event) {
+  async #onTogglePinned(event) {
     event.preventDefault();
     if (!this.draft) return;
     const { category, entryId } = event.currentTarget.dataset;
     this.#checkpoint();
     this.draft = TavernGenerator.togglePinned(this.draft, category, entryId);
+    await this.#persistLiveDraft();
     this.render();
   }
 
-  #onRestockAll(event) {
+  async #onRestockAll(event) {
     event.preventDefault();
     if (!this.draft) return;
     this.#checkpoint();
     this.draft = TavernGenerator.restockAll(this.draft);
+    await this.#persistLiveDraft();
     ui.notifications.info("Запасы еды, напитков и услуг пополнены до штатного максимума.");
     this.render();
   }
 
-  #onUndo(event) {
+  async #onUndo(event) {
     event.preventDefault();
     if (!this.undoDraft) return;
     const current = this.draft ? foundry.utils.deepClone(this.draft) : null;
     this.draft = foundry.utils.deepClone(this.undoDraft);
     this.undoDraft = current;
+    await this.#persistLiveDraft();
     this.render();
   }
 
@@ -608,30 +635,33 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  #onRegenerateAtmosphere(event) {
+  async #onRegenerateAtmosphere(event) {
     event.preventDefault();
     if (!this.draft) return;
     this.#checkpoint();
     this.draft = TavernAtmosphereService.regenerate(this.draft);
+    await this.#persistLiveDraft();
     this.render();
   }
 
-  #onRerollLifeEntry(event) {
+  async #onRerollLifeEntry(event) {
     event.preventDefault();
     if (!this.draft) return;
     const section = event.currentTarget.dataset.section ?? (event.currentTarget.dataset.action === "rerollMood" ? "mood" : "incident");
     const entryId = event.currentTarget.dataset.entryId ?? null;
     this.#checkpoint();
     this.draft = TavernAtmosphereService.rerollEntry(this.draft, section, entryId);
+    await this.#persistLiveDraft();
     this.render();
   }
 
-  #onToggleLifePinned(event) {
+  async #onToggleLifePinned(event) {
     event.preventDefault();
     if (!this.draft) return;
     const { section, entryId } = event.currentTarget.dataset;
     this.#checkpoint();
     this.draft = TavernAtmosphereService.togglePinned(this.draft, section, entryId);
+    await this.#persistLiveDraft();
     this.render();
   }
 
@@ -667,7 +697,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  #onLodgingChange(event) {
+  async #onLodgingChange(event) {
     if (!this.draft) return;
     this.#checkpoint();
     const input = event.currentTarget;
@@ -675,6 +705,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (input.dataset.lodgingField === "unlimited") patch.unlimited = input.checked;
     else patch[input.dataset.lodgingField] = input.value;
     this.draft = TavernGenerator.updateLodgingEntry(this.draft, input.dataset.entryId, patch);
+    await this.#persistLiveDraft();
     this.render();
   }
 
@@ -750,7 +781,14 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #escapeHtml(value) {
     const text = String(value ?? "");
-    return typeof foundry.utils.escapeHTML === "function" ? foundry.utils.escapeHTML(text) : text.replace(/[&<>"']/g, "");
+    if (typeof foundry.utils.escapeHTML === "function") return foundry.utils.escapeHTML(text);
+    return text.replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#39;"
+    }[char]));
   }
 
   #paramsFromTavern(tavern) {

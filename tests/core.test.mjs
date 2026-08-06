@@ -11,6 +11,10 @@ const { TavernDailyService } = await import("../scripts/services/TavernDailyServ
 const { TavernAtmosphereService } = await import("../scripts/services/TavernAtmosphereService.js");
 const { TavernAvailabilityService } = await import("../scripts/services/TavernAvailabilityService.js");
 const { TavernState } = await import("../scripts/services/TavernState.js");
+const { TavernEditor } = await import("../scripts/services/TavernEditor.js");
+const { TavernPricing } = await import("../scripts/services/TavernPricing.js");
+const { PurchaseSoundService } = await import("../scripts/services/PurchaseSoundService.js");
+const { CurrencyAdapter } = await import("../scripts/services/CurrencyAdapter.js");
 
 test("content validator has no hard errors", () => {
   const report = TavernDataValidator.validate({ log: false });
@@ -334,4 +338,98 @@ test("exact Tavern Life navigation rejects a stripped public-only fallback", () 
   });
 
   assert.equal(resolved, null);
+});
+
+
+test("zero stock limits survive migration", () => {
+  const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  const entry = tavern.inventory.food[0];
+  entry.stock = 0;
+  entry.maxStock = 0;
+
+  const migrated = TavernMigrations.migrate(tavern);
+  assert.equal(migrated.inventory.food[0].stock, 0);
+  assert.equal(migrated.inventory.food[0].maxStock, 0);
+});
+
+test("partial entry edits preserve the unlimited flag", () => {
+  const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  const entry = tavern.inventory.services[0] ?? tavern.inventory.food[0];
+  const category = entry.type === "service" ? "services" : "food";
+  entry.unlimited = true;
+  entry.stock = null;
+  entry.maxStock = null;
+
+  const edited = TavernEditor.upsertEntry(tavern, category, entry.id, { name: "Исправленное название" });
+  const result = TavernEditor.findEntry(edited, category, entry.id);
+  assert.equal(result.unlimited, true);
+  assert.equal(result.stock, null);
+  assert.equal(result.maxStock, null);
+});
+
+test("price multipliers clamp malformed and extreme values", () => {
+  assert.equal(TavernPricing.normalizeMultiplier(Number.NaN), 1);
+  assert.equal(TavernPricing.normalizeMultiplier(-99), 0.1);
+  assert.equal(TavernPricing.normalizeMultiplier(99), 5);
+
+  const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  tavern.inventory.food[0].basePrice = 4.9;
+  const repriced = TavernPricing.applyMultiplier(tavern, 99);
+  assert.equal(repriced.priceMultiplier, 5);
+  assert.equal(repriced.inventory.food[0].basePrice, 4);
+  assert.equal(repriced.inventory.food[0].price, 20);
+});
+
+test("purchase sound categories are case-insensitive", () => {
+  assert.equal(PurchaseSoundService.normalizeCategory("DRINKS"), "drinks");
+  assert.equal(PurchaseSoundService.normalizeCategory(" Room "), "lodging");
+});
+
+test("adding money updates the active actor wallet source", async () => {
+  setSetting("currencyMode", "auto");
+  let flagWallet = { gold: 9, silver: 9, copper: 9 };
+  const actor = {
+    system: { currency: { gold: 1, silver: 2, copper: 3 } },
+    getFlag: () => structuredClone(flagWallet),
+    setFlag: async (_moduleId, _key, value) => { flagWallet = structuredClone(value); },
+    update: async (changes) => {
+      for (const [path, value] of Object.entries(changes)) foundry.utils.setProperty(actor, path, value);
+    }
+  };
+
+  const result = await CurrencyAdapter.addMoney(actor, { silver: 1, copper: 7 });
+  assert.deepEqual(result, { gold: 1, silver: 3, copper: 10 });
+  assert.deepEqual(actor.system.currency, { gold: 1, silver: 3, copper: 10 });
+  assert.deepEqual(flagWallet, { gold: 9, silver: 9, copper: 9 });
+});
+
+test("manual new day does not silently save an unsaved draft", async () => {
+  const draft = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  setSetting("dailyInventoryRefreshEnabled", false);
+  setSetting("dailyMenuRotationEnabled", false);
+  setSetting("dailyAtmosphereRefreshEnabled", false);
+  setSetting("currentTavern", null);
+  setSetting("savedTaverns", []);
+  game.user = { id: "gm-unsaved-day", isGM: true };
+
+  const result = await TavernDailyService.advanceTavern(draft, { dayKey: "manual:unsaved", broadcast: false });
+  assert.equal(result.wasCurrent, false);
+  assert.equal(result.wasSaved, false);
+  assert.equal(getSetting("currentTavern"), null);
+  assert.deepEqual(getSetting("savedTaverns"), []);
+});
+
+test("public scene snapshots are never authoritative purchase state", () => {
+  const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  const publicView = TavernAtmosphereService.publicView(tavern);
+  setSetting("currentTavern", null);
+  setSetting("savedTaverns", []);
+  game.scenes = new Map([["scene-public", {
+    getFlag: (_moduleId, key) => key === "tavernPublicView" ? publicView : null
+  }]]);
+
+  assert.throws(
+    () => TavernState.resolveTrustedTavern({ tavernId: tavern.id, sceneId: "scene-public" }),
+    /не найдена в доверенном состоянии/
+  );
 });
