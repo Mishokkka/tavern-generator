@@ -1,0 +1,167 @@
+<section class="tg-wrap">
+  {{#if tavern}}
+    <header class="tg-player-topbar">
+      <div class="tg-heading-block tg-player-title">
+        <h2>{{tavern.name}}</h2>
+        <p>{{tavern.publicSummary}}</p>
+      </div>
+
+      <aside class="tg-payment-inline">
+        {{#if isGM}}
+          <button type="button" class="tg-header-action" data-action="open-gm-life" data-tooltip="Открыть вкладку «Жизнь таверны»" aria-label="Открыть жизнь таверны">
+            <i class="fa-solid fa-user-shield"></i>
+          </button>
+        {{/if}}
+
+        <div class="tg-header-search {{#if searchExpanded}}is-open{{/if}} {{#if searchQuery}}has-query{{/if}}">
+          <button type="button" class="tg-header-action tg-search-toggle" data-action="toggle-search" data-tooltip="Поиск по меню" aria-label="Раскрыть поиск по меню" aria-expanded="{{#if searchExpanded}}true{{else}}false{{/if}}">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span class="tg-search-indicator" aria-hidden="true"></span>
+          </button>
+          <div class="tg-header-search-panel">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="search" data-action="menu-search" value="{{searchQuery}}" placeholder="Поиск по меню и описанию" autocomplete="off">
+            <button type="button" class="tg-search-clear" data-action="clear-search" data-tooltip="Очистить поиск" aria-label="Очистить поиск"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+
+        <div class="tg-wallet-inline">
+          {{#if showActorPicker}}
+            <label class="tg-actor-picker-inline">
+              <span class="tg-inline-label">Платит</span>
+              <select data-action="select-actor" name="selectedActorId">
+                {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+              </select>
+            </label>
+          {{/if}}
+          <span class="tg-inline-label">Кошелек</span>
+          {{#if wallet.hasActor}}
+            <span class="tg-money-list tg-money-list--wallet" aria-label="Кошелек персонажа">
+              {{#each wallet.parts}}
+                <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+              {{/each}}
+            </span>
+            <small class="tg-wallet-note {{#if wallet.isFallback}}is-warning{{/if}}">{{wallet.sourceLabel}}</small>
+          {{else}}
+            <small class="tg-wallet-note is-warning">Персонаж не привязан.</small>
+          {{/if}}
+        </div>
+
+        <button type="button" class="tg-cart-button" data-action="open-cart" data-tooltip="Корзина" aria-label="Корзина">
+          <i class="fa-solid {{#if cart.checkoutPending}}fa-spinner fa-spin{{else}}fa-basket-shopping{{/if}}"></i>
+          <span class="tg-cart-count">{{cart.count}}</span>
+          <span class="tg-cart-sum">{{{cart.totalLabel}}}</span>
+        </button>
+      </aside>
+    </header>
+
+
+    <section class="tg-menu-stack">
+      <div class="tg-panel tg-panel-full">
+        <h3>Еда</h3>
+        <div class="tg-list tg-card-grid">
+          {{#each tavern.food}}
+            <article class="tg-row tg-shop-row" data-category="food" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>{{#if local}}местное · {{/if}}осталось: {{stockLabel}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
+              </div>
+              <div class="tg-buy-block">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                </div>
+                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="food" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                  <i class="fa-solid fa-basket-shopping"></i>
+                </button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="tg-panel tg-panel-full">
+        <h3>Напитки</h3>
+        <div class="tg-list tg-card-grid">
+          {{#each tavern.drinks}}
+            <article class="tg-row tg-shop-row" data-category="drinks" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>{{#if local}}местное · {{/if}}осталось: {{stockLabel}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
+              </div>
+              <div class="tg-buy-block">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                </div>
+                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="drinks" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                  <i class="fa-solid fa-basket-shopping"></i>
+                </button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+    </section>
+
+    <section class="tg-grid tg-grid-2">
+      <div class="tg-panel">
+        <h3>Ночлег</h3>
+        <div class="tg-list tg-card-grid">
+          {{#each tavern.lodging}}
+            <article class="tg-row tg-shop-row" data-category="lodging" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>свободно: {{freeLabel}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
+              </div>
+              <div class="tg-buy-block">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                  <small>за место/день</small>
+                </div>
+                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="lodging" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                  <i class="fa-solid fa-basket-shopping"></i>
+                </button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+
+      {{#if tavern.services.length}}
+        <div class="tg-panel">
+          <h3>Услуги</h3>
+          <div class="tg-list tg-card-grid">
+            {{#each tavern.services}}
+              <article class="tg-row tg-shop-row" data-category="services" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+                <div class="tg-entry-main">
+                  <strong class="tg-entry-name">{{name}}</strong>
+                  <small>осталось: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
+                </div>
+                <div class="tg-buy-block">
+                  <div class="tg-price">
+                    {{#each priceParts}}
+                      <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                    {{/each}}
+                  </div>
+                  <button type="button" class="tg-add-cart" data-action="add-cart" data-category="services" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                    <i class="fa-solid fa-basket-shopping"></i>
+                  </button>
+                </div>
+              </article>
+            {{/each}}
+          </div>
+        </div>
+      {{/if}}
+    </section>
+  {{else}}
+    <section class="tg-empty">
+      <i class="fa-solid fa-door-closed"></i>
+      <p>Сейчас нет активной таверны. ГМ еще не открыл заведение.</p>
+    </section>
+  {{/if}}
+</section>

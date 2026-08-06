@@ -1,0 +1,39 @@
+<section class="tg-cart-box">
+  {{#if hasItems}}
+    <div class="tg-cart-list">
+      {{#each items}}
+        <article class="tg-cart-row">
+          <div class="tg-cart-main">
+            <strong>{{name}}</strong>
+            <small>{{categoryLabel}} · {{countLabel}}</small>
+            <div class="tg-cart-quantity">
+              <button type="button" data-action="adjust-cart-item" data-key="{{key}}" data-delta="-1" aria-label="Уменьшить"><i class="fa-solid fa-minus"></i></button>
+              <span>{{quantity}}</span>
+              <button type="button" data-action="adjust-cart-item" data-key="{{key}}" data-delta="1" aria-label="Увеличить"><i class="fa-solid fa-plus"></i></button>
+            </div>
+          </div>
+          <div class="tg-cart-price">{{{totalLabel}}}</div>
+          <button type="button" data-action="remove-cart-item" data-key="{{key}}" data-tooltip="Убрать" aria-label="Убрать">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </article>
+      {{/each}}
+    </div>
+
+    <div class="tg-cart-total">
+      <span>Итого</span>
+      <strong>{{{totalLabel}}}</strong>
+    </div>
+
+    <p class="tg-cart-note">Плательщик: <strong>{{actorName}}</strong>. Цена и остатки повторно проверяются ГМ-клиентом при оплате.</p>
+    <footer class="tg-cart-actions">
+      <button type="button" data-action="clear-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid fa-trash"></i> Очистить</button>
+      <button type="button" data-action="checkout-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid {{#if checkoutPending}}fa-spinner fa-spin{{else}}fa-coins{{/if}}"></i> {{#if checkoutPending}}Обработка{{else}}Оплатить{{/if}}</button>
+    </footer>
+  {{else}}
+    <section class="tg-empty tg-cart-empty">
+      <i class="fa-solid fa-basket-shopping"></i>
+      <p>Корзина пуста.</p>
+    </section>
+  {{/if}}
+</section>

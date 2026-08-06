@@ -1,0 +1,392 @@
+<section class="tg-wrap">
+  <nav class="tg-tabs" role="tablist" aria-label="Разделы генератора таверны">
+    <button type="button" class="tg-tab-button {{#if tabs.tavern.active}}is-active{{/if}}" data-action="selectTab" data-tab="tavern" role="tab" aria-selected="{{#if tabs.tavern.active}}true{{else}}false{{/if}}">
+      <i class="fa-solid fa-beer-mug-empty"></i><span>Таверна</span>
+    </button>
+    {{#if isGM}}
+      <button type="button" class="tg-tab-button {{#if tabs.life.active}}is-active{{/if}}" data-action="selectTab" data-tab="life" role="tab" aria-selected="{{#if tabs.life.active}}true{{else}}false{{/if}}" {{#unless tavern}}disabled{{/unless}}>
+        <i class="fa-solid fa-user-shield"></i><span>Жизнь таверны</span><small>только ГМ</small>
+      </button>
+    {{/if}}
+  </nav>
+
+  {{#if tabs.tavern.active}}
+    <div class="tg-tab-panel is-active" data-tab-panel="tavern">
+  <section class="tg-controls">
+    <label>
+      <span>Регион / страна</span>
+      <select name="region" data-param="region">
+        {{selectOptions options.regions selected=params.region}}
+      </select>
+    </label>
+    <label>
+      <span>Качество</span>
+      <select name="quality" data-param="quality">
+        {{selectOptions options.qualities selected=params.quality}}
+      </select>
+    </label>
+    <label>
+      <span>Размер</span>
+      <select name="size" data-param="size">
+        {{selectOptions options.sizes selected=params.size}}
+      </select>
+    </label>
+    <label>
+      <span>Местность</span>
+      <select name="terrain" data-param="terrain">
+        {{selectOptions options.terrains selected=params.terrain}}
+      </select>
+    </label>
+    <label>
+      <span>Стоимость, %</span>
+      <input type="number" name="priceMultiplierPercent" data-param="priceMultiplierPercent" min="10" max="500" step="5" value="{{priceMultiplierPercent}}" />
+    </label>
+    <div class="tg-actions-main tg-param-actions">
+      <button type="button" data-action="generate" data-tooltip="Сгенерировать таверну" data-tooltip-direction="UP" aria-label="Сгенерировать таверну"><i class="fa-solid fa-dice"></i></button>
+      <button type="button" data-action="confirm" data-tooltip="Подтвердить активную таверну" data-tooltip-direction="UP" aria-label="Подтвердить активную таверну" {{#unless tavern}}disabled{{/unless}}><i class="fa-solid fa-check"></i></button>
+      <button type="button" data-action="openPlayers" data-tooltip="Открыть игрокам" data-tooltip-direction="UP" aria-label="Открыть игрокам"><i class="fa-solid fa-users"></i></button>
+      <button type="button" data-action="saveDraft" data-tooltip="Сохранить таверну" data-tooltip-direction="UP" aria-label="Сохранить таверну" {{#unless tavern}}disabled{{/unless}}><i class="fa-solid fa-floppy-disk"></i></button>
+      <button type="button" data-action="clear" data-tooltip="Очистить активную таверну" data-tooltip-direction="UP" aria-label="Очистить активную таверну" {{#unless hasCurrent}}disabled{{/unless}}><i class="fa-solid fa-trash"></i></button>
+      <button type="button" data-action="applyPriceModifier" data-tooltip="Применить процент стоимости" data-tooltip-direction="UP" aria-label="Применить процент стоимости" {{#unless tavern}}disabled{{/unless}}><i class="fa-solid fa-coins"></i></button>
+      <button type="button" data-action="restockAll" data-tooltip="Пополнить запасы еды, напитков и услуг" data-tooltip-direction="UP" aria-label="Пополнить запасы" {{#unless tavern}}disabled{{/unless}}><i class="fa-solid fa-boxes-stacked"></i></button>
+      <button type="button" data-action="undo" data-tooltip="Отменить последнее изменение черновика" data-tooltip-direction="UP" aria-label="Отменить последнее изменение" {{#unless canUndo}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+  </section>
+
+  <section class="tg-scene-controls">
+    <label>
+      <span>Сцена / фон</span>
+      <select name="sceneMode" data-scene-param="mode">
+        {{selectOptions sceneOptions.modes selected=sceneConfig.mode}}
+      </select>
+    </label>
+    <label>
+      <span>Шаблон сцены</span>
+      <select name="sceneTemplateId" data-scene-param="templateId">
+        {{selectOptions sceneOptions.templates selected=sceneConfig.templateId}}
+      </select>
+    </label>
+    <label class="tg-scene-path">
+      <span>Файл фона</span>
+      <input type="text" name="sceneManualImagePath" data-scene-param="manualImagePath" value="{{sceneConfig.manualImagePath}}" placeholder="{{sceneArtRoot}}/..." />
+    </label>
+    <div class="tg-actions-main tg-scene-actions">
+      <button type="button" data-action="browseSceneImage" data-tooltip="Выбрать изображение вручную" data-tooltip-direction="UP" aria-label="Выбрать изображение вручную"><i class="fa-solid fa-folder-open"></i></button>
+      <button type="button" data-action="createScene" data-tooltip="Создать сцену таверны" data-tooltip-direction="UP" aria-label="Создать сцену таверны" {{#if sceneCreateDisabled}}disabled{{/if}}><i class="fa-solid fa-image"></i></button>
+      {{#if linkedScene}}
+        <button type="button" data-action="openLinkedScene" data-tooltip="Открыть связанную сцену{{#if linkedScene.archived}} из компендиума{{/if}}: {{linkedScene.name}}" data-tooltip-direction="UP" aria-label="Открыть связанную сцену"><i class="fa-solid fa-door-open"></i></button>
+      {{/if}}
+    </div>
+    <div class="tg-scene-flags">
+      <label class="tg-check tg-check-inline"><input type="checkbox" name="sceneOpenAfterCreate" data-scene-param="openAfterCreate" {{#if sceneConfig.openAfterCreate}}checked{{/if}} /> <span>открыть ГМу</span></label>
+      <label class="tg-check tg-check-inline"><input type="checkbox" name="sceneActivate" data-scene-param="activateScene" {{#if sceneConfig.activateScene}}checked{{/if}} /> <span>сделать активной</span></label>
+      <label class="tg-check tg-check-inline"><input type="checkbox" name="sceneShowPlayers" data-scene-param="showPlayers" {{#if sceneConfig.showPlayers}}checked{{/if}} /> <span>показать игрокам</span></label>
+      <label class="tg-check tg-check-inline"><input type="checkbox" name="sceneArchiveToCompendium" data-scene-param="archiveToCompendium" {{#if sceneConfig.archiveToCompendium}}checked{{/if}} /> <span>в компендиум</span></label>
+      <label class="tg-check tg-check-inline"><input type="checkbox" name="sceneCreateShopNote" data-scene-param="createShopNote" {{#if sceneConfig.createShopNote}}checked{{/if}} /> <span>кнопка меню</span></label>
+    </div>
+  </section>
+
+  <section class="tg-saved-row">
+    <label>
+      <span>Сохраненные таверны</span>
+      <select name="savedTavernId" {{#unless hasSaved}}disabled{{/unless}}>
+        {{#if hasSaved}}
+          {{#each saved}}
+            <option value="{{id}}">{{name}} — {{meta}}</option>
+          {{/each}}
+        {{else}}
+          <option value="">Нет сохраненных таверн</option>
+        {{/if}}
+      </select>
+    </label>
+    <button type="button" data-action="loadSaved" {{#unless hasSaved}}disabled{{/unless}}>Загрузить</button>
+    <button type="button" data-action="deleteSaved" {{#unless hasSaved}}disabled{{/unless}}>Удалить</button>
+  </section>
+
+  {{#if tavern}}
+    <section class="tg-tavern-card">
+      <div class="tg-title-row">
+        <div>
+          <h1>{{tavern.name}}</h1>
+          <p>{{tavern.summary}}</p>
+        </div>
+        <button type="button" data-action="rerollName"><i class="fa-solid fa-rotate"></i> Новое имя</button>
+      </div>
+
+      <div class="tg-tags">
+        <span>{{tavern.labels.region}}</span>
+        <span>{{tavern.labels.quality}}</span>
+        <span>{{tavern.labels.size}}</span>
+        <span>{{tavern.labels.terrain}}</span>
+        <span>Цены: {{tavern.priceMultiplierPercent}}%</span>
+      </div>
+
+
+      <div class="tg-tavernkeeper-card">
+        <div class="tg-tavernkeeper-main">
+          {{#if tavernkeeper}}
+            <img class="tg-tavernkeeper-img" src="{{tavernkeeper.currentImg}}" alt="{{tavernkeeper.currentName}}" />
+            <div>
+              <strong>{{tavernkeeper.currentName}}</strong>
+              <small>{{#if tavernkeeper.exists}}Тавернщик · {{characterForge.nameSetLabel}}{{else}}Актер тавернщика не найден{{/if}}</small>
+            </div>
+          {{else}}
+            <div class="tg-tavernkeeper-placeholder"><i class="fa-solid fa-user-tie"></i></div>
+            <div>
+              <strong>Тавернщик не создан</strong>
+              <small>Набор имен: {{characterForge.nameSetLabel}} · Character Forge: {{characterForge.availabilityLabel}}</small>
+            </div>
+          {{/if}}
+        </div>
+        <div class="tg-actions-main tg-tavernkeeper-actions">
+          <label class="tg-check tg-check-inline" data-tooltip="Сохранить созданного тавернщика в Actor-компендиум: {{characterForge.compendiumPack}}" data-tooltip-direction="UP">
+            <input type="checkbox" name="keeperArchiveToCompendium" data-keeper-param="archiveToCompendium" {{#if keeperConfig.archiveToCompendium}}checked{{/if}} />
+            <span>в компендиум</span>
+          </label>
+          <label class="tg-check tg-check-inline" data-tooltip="Поставить токен созданного тавернщика на связанную сцену таверны, если она уже создана" data-tooltip-direction="UP">
+            <input type="checkbox" name="keeperPlaceTokenOnScene" data-keeper-param="placeTokenOnScene" {{#if keeperConfig.placeTokenOnScene}}checked{{/if}} />
+            <span>токен</span>
+          </label>
+          <button type="button" data-action="createTavernkeeper" data-tooltip="Создать случайного тавернщика через Character Forge" data-tooltip-direction="UP" aria-label="Создать случайного тавернщика" {{#unless characterForge.available}}disabled{{/unless}}><i class="fa-solid fa-user-plus"></i></button>
+          {{#if tavernkeeper}}
+            <button type="button" data-action="openTavernkeeper" data-tooltip="Открыть актера тавернщика{{#unless tavernkeeper.exists}}{{#if tavernkeeper.archived}} из компендиума{{/if}}{{/unless}}" data-tooltip-direction="UP" aria-label="Открыть актера тавернщика" {{#unless tavernkeeper.exists}}{{#unless tavernkeeper.archived}}disabled{{/unless}}{{/unless}}><i class="fa-solid fa-address-card"></i></button>
+          {{/if}}
+        </div>
+      </div>
+    </section>
+
+
+    <section class="tg-menu-stack">
+      <div class="tg-panel tg-panel-full">
+        <div class="tg-panel-head">
+          <h3>Еда</h3>
+          <div class="tg-panel-head-actions">
+            <button type="button" data-action="addCustom" data-category="food" data-tooltip="Добавить свою позицию"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" data-action="addRandom" data-category="food" data-tooltip="Добавить случайную позицию"><i class="fa-solid fa-dice"></i></button>
+          </div>
+        </div>
+        <div class="tg-list tg-card-grid">
+          {{#each tavern.food}}
+            <article class="tg-row tg-shop-row" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>{{#if local}}местное · {{/if}}осталось: {{stockLabel}}</small>
+              </div>
+              <div class="tg-gm-entry-actions">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                </div>
+                <button type="button" class="{{#if pinned}}is-pinned{{/if}}" aria-pressed="{{#if pinned}}true{{else}}false{{/if}}" data-action="togglePinned" data-category="food" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить от дневной ротации{{else}}Закрепить от дневной ротации{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
+                <button type="button" data-action="editEntry" data-category="food" data-entry-id="{{id}}" data-tooltip="Редактировать"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button type="button" data-action="removeEntry" data-category="food" data-entry-id="{{id}}" data-tooltip="Убрать"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="tg-panel tg-panel-full">
+        <div class="tg-panel-head">
+          <h3>Напитки</h3>
+          <div class="tg-panel-head-actions">
+            <button type="button" data-action="addCustom" data-category="drinks" data-tooltip="Добавить свою позицию"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" data-action="addRandom" data-category="drinks" data-tooltip="Добавить случайную позицию"><i class="fa-solid fa-dice"></i></button>
+          </div>
+        </div>
+        <div class="tg-list tg-card-grid">
+          {{#each tavern.drinks}}
+            <article class="tg-row tg-shop-row" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>{{#if local}}местное · {{/if}}осталось: {{stockLabel}}</small>
+              </div>
+              <div class="tg-gm-entry-actions">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                </div>
+                <button type="button" class="{{#if pinned}}is-pinned{{/if}}" aria-pressed="{{#if pinned}}true{{else}}false{{/if}}" data-action="togglePinned" data-category="drinks" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить от дневной ротации{{else}}Закрепить от дневной ротации{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
+                <button type="button" data-action="editEntry" data-category="drinks" data-entry-id="{{id}}" data-tooltip="Редактировать"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button type="button" data-action="removeEntry" data-category="drinks" data-entry-id="{{id}}" data-tooltip="Убрать"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+    </section>
+
+    <section class="tg-grid tg-grid-2">
+      <div class="tg-panel">
+        <div class="tg-panel-head">
+          <h3>Ночлег</h3>
+          <div class="tg-panel-head-actions">
+            <button type="button" data-action="addCustom" data-category="lodging" data-tooltip="Добавить свою позицию"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" data-action="addRandom" data-category="lodging" data-tooltip="Добавить случайную позицию"><i class="fa-solid fa-dice"></i></button>
+          </div>
+        </div>
+        <div class="tg-list tg-card-grid tg-lodging-grid">
+          {{#each tavern.lodging}}
+            <article class="tg-row tg-row-edit" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>свободно: {{freeLabel}}</small>
+                <div class="tg-lodging-edit">
+                  <label><span>Свободно</span><input type="number" data-lodging-field="stock" data-entry-id="{{id}}" min="0" max="{{total}}" value="{{free}}" {{#if unlimited}}disabled{{/if}} /></label>
+                  <label><span>Всего</span><input type="number" data-lodging-field="total" data-entry-id="{{id}}" min="0" max="999" value="{{total}}" {{#if unlimited}}disabled{{/if}} /></label>
+                  <label class="tg-check"><input type="checkbox" data-lodging-field="unlimited" data-entry-id="{{id}}" {{#if unlimited}}checked{{/if}} /> без ограничения</label>
+                </div>
+              </div>
+              <div class="tg-gm-entry-actions">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                </div>
+                <button type="button" class="{{#if pinned}}is-pinned{{/if}}" aria-pressed="{{#if pinned}}true{{else}}false{{/if}}" data-action="togglePinned" data-category="lodging" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить от дневной ротации{{else}}Закрепить от дневной ротации{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
+                <button type="button" data-action="editEntry" data-category="lodging" data-entry-id="{{id}}" data-tooltip="Редактировать"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button type="button" data-action="removeEntry" data-category="lodging" data-entry-id="{{id}}" data-tooltip="Убрать"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+
+      <div class="tg-panel">
+        <div class="tg-panel-head">
+          <h3>Услуги</h3>
+          <div class="tg-panel-head-actions">
+            <button type="button" data-action="addCustom" data-category="services" data-tooltip="Добавить свою позицию"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" data-action="addRandom" data-category="services" data-tooltip="Добавить случайную позицию"><i class="fa-solid fa-dice"></i></button>
+          </div>
+        </div>
+        <div class="tg-list tg-card-grid">
+          {{#each tavern.services}}
+            <article class="tg-row tg-shop-row" data-tooltip="{{desc}}" data-tooltip-direction="UP">
+              <div class="tg-entry-main">
+                <strong class="tg-entry-name">{{name}}</strong>
+                <small>осталось: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}</small>
+              </div>
+              <div class="tg-gm-entry-actions">
+                <div class="tg-price">
+                  {{#each priceParts}}
+                    <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
+                  {{/each}}
+                </div>
+                <button type="button" class="{{#if pinned}}is-pinned{{/if}}" aria-pressed="{{#if pinned}}true{{else}}false{{/if}}" data-action="togglePinned" data-category="services" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить от дневной ротации{{else}}Закрепить от дневной ротации{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
+                <button type="button" data-action="editEntry" data-category="services" data-entry-id="{{id}}" data-tooltip="Редактировать"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button type="button" data-action="removeEntry" data-category="services" data-entry-id="{{id}}" data-tooltip="Убрать"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </div>
+    </section>
+  {{else}}
+    <section class="tg-empty">
+      <i class="fa-solid fa-beer-mug-empty"></i>
+      <p>Таверна еще не сгенерирована.</p>
+    </section>
+  {{/if}}
+    </div>
+  {{/if}}
+
+  {{#if isGM}}
+    {{#if tabs.life.active}}
+      <div class="tg-tab-panel is-active" data-tab-panel="life">
+        {{#if tavern}}
+    <section class="tg-life-dashboard">
+      <div class="tg-gm-only-note"><i class="fa-solid fa-user-shield"></i><span>Эта вкладка доступна только ГМу. Игроки увидят запись лишь после ручной отправки в чат.</span></div>
+
+      <div class="tg-panel tg-panel-full tg-life-overview">
+        <div class="tg-panel-head">
+          <div>
+            <h3>Жизнь таверны</h3>
+            <p><strong>{{tavern.atmosphere.mood.label}}</strong> · {{tavern.atmosphere.crowdLabel}} ({{tavern.atmosphere.crowd}}%)</p>
+          </div>
+          <div class="tg-panel-head-actions">
+            <button type="button" class="tg-apply-crowd" data-action="applyCrowdAvailability" data-tooltip="Сохранить текущую заполненность, обновить связанную сцену и доступность у игроков"><i class="fa-solid fa-check"></i><span>Применить заполненность</span></button>
+            <button type="button" data-action="rerollMood" data-section="mood" data-tooltip="Обновить только обстановку"><i class="fa-solid fa-cloud-sun"></i></button>
+            <button type="button" data-action="regenerateAtmosphere" data-tooltip="Полностью пересобрать слухи, посетителей и происшествие"><i class="fa-solid fa-arrows-rotate"></i></button>
+          </div>
+        </div>
+        <p class="tg-life-mood-text">{{tavern.atmosphere.mood.text}}</p>
+        {{#if availability}}
+          <div class="tg-life-availability">
+            <div><span>Нагрузка</span><strong>{{availability.label}}</strong></div>
+            <div><span>Конечные запасы</span><strong>{{availability.reservePercent}}% занято гостями</strong></div>
+            <div><span>Безлимитные товары</span><strong>{{availability.goodsCapLabel}}</strong></div>
+            <div><span>Услуги</span><strong>{{availability.servicesCapLabel}}</strong></div>
+          </div>
+          <p class="tg-life-availability-note">{{availability.summary}}</p>
+        {{/if}}
+      </div>
+
+      <div class="tg-life-grid">
+        <div class="tg-panel">
+          <div class="tg-panel-head"><h3>Слухи</h3></div>
+          <div class="tg-life-list">
+            {{#each tavern.atmosphere.rumors}}
+              <article class="tg-life-entry">
+                <div class="tg-life-entry-main">
+                  <strong>{{title}}</strong>
+                  <p>{{text}}</p>
+                  {{#if gmText}}<details><summary>Правда для ГМа</summary><p>{{gmText}}</p></details>{{/if}}
+                </div>
+                <div class="tg-life-actions">
+                  <button type="button" class="{{#if pinned}}is-pinned{{/if}}" data-action="toggleLifePinned" data-section="rumors" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить слух{{else}}Сохранить слух при смене дня{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
+                  <button type="button" data-action="rerollLifeEntry" data-section="rumors" data-entry-id="{{id}}" data-tooltip="Заменить слух"><i class="fa-solid fa-dice"></i></button>
+                  <button type="button" data-action="sendLifeEntry" data-section="rumors" data-entry-id="{{id}}" data-tooltip="Отправить игрокам в чат"><i class="fa-solid fa-comment"></i></button>
+                </div>
+              </article>
+            {{/each}}
+          </div>
+        </div>
+
+        <div class="tg-panel">
+          <div class="tg-panel-head"><h3>Завсегдатаи</h3></div>
+          <div class="tg-life-list">
+            {{#each tavern.atmosphere.regulars}}
+              <article class="tg-life-entry">
+                <div class="tg-life-entry-main">
+                  <strong>{{title}}</strong>
+                  <p>{{description}}</p>
+                  {{#if goal}}<small><b>Цель:</b> {{goal}}</small>{{/if}}
+                  {{#if gmText}}<details><summary>Секрет для ГМа</summary><p>{{gmText}}</p></details>{{/if}}
+                </div>
+                <div class="tg-life-actions">
+                  <button type="button" class="{{#if pinned}}is-pinned{{/if}}" data-action="toggleLifePinned" data-section="regulars" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить посетителя{{else}}Сделать постоянным посетителем{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
+                  <button type="button" data-action="rerollLifeEntry" data-section="regulars" data-entry-id="{{id}}" data-tooltip="Заменить посетителя"><i class="fa-solid fa-dice"></i></button>
+                  <button type="button" data-action="sendLifeEntry" data-section="regulars" data-entry-id="{{id}}" data-tooltip="Представить игрокам в чате"><i class="fa-solid fa-comment"></i></button>
+                </div>
+              </article>
+            {{/each}}
+          </div>
+        </div>
+      </div>
+
+      <div class="tg-panel tg-panel-full tg-incident-card">
+        <div class="tg-panel-head">
+          <div>
+            <h3>Происшествие</h3>
+            <strong>{{tavern.atmosphere.incident.title}}</strong>
+          </div>
+          <div class="tg-panel-head-actions">
+            <button type="button" data-action="rerollIncident" data-section="incident" data-tooltip="Другое происшествие"><i class="fa-solid fa-dice"></i></button>
+            <button type="button" data-action="sendLifeEntry" data-section="incident" data-entry-id="{{tavern.atmosphere.incident.id}}" data-tooltip="Отправить происшествие игрокам в чат"><i class="fa-solid fa-comment"></i></button>
+          </div>
+        </div>
+        <p>{{tavern.atmosphere.incident.text}}</p>
+        {{#if tavern.atmosphere.incident.gmText}}<details><summary>Скрытая сторона происшествия</summary><p>{{tavern.atmosphere.incident.gmText}}</p></details>{{/if}}
+      </div>
+    </section>
+
+        {{else}}
+          <section class="tg-empty"><i class="fa-solid fa-user-shield"></i><p>Сначала сгенерируй или загрузи таверну.</p></section>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{/if}}
+</section>

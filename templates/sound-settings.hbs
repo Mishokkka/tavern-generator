@@ -1,0 +1,32 @@
+<section class="tg-wrap tg-sound-settings">
+  <section class="tg-panel tg-panel-full">
+    <h3>Звуки покупок</h3>
+    <p>Звук проигрывается только покупателю после успешной покупки.</p>
+
+    <div class="tg-sound-list">
+      {{#each rows}}
+        <div class="tg-sound-row">
+          <label>
+            <span>{{label}}</span>
+            <input type="text" data-sound-path="{{category}}" value="{{value}}" placeholder="modules/.../sound.ogg или путь из Data" />
+            <small>{{hint}}</small>
+          </label>
+          <div class="tg-sound-actions">
+            <button type="button" data-action="browseSound" data-category="{{category}}" data-tooltip="Выбрать звук" data-tooltip-direction="UP" aria-label="Выбрать звук"><i class="fa-solid fa-folder-open"></i></button>
+            <button type="button" data-action="clearSound" data-category="{{category}}" data-tooltip="Очистить" data-tooltip-direction="UP" aria-label="Очистить"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+      {{/each}}
+    </div>
+
+    <label class="tg-volume-row">
+      <span>Громкость, %</span>
+      <input type="number" name="volumePercent" min="0" max="100" step="5" value="{{volumePercent}}" />
+    </label>
+  </section>
+
+  <footer class="tg-sound-footer">
+    <button type="button" data-action="save"><i class="fa-solid fa-floppy-disk"></i> Сохранить</button>
+    <button type="button" data-action="cancel"><i class="fa-solid fa-xmark"></i> Отмена</button>
+  </footer>
+</section>

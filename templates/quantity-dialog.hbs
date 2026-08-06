@@ -1,0 +1,41 @@
+<section class="tg-quantity-box">
+  <div class="tg-quantity-head">
+    <span class="tg-cart-category">{{categoryLabel}}</span>
+    <h3>{{entry.name}}</h3>
+    {{#if entry.desc}}<p>{{entry.desc}}</p>{{/if}}
+  </div>
+
+  <div class="tg-quantity-price">
+    <span>Цена за единицу</span>
+    <strong>{{{unitPriceLabel}}}</strong>
+  </div>
+
+  <div class="tg-quantity-stock">
+    <span>Доступно</span>
+    <strong>{{remainingLabel}}</strong>
+  </div>
+
+  <div class="tg-quantity-fields {{#if lodging}}is-lodging{{else}}is-standard{{/if}}">
+    <label>
+      <span>{{#if lodging}}Мест{{else}}Количество{{/if}}</span>
+      <input type="number" name="quantity" min="1" max="{{maxQuantity}}" value="{{quantity}}" autofocus>
+    </label>
+
+    {{#if lodging}}
+      <label>
+        <span>Дней</span>
+        <input type="number" name="days" min="1" max="{{maxDays}}" value="{{days}}">
+      </label>
+    {{/if}}
+
+    <div class="tg-quantity-total tg-quantity-total-inline">
+      <span>Итого</span>
+      <strong data-quantity-total>{{{totalLabel}}}</strong>
+    </div>
+  </div>
+
+  <footer class="tg-dialog-actions">
+    <button type="button" data-action="cancel">Отмена</button>
+    <button type="submit"><i class="fa-solid fa-basket-shopping"></i></button>
+  </footer>
+</section>

@@ -1,0 +1,50 @@
+<section class="tg-entry-editor-box">
+  <header class="tg-entry-editor-head">
+    <span class="tg-cart-category">{{categoryLabel}}</span>
+    <h3>{{#if editing}}Редактирование позиции{{else}}Новая позиция{{/if}}</h3>
+  </header>
+
+  <div class="tg-entry-editor-fields">
+    <label class="tg-field-wide">
+      <span>Название</span>
+      <input type="text" name="name" value="{{entry.name}}" maxlength="120" autofocus required>
+    </label>
+
+    <label class="tg-field-wide">
+      <span>Описание</span>
+      <textarea name="desc" rows="4" maxlength="1000">{{entry.desc}}</textarea>
+    </label>
+
+    <label>
+      <span>Базовая цена, ММ</span>
+      <input type="number" name="basePrice" min="1" max="100000" value="{{entry.basePrice}}">
+    </label>
+
+    {{#if lodging}}
+      <label>
+        <span>Всего мест</span>
+        <input type="number" name="total" data-stock-field min="0" max="999" value="{{entry.total}}">
+      </label>
+      <label>
+        <span>Свободно мест</span>
+        <input type="number" name="stock" data-stock-field min="0" max="999" value="{{entry.stock}}">
+      </label>
+    {{else}}
+      <label>
+        <span>Запас</span>
+        <input type="number" name="stock" data-stock-field min="0" max="9999" value="{{entry.stock}}">
+      </label>
+    {{/if}}
+  </div>
+
+  <div class="tg-entry-editor-flags">
+    <label class="tg-check"><input type="checkbox" name="unlimited" {{#if entry.unlimited}}checked{{/if}}> <span>Без ограничения</span></label>
+    {{#unless lodging}}<label class="tg-check"><input type="checkbox" name="local" {{#if entry.local}}checked{{/if}}> <span>Местная позиция</span></label>{{/unless}}
+    <label class="tg-check"><input type="checkbox" name="pinned" {{#if entry.pinned}}checked{{/if}}> <span>Закрепить от дневной ротации</span></label>
+  </div>
+
+  <footer class="tg-dialog-actions">
+    <button type="button" data-action="cancel">Отмена</button>
+    <button type="submit"><i class="fa-solid fa-floppy-disk"></i> Сохранить</button>
+  </footer>
+</section>
