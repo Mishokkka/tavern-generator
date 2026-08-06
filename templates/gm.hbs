@@ -10,8 +10,7 @@
     {{/if}}
   </nav>
 
-  {{#if tabs.tavern.active}}
-    <div id="tg-panel-tavern" class="tg-tab-panel is-active" data-tab-panel="tavern" role="tabpanel" aria-labelledby="tg-tab-tavern">
+  <div id="tg-panel-tavern" class="tg-tab-panel {{#if tabs.tavern.active}}is-active{{/if}}" data-tab-panel="tavern" role="tabpanel" aria-labelledby="tg-tab-tavern" {{#unless tabs.tavern.active}}hidden{{/unless}}>
   <section class="tg-controls">
     <label>
       <span>Регион / страна</span>
@@ -291,11 +290,9 @@
     </section>
   {{/if}}
     </div>
-  {{/if}}
 
   {{#if isGM}}
-    {{#if tabs.life.active}}
-      <div id="tg-panel-life" class="tg-tab-panel is-active" data-tab-panel="life" role="tabpanel" aria-labelledby="tg-tab-life">
+      <div id="tg-panel-life" class="tg-tab-panel {{#if tabs.life.active}}is-active{{/if}}" data-tab-panel="life" role="tabpanel" aria-labelledby="tg-tab-life" {{#unless tabs.life.active}}hidden{{/unless}}>
         {{#if tavern}}
     <section class="tg-life-dashboard">
       <div class="tg-gm-only-note"><i class="fa-solid fa-user-shield"></i><span>Эта вкладка доступна только ГМу. Игроки увидят запись лишь после ручной отправки в чат.</span></div>
@@ -387,6 +384,5 @@
           <section class="tg-empty"><i class="fa-solid fa-user-shield"></i><p>Сначала сгенерируй или загрузи таверну.</p></section>
         {{/if}}
       </div>
-    {{/if}}
   {{/if}}
 </section>

@@ -15,6 +15,55 @@ const { TavernEditor } = await import("../scripts/services/TavernEditor.js");
 const { TavernPricing } = await import("../scripts/services/TavernPricing.js");
 const { PurchaseSoundService } = await import("../scripts/services/PurchaseSoundService.js");
 const { CurrencyAdapter } = await import("../scripts/services/CurrencyAdapter.js");
+const { TavernPrivateStore } = await import("../scripts/services/TavernPrivateStore.js");
+const { FoundryDocumentUtils } = await import("../scripts/services/FoundryDocumentUtils.js");
+const { TavernSocketIdentity } = await import("../scripts/services/TavernSocketIdentity.js");
+
+let privateStoreJournal = null;
+
+async function activatePrivateStore() {
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0 } };
+  const journals = new Map();
+  if (privateStoreJournal) journals.set(privateStoreJournal.id, privateStoreJournal);
+
+  game.journal = {
+    get: (id) => journals.get(id) ?? null,
+    find: (predicate) => [...journals.values()].find(predicate) ?? null
+  };
+
+  globalThis.JournalEntry = {
+    create: async (data) => {
+      const journal = {
+        id: "private-store-test",
+        ownership: structuredClone(data.ownership),
+        flags: structuredClone(data.flags),
+        getFlag(moduleId, key) { return this.flags?.[moduleId]?.[key]; },
+        async setFlag(moduleId, key, value) {
+          this.flags[moduleId] ??= {};
+          this.flags[moduleId][key] = structuredClone(value);
+          return value;
+        },
+        async update(changes) {
+          if (Object.hasOwn(changes, "ownership.default")) this.ownership.default = changes["ownership.default"];
+          for (const [key] of Object.entries(changes)) {
+            if (key.startsWith("ownership.-=")) delete this.ownership[key.slice("ownership.-=".length)];
+          }
+          return this;
+        }
+      };
+      privateStoreJournal = journal;
+      journals.set(journal.id, journal);
+      return journal;
+    }
+  };
+
+  const gm = { id: "gm-private-store", isGM: true, active: true };
+  game.user = gm;
+  game.users = [gm];
+  setSetting("privateStateJournalId", privateStoreJournal?.id ?? "");
+  await TavernPrivateStore.initialize();
+  return TavernPrivateStore;
+}
 
 test("content validator has no hard errors", () => {
   const report = TavernDataValidator.validate({ log: false });
@@ -352,6 +401,23 @@ test("zero stock limits survive migration", () => {
   assert.equal(migrated.inventory.food[0].maxStock, 0);
 });
 
+test("zero crowd survives migration", () => {
+  const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  tavern.atmosphere.crowd = 0;
+  tavern.atmosphere.mood.crowd = 75;
+
+  const migrated = TavernMigrations.migrate(tavern);
+  assert.equal(migrated.atmosphere.crowd, 0);
+});
+
+test("private GM store strips explicit player ownership", async () => {
+  const store = await activatePrivateStore();
+  privateStoreJournal.ownership = { default: 2, "player-explicit": 2, "player-none": 0 };
+
+  await store.initialize();
+  assert.deepEqual(privateStoreJournal.ownership, { default: 0 });
+});
+
 test("partial entry edits preserve the unlimited flag", () => {
   const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
   const entry = tavern.inventory.services[0] ?? tavern.inventory.food[0];
@@ -408,22 +474,22 @@ test("manual new day does not silently save an unsaved draft", async () => {
   setSetting("dailyInventoryRefreshEnabled", false);
   setSetting("dailyMenuRotationEnabled", false);
   setSetting("dailyAtmosphereRefreshEnabled", false);
-  setSetting("currentTavern", null);
-  setSetting("savedTaverns", []);
-  game.user = { id: "gm-unsaved-day", isGM: true };
+  const store = await activatePrivateStore();
+  await store.write({ current: null, saved: [] });
 
   const result = await TavernDailyService.advanceTavern(draft, { dayKey: "manual:unsaved", broadcast: false });
   assert.equal(result.wasCurrent, false);
   assert.equal(result.wasSaved, false);
-  assert.equal(getSetting("currentTavern"), null);
-  assert.deepEqual(getSetting("savedTaverns"), []);
+  assert.equal(store.state.current, null);
+  assert.deepEqual(store.state.saved, []);
 });
 
-test("public scene snapshots are never authoritative purchase state", () => {
+test("public scene snapshots are never authoritative purchase state", async () => {
   const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  const trustedOther = TavernGenerator.generate({ region: "flechenrand", quality: "modest", size: "small", terrain: "town", priceMultiplier: 1 });
   const publicView = TavernAtmosphereService.publicView(tavern);
-  setSetting("currentTavern", null);
-  setSetting("savedTaverns", []);
+  const store = await activatePrivateStore();
+  await store.write({ current: trustedOther, saved: [trustedOther] });
   game.scenes = new Map([["scene-public", {
     getFlag: (_moduleId, key) => key === "tavernPublicView" ? publicView : null
   }]]);
@@ -432,4 +498,64 @@ test("public scene snapshots are never authoritative purchase state", () => {
     () => TavernState.resolveTrustedTavern({ tavernId: tavern.id, sceneId: "scene-public" }),
     /не найдена в доверенном состоянии/
   );
+});
+
+
+test("concurrent compendium writers keep a module-unlocked pack open until all finish", async () => {
+  let releaseUnlock;
+  const unlockGate = new Promise((resolve) => { releaseUnlock = resolve; });
+  const calls = [];
+  const pack = {
+    collection: "world.concurrent-pack",
+    locked: true,
+    async configure({ locked }) {
+      calls.push(locked);
+      if (locked === false) await unlockGate;
+      this.locked = locked;
+    }
+  };
+
+  const first = FoundryDocumentUtils.unlockPack(pack);
+  const second = FoundryDocumentUtils.unlockPack(pack);
+  releaseUnlock();
+  assert.equal(await first, true);
+  assert.equal(await second, true);
+  assert.equal(pack.locked, false);
+
+  assert.equal(await FoundryDocumentUtils.relockPack(pack, true), true);
+  assert.equal(pack.locked, false);
+  assert.equal(await FoundryDocumentUtils.relockPack(pack, true), true);
+  assert.equal(pack.locked, true);
+  assert.deepEqual(calls, [false, true]);
+});
+
+test("socket signatures survive JSON omission of undefined object properties", async () => {
+  const flags = {};
+  const user = {
+    id: "signed-user",
+    isGM: false,
+    active: true,
+    getFlag: (_moduleId, key) => flags[key],
+    setFlag: async (_moduleId, key, value) => { flags[key] = structuredClone(value); }
+  };
+  game.user = user;
+  game.users = { get: (id) => id === user.id ? user : null };
+  setSetting("socketPrivateKey", {});
+
+  const signed = await TavernSocketIdentity.sign({
+    type: "test",
+    omitted: undefined,
+    nested: { kept: 1, omitted: undefined },
+    array: [1, undefined]
+  });
+  const transported = JSON.parse(JSON.stringify(signed));
+  assert.equal(await TavernSocketIdentity.verify(transported), user);
+
+  const protoPayload = JSON.parse('{"type":"test","__proto__":{"polluted":true}}');
+  const signedProto = await TavernSocketIdentity.sign(protoPayload);
+  assert.equal(Object.prototype.polluted, undefined);
+  assert.equal(await TavernSocketIdentity.verify(JSON.parse(JSON.stringify(signedProto))), user);
+  assert.equal(Object.prototype.polluted, undefined);
+
+  await assert.rejects(() => TavernSocketIdentity.sign({ type: "test", bad: Infinity }), /non-finite/);
 });

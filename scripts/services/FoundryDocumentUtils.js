@@ -1,6 +1,7 @@
 import { MODULE_ID } from "../constants.js";
 
 export class FoundryDocumentUtils {
+  static #packUnlocks = new Map();
   static async ensureWorldFolder({ name, type, parent = null, fallbackName = "Папка" } = {}) {
     const normalizedName = String(name || fallbackName).trim() || fallbackName;
     const parentId = parent || null;
@@ -65,14 +66,44 @@ export class FoundryDocumentUtils {
   }
 
   static async unlockPack(pack) {
-    if (!pack?.locked) return false;
-    if (typeof pack.configure === "function") await pack.configure({ locked: false });
-    else pack.locked = false;
-    return true;
+    const key = String(pack?.collection ?? "").trim();
+    if (!key) return false;
+
+    const existing = this.#packUnlocks.get(key);
+    if (existing) {
+      existing.count += 1;
+      await existing.ready;
+      return true;
+    }
+    if (!pack.locked) return false;
+
+    const record = { count: 1, ready: null };
+    record.ready = (async () => {
+      if (typeof pack.configure === "function") await pack.configure({ locked: false });
+      else pack.locked = false;
+    })();
+    this.#packUnlocks.set(key, record);
+
+    try {
+      await record.ready;
+      return true;
+    } catch (error) {
+      if (this.#packUnlocks.get(key) === record) this.#packUnlocks.delete(key);
+      throw error;
+    }
   }
 
   static async relockPack(pack, wasUnlocked = false) {
     if (!pack || !wasUnlocked) return false;
+    const key = String(pack.collection ?? "").trim();
+    const record = key ? this.#packUnlocks.get(key) : null;
+    if (!record) return false;
+
+    await record.ready;
+    record.count -= 1;
+    if (record.count > 0) return true;
+    this.#packUnlocks.delete(key);
+
     if (typeof pack.configure === "function") await pack.configure({ locked: true });
     else pack.locked = true;
     return true;

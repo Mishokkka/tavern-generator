@@ -1351,6 +1351,12 @@ form.fbl-tavern {
   font-size: 12px;
 }
 
+.fbl-tavern .tg-cart-note.is-warning {
+  border-color: color-mix(in srgb, var(--tg-accent) 52%, var(--tg-border-soft));
+  color: var(--tg-accent-strong) !important;
+  background: color-mix(in srgb, var(--tg-accent) 8%, rgba(0, 0, 0, 0.2)) !important;
+}
+
 .fbl-tavern-entry-editor {
   height: auto !important;
   max-height: min(760px, 92vh) !important;

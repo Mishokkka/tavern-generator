@@ -95,7 +95,8 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!singleton) return true;
 
     const requestId = String(payload.requestId ?? "").trim();
-    const snapshot = requestId ? singleton.checkoutSnapshots.get(requestId) ?? null : null;
+    const checkoutRecord = requestId ? singleton.checkoutSnapshots.get(requestId) ?? null : null;
+    const snapshot = Array.isArray(checkoutRecord) ? checkoutRecord : checkoutRecord?.items ?? null;
     const isActive = Boolean(requestId && singleton.activeRequestId === requestId);
     if (singleton.activeRequestId && requestId && !isActive && !snapshot) return false;
 
@@ -112,7 +113,8 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _onClose(options) {
-    this.#resetCheckout();
+    // The singleton keeps an in-flight checkout alive while its window is closed.
+    // Resetting here would allow the same cart to be submitted again under a new request id.
     return super._onClose?.(options);
   }
 
@@ -122,7 +124,8 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.renderedTavern = tavern ?? null;
 
     const actors = this.#ownedActors();
-    const selectedActor = this.#selectedActor(actors);
+    const checkoutRecord = this.activeRequestId ? this.checkoutSnapshots.get(this.activeRequestId) ?? null : null;
+    const selectedActor = actors.find((actor) => actor.id === checkoutRecord?.actorId) ?? this.#selectedActor(actors);
     const wallet = selectedActor ? CurrencyAdapter.getWallet(selectedActor) : null;
 
     return {
@@ -134,7 +137,12 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       searchQuery: this.searchQuery,
       searchExpanded: this.searchExpanded,
       wallet: this.#walletContext(wallet, selectedActor),
-      cart: { ...this.#cartSummary(), checkoutPending: this.checkoutPending },
+      cart: {
+        ...this.#cartSummary(),
+        checkoutPending: this.checkoutPending,
+        checkoutRetry: Boolean(this.activeRequestId && !this.checkoutPending && checkoutRecord),
+        locked: Boolean(this.activeRequestId)
+      },
       isGM: game.user.isGM
     };
   }
@@ -179,6 +187,11 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     });
 
     this.element.querySelector("[data-action='select-actor']")?.addEventListener("change", (event) => {
+      if (this.activeRequestId) {
+        ui.notifications.warn("Сначала получи результат предыдущей оплаты или повтори тот же запрос.");
+        this.render();
+        return;
+      }
       this.selectedActorId = event.currentTarget.value || null;
       this.render();
       TavernCartApp.refreshOpen();
@@ -200,7 +213,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async #onAddToCart(event) {
     event.preventDefault();
-    if (this.checkoutPending) return ui.notifications.warn("Дождись завершения текущей оплаты.");
+    if (this.activeRequestId) return ui.notifications.warn("Сначала получи результат предыдущей оплаты или повтори тот же запрос.");
     const button = event.currentTarget;
     const category = button.dataset.category;
     const entryId = button.dataset.entryId;
@@ -229,7 +242,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #addCartItem({ category, entry, quantity = 1, days = 1 }) {
-    if (this.checkoutPending) return;
+    if (this.activeRequestId) return;
     const lodging = this.#isLodging(category);
     const safeQuantity = Math.max(1, Math.trunc(Number(quantity) || 1));
     const safeDays = Math.max(1, Math.trunc(Number(days) || 1));
@@ -262,7 +275,9 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   cartContext() {
-    const selectedActor = this.#selectedActor(this.#ownedActors());
+    const actors = this.#ownedActors();
+    const checkoutRecord = this.activeRequestId ? this.checkoutSnapshots.get(this.activeRequestId) ?? null : null;
+    const selectedActor = actors.find((actor) => actor.id === checkoutRecord?.actorId) ?? this.#selectedActor(actors);
     const items = this.cart.map((item) => this.#cartItemContext(item));
     const total = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -272,19 +287,21 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       total,
       totalLabel: TavernGenerator.formatPriceHtml(total),
       actorName: selectedActor?.name ?? "персонаж не выбран",
-      checkoutPending: this.checkoutPending
+      checkoutPending: this.checkoutPending,
+      checkoutRetry: Boolean(this.activeRequestId && !this.checkoutPending && checkoutRecord),
+      locked: Boolean(this.activeRequestId)
     };
   }
 
   removeCartItem(key) {
-    if (this.checkoutPending) return;
+    if (this.activeRequestId) return;
     this.cart = this.cart.filter((item) => item.key !== key);
     this.render();
     TavernCartApp.refreshOpen();
   }
 
   adjustCartItem(key, delta) {
-    if (this.checkoutPending) return;
+    if (this.activeRequestId) return;
     const item = this.cart.find((entry) => entry.key === key);
     if (!item) return;
 
@@ -301,7 +318,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   clearCart({ render = true, notify = true } = {}) {
-    if (this.checkoutPending) return;
+    if (this.activeRequestId) return;
     this.cart = [];
     if (notify) ui.notifications.info("Корзина очищена.");
     if (render) {
@@ -312,48 +329,67 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async checkoutCart() {
     if (this.checkoutPending) return;
-    if (!this.cart.length) return ui.notifications.warn("Корзина пуста.");
 
-    const actor = this.#selectedActor(this.#ownedActors());
-    const actorId = actor?.id ?? null;
-    if (!actorId) return ui.notifications.warn("У пользователя нет привязанного персонажа для оплаты.");
+    let requestId = this.activeRequestId;
+    let checkoutRecord = requestId ? this.checkoutSnapshots.get(requestId) ?? null : null;
+    const retrying = Boolean(requestId && checkoutRecord);
 
-    const tavern = this.tavernOverride ?? TavernState.getCurrent();
-    const requestId = foundry.utils.randomID(20);
-    const snapshot = this.cart.map((item) => foundry.utils.deepClone(item));
-    this.checkoutSnapshots.set(requestId, snapshot);
+    if (requestId && !checkoutRecord) {
+      this.activeRequestId = null;
+      requestId = null;
+    }
+
+    if (!retrying) {
+      if (!this.cart.length) return ui.notifications.warn("Корзина пуста.");
+
+      const actor = this.#selectedActor(this.#ownedActors());
+      const actorId = actor?.id ?? null;
+      if (!actorId) return ui.notifications.warn("У пользователя нет привязанного персонажа для оплаты.");
+
+      const tavern = this.tavernOverride ?? TavernState.getCurrent();
+      requestId = foundry.utils.randomID(20);
+      checkoutRecord = {
+        actorId,
+        tavernId: tavern?.id ?? null,
+        sceneId: tavern?.scene?.id ?? globalThis.canvas?.scene?.id ?? null,
+        items: this.cart.map((item) => foundry.utils.deepClone(item))
+      };
+      this.checkoutSnapshots.set(requestId, checkoutRecord);
+    }
+
     this.checkoutPending = true;
     this.activeRequestId = requestId;
+    this.#startCheckoutTimeout(requestId);
     this.render();
     TavernCartApp.refreshOpen();
 
     try {
       const sent = await TavernSocket.requestCartPurchase({
         requestId,
-        actorId,
-        items: this.cart.map((item) => ({
+        actorId: checkoutRecord.actorId,
+        items: checkoutRecord.items.map((item) => ({
           category: item.category,
           entryId: item.entryId,
           quantity: item.quantity,
           days: item.days
         })),
-        tavernId: tavern?.id ?? null,
-        sceneId: tavern?.scene?.id ?? globalThis.canvas?.scene?.id ?? null
+        tavernId: checkoutRecord.tavernId,
+        sceneId: checkoutRecord.sceneId
       });
       if (!sent) {
-        this.checkoutSnapshots.delete(requestId);
-        this.#resetCheckout();
+        if (retrying) this.#pauseCheckout();
+        else {
+          this.checkoutSnapshots.delete(requestId);
+          this.#resetCheckout();
+        }
         this.render();
         TavernCartApp.refreshOpen();
-      } else {
-        this.#startCheckoutTimeout(requestId);
       }
     } catch (error) {
-      this.checkoutSnapshots.delete(requestId);
-      this.#resetCheckout();
+      this.#pauseCheckout();
       this.render();
       TavernCartApp.refreshOpen();
-      throw error;
+      ui.notifications.warn(`Не удалось доставить запрос оплаты. Повтори его той же кнопкой: ${error?.message ?? error}`);
     }
   }
 
@@ -514,13 +550,21 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #startCheckoutTimeout(requestId) {
     if (this.checkoutTimer) window.clearTimeout(this.checkoutTimer);
-    this.checkoutTimer = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      if (this.checkoutTimer === timer) this.checkoutTimer = null;
       if (!this.checkoutPending || this.activeRequestId !== requestId) return;
-      this.#resetCheckout();
-      ui.notifications.warn("ГМ не ответил на запрос оплаты. Корзина снова доступна, попробуй ещё раз.");
-      this.render();
+      this.checkoutPending = false;
+      ui.notifications.warn("Ответ ГМа не получен. Нажми «Повторить оплату»: модуль отправит тот же запрос и не создаст новую покупку.");
+      if (this.rendered) this.render();
       TavernCartApp.refreshOpen();
     }, CHECKOUT_TIMEOUT_MS);
+    this.checkoutTimer = timer;
+  }
+
+  #pauseCheckout() {
+    if (this.checkoutTimer) window.clearTimeout(this.checkoutTimer);
+    this.checkoutTimer = null;
+    this.checkoutPending = false;
   }
 
   #resetCheckout() {

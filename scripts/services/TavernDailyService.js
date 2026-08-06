@@ -114,7 +114,7 @@ export class TavernDailyService {
 
     let updated = result.tavern;
     if (wasSaved) updated = await TavernState.saveTavern(updated);
-    if (wasCurrent) updated = await TavernState.setCurrent(updated);
+    if (wasCurrent) updated = await TavernState.setCurrent(updated, { touch: !wasSaved });
     if (broadcast && wasCurrent) TavernSocket.refreshAll(updated);
 
     return {

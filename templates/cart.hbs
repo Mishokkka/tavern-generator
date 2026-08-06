@@ -7,13 +7,13 @@
             <strong>{{name}}</strong>
             <small>{{categoryLabel}} · {{countLabel}}</small>
             <div class="tg-cart-quantity">
-              <button type="button" data-action="adjust-cart-item" data-key="{{key}}" data-delta="-1" aria-label="Уменьшить"><i class="fa-solid fa-minus"></i></button>
+              <button type="button" data-action="adjust-cart-item" data-key="{{key}}" data-delta="-1" aria-label="Уменьшить" {{#if ../locked}}disabled{{/if}}><i class="fa-solid fa-minus"></i></button>
               <span>{{quantity}}</span>
-              <button type="button" data-action="adjust-cart-item" data-key="{{key}}" data-delta="1" aria-label="Увеличить"><i class="fa-solid fa-plus"></i></button>
+              <button type="button" data-action="adjust-cart-item" data-key="{{key}}" data-delta="1" aria-label="Увеличить" {{#if ../locked}}disabled{{/if}}><i class="fa-solid fa-plus"></i></button>
             </div>
           </div>
           <div class="tg-cart-price">{{{totalLabel}}}</div>
-          <button type="button" data-action="remove-cart-item" data-key="{{key}}" data-tooltip="Убрать" aria-label="Убрать">
+          <button type="button" data-action="remove-cart-item" data-key="{{key}}" data-tooltip="Убрать" aria-label="Убрать" {{#if ../locked}}disabled{{/if}}>
             <i class="fa-solid fa-xmark"></i>
           </button>
         </article>
@@ -26,9 +26,10 @@
     </div>
 
     <p class="tg-cart-note">Плательщик: <strong>{{actorName}}</strong>. Цена и остатки повторно проверяются ГМ-клиентом при оплате.</p>
+    {{#if checkoutRetry}}<p class="tg-cart-note is-warning">Результат предыдущего запроса неизвестен. Повтор будет отправлен с тем же идентификатором, поэтому уже обработанная покупка не спишется второй раз.</p>{{/if}}
     <footer class="tg-cart-actions">
-      <button type="button" data-action="clear-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid fa-trash"></i> Очистить</button>
-      <button type="button" data-action="checkout-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid {{#if checkoutPending}}fa-spinner fa-spin{{else}}fa-coins{{/if}}"></i> {{#if checkoutPending}}Обработка{{else}}Оплатить{{/if}}</button>
+      <button type="button" data-action="clear-cart" {{#if locked}}disabled{{/if}}><i class="fa-solid fa-trash"></i> Очистить</button>
+      <button type="button" data-action="checkout-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid {{#if checkoutPending}}fa-spinner fa-spin{{else}}{{#if checkoutRetry}}fa-rotate-right{{else}}fa-coins{{/if}}{{/if}}"></i> {{#if checkoutPending}}Обработка{{else}}{{#if checkoutRetry}}Повторить оплату{{else}}Оплатить{{/if}}{{/if}}</button>
     </footer>
   {{else}}
     <section class="tg-empty tg-cart-empty">

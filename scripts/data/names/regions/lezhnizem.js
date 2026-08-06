@@ -15,7 +15,7 @@ export const LEZHNIZEM_NAMES = {
   ],
   "terrain": {
     "city": [
-      "вече",
+      "веча",
       "торга",
       "града",
       "моста",

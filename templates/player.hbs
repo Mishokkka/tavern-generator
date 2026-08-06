@@ -29,7 +29,7 @@
           {{#if showActorPicker}}
             <label class="tg-actor-picker-inline">
               <span class="tg-inline-label">Платит</span>
-              <select data-action="select-actor" name="selectedActorId">
+              <select data-action="select-actor" name="selectedActorId" {{#if cart.locked}}disabled{{/if}}>
                 {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
               </select>
             </label>
@@ -48,7 +48,7 @@
         </div>
 
         <button type="button" class="tg-cart-button" data-action="open-cart" data-tooltip="Корзина" aria-label="Корзина">
-          <i class="fa-solid {{#if cart.checkoutPending}}fa-spinner fa-spin{{else}}fa-basket-shopping{{/if}}"></i>
+          <i class="fa-solid {{#if cart.checkoutPending}}fa-spinner fa-spin{{else}}{{#if cart.checkoutRetry}}fa-rotate-right{{else}}fa-basket-shopping{{/if}}{{/if}}"></i>
           <span class="tg-cart-count">{{cart.count}}</span>
           <span class="tg-cart-sum">{{{cart.totalLabel}}}</span>
         </button>
@@ -72,7 +72,7 @@
                     <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
                   {{/each}}
                 </div>
-                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="food" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="food" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if ../cart.locked}}disabled{{else}}{{#if disabled}}disabled{{/if}}{{/if}}>
                   <i class="fa-solid fa-basket-shopping"></i>
                 </button>
               </div>
@@ -96,7 +96,7 @@
                     <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
                   {{/each}}
                 </div>
-                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="drinks" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="drinks" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if ../cart.locked}}disabled{{else}}{{#if disabled}}disabled{{/if}}{{/if}}>
                   <i class="fa-solid fa-basket-shopping"></i>
                 </button>
               </div>
@@ -123,7 +123,7 @@
                   {{/each}}
                   <small>за место/день</small>
                 </div>
-                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="lodging" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                <button type="button" class="tg-add-cart" data-action="add-cart" data-category="lodging" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if ../cart.locked}}disabled{{else}}{{#if disabled}}disabled{{/if}}{{/if}}>
                   <i class="fa-solid fa-basket-shopping"></i>
                 </button>
               </div>
@@ -148,7 +148,7 @@
                       <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
                     {{/each}}
                   </div>
-                  <button type="button" class="tg-add-cart" data-action="add-cart" data-category="services" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if disabled}}disabled{{/if}}>
+                  <button type="button" class="tg-add-cart" data-action="add-cart" data-category="services" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if ../cart.locked}}disabled{{else}}{{#if disabled}}disabled{{/if}}{{/if}}>
                     <i class="fa-solid fa-basket-shopping"></i>
                   </button>
                 </div>

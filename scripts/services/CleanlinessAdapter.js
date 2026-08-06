@@ -27,6 +27,8 @@ const WASH_RANK = Object.freeze({
   "я в раю": 5
 });
 
+const WASH_CACHE_MISS_TTL_MS = 30_000;
+
 const LEVEL_TO_WASH_STATE = Object.freeze({
   1: "Помытый",
   2: "Хорошенько помытый",
@@ -235,11 +237,16 @@ export class CleanlinessAdapter {
 
   static async #findWashConditionSource(name) {
     const normalized = this.#normalize(name);
-    const cachedUuid = this.#washSourceCache.get(normalized);
-    if (cachedUuid) {
+    const cachedEntry = this.#washSourceCache.get(normalized);
+    const cachedUuid = typeof cachedEntry === "string" ? cachedEntry : cachedEntry?.uuid;
+    if (cachedEntry?.missUntil) {
+      if (cachedEntry.missUntil > Date.now()) return null;
+      this.#washSourceCache.delete(normalized);
+    } else if (cachedUuid) {
       try {
         const cached = await globalThis.fromUuid?.(cachedUuid);
         if (cached?.type === "criticalInjury") return cached;
+        this.#washSourceCache.delete(normalized);
       } catch (_error) {
         this.#washSourceCache.delete(normalized);
       }
@@ -265,20 +272,23 @@ export class CleanlinessAdapter {
       .sort((left, right) => this.#packPriority(right) - this.#packPriority(left));
 
     for (const pack of packs) {
-      if (pack.documentName !== "Item") continue;
-      const index = await pack.getIndex({ fields: ["name", "type"] });
-      const entry = index.find((item) => item.type === "criticalInjury" && this.#normalize(item.name) === normalized);
-      if (entry) {
+      try {
+        const index = await pack.getIndex({ fields: ["name", "type"] });
+        const entry = index.find((item) => item.type === "criticalInjury" && this.#normalize(item.name) === normalized);
+        if (!entry) continue;
         const document = await pack.getDocument(entry._id);
-        if (document) return this.#cacheWashSource(normalized, document);
+        if (document?.type === "criticalInjury") return this.#cacheWashSource(normalized, document);
+      } catch (error) {
+        console.debug(`${MODULE_ID} | Could not scan wash conditions in ${pack.collection}`, error);
       }
     }
 
+    this.#washSourceCache.set(normalized, { missUntil: Date.now() + WASH_CACHE_MISS_TTL_MS });
     return null;
   }
 
   static #cacheWashSource(normalizedName, document) {
-    if (document?.uuid) this.#washSourceCache.set(normalizedName, document.uuid);
+    if (document?.uuid) this.#washSourceCache.set(normalizedName, { uuid: document.uuid });
     return document;
   }
 

@@ -5,6 +5,7 @@ const PUBLIC_KEY_FLAG = "socketPublicKey";
 const MAX_MESSAGE_AGE_MS = 5 * 60 * 1000;
 const MAX_FUTURE_SKEW_MS = 30 * 1000;
 const REPLAY_TTL_MS = 10 * 60 * 1000;
+const OMIT = Symbol("omit-json-property");
 
 export class TavernSocketIdentity {
   static #privateKey = null;
@@ -31,13 +32,14 @@ export class TavernSocketIdentity {
     await this.initialize();
     if (!this.#privateKey) throw new Error("Не удалось инициализировать подпись сообщений таверны.");
 
-    const unsigned = {
+    const candidate = {
       ...foundry.utils.deepClone(payload ?? {}),
       sender: game.user.id,
       signedAt: Date.now(),
       nonce: foundry.utils.randomID(24)
     };
-    delete unsigned.signature;
+    delete candidate.signature;
+    const unsigned = this.#normalizePayload(candidate);
 
     const bytes = new TextEncoder().encode(this.#canonical(unsigned));
     const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, this.#privateKey, bytes);
@@ -64,8 +66,14 @@ export class TavernSocketIdentity {
     const publicKey = await this.#publicKeyFor(user);
     if (!publicKey) return null;
 
-    const unsigned = foundry.utils.deepClone(payload);
-    delete unsigned.signature;
+    let unsigned;
+    try {
+      const candidate = foundry.utils.deepClone(payload);
+      delete candidate.signature;
+      unsigned = this.#normalizePayload(candidate);
+    } catch (_error) {
+      return null;
+    }
     const bytes = new TextEncoder().encode(this.#canonical(unsigned));
 
     let valid = false;
@@ -154,10 +162,53 @@ export class TavernSocketIdentity {
     }
   }
 
+  static #normalizePayload(value) {
+    const normalized = this.#normalizeJson(value, new Set(), false);
+    if (!normalized || normalized === OMIT || Array.isArray(normalized) || typeof normalized !== "object") {
+      throw new TypeError("Socket payload must be a JSON-safe object.");
+    }
+    return normalized;
+  }
+
+  static #normalizeJson(value, seen, inArray) {
+    if (value === undefined) return inArray ? null : OMIT;
+    if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) throw new TypeError("Socket payload contains a non-finite number.");
+      return value;
+    }
+    if (typeof value !== "object") throw new TypeError("Socket payload contains a non-JSON-safe value.");
+    if (seen.has(value)) throw new TypeError("Socket payload contains a circular reference.");
+
+    seen.add(value);
+    try {
+      if (Array.isArray(value)) {
+        return Array.from({ length: value.length }, (_, index) => {
+          const normalized = this.#normalizeJson(value[index], seen, true);
+          return normalized === OMIT ? null : normalized;
+        });
+      }
+
+      const prototype = Object.getPrototypeOf(value);
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw new TypeError("Socket payload contains a non-plain object.");
+      }
+
+      const normalized = Object.create(null);
+      for (const key of Object.keys(value)) {
+        const entry = this.#normalizeJson(value[key], seen, false);
+        if (entry !== OMIT) normalized[key] = entry;
+      }
+      return normalized;
+    } finally {
+      seen.delete(value);
+    }
+  }
+
   static #canonical(value) {
     if (value === null || typeof value !== "object") return JSON.stringify(value);
     if (Array.isArray(value)) return `[${value.map((entry) => this.#canonical(entry)).join(",")}]`;
-    const keys = Object.keys(value).sort();
+    const keys = Object.keys(value).filter((key) => value[key] !== undefined).sort();
     return `{${keys.map((key) => `${JSON.stringify(key)}:${this.#canonical(value[key])}`).join(",")}}`;
   }
 
