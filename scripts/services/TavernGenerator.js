@@ -7,6 +7,7 @@ import { TavernInventory } from "./TavernInventory.js";
 import { TavernViewModel } from "./TavernViewModel.js";
 import { TavernEditor } from "./TavernEditor.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
+import { CalendariaAdapter } from "./CalendariaAdapter.js";
 
 export class TavernGenerator {
   static generate(params = {}) {
@@ -16,6 +17,7 @@ export class TavernGenerator {
     const terrain = params.terrain ?? "road";
     const priceMultiplier = TavernPricing.normalizeMultiplier(params.priceMultiplier ?? 1);
     const inventory = TavernInventory.generate({ region, quality, size, terrain, priceMultiplier });
+    const date = CalendariaAdapter.currentDateInfo();
 
     const tavern = {
       schemaVersion: TAVERN_SCHEMA_VERSION,
@@ -33,6 +35,7 @@ export class TavernGenerator {
         terrain: TAVERN_OPTIONS.terrains[terrain] ?? terrain
       },
       generatedAt: Date.now(),
+      refreshState: { lastDayKey: date.key, lastDayOrdinal: date.ordinal, clockId: date.clockId },
       inventory,
       publicSummary: "Доступные позиции указаны ниже."
     };

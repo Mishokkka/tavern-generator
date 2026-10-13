@@ -40,9 +40,11 @@ const API = {
     return new TavernGMApp(appOptions).render(true);
   },
   openPlayer: () => TavernPlayerApp.openSingleton(),
-  clear: () => TavernState.clearCurrent(),
+  clear: async () => { await TavernState.clearCurrent(); TavernSocket.refreshAll(null); },
   getCurrent: () => TavernState.getCurrent(),
   getSaved: () => TavernState.getSaved(),
+  pendingPurchases: () => TavernState.pendingPurchases(),
+  resolvePendingPurchase: (id, outcome) => TavernState.resolvePendingPurchase(id, outcome),
   saveCurrent: () => TavernState.saveTavern(TavernState.getCurrent()),
   addFlagMoney: async (actor, coins) => {
     if (!game.user?.isGM) throw new Error("Только ГМ может изменять кошелёк через API таверны.");

@@ -14,6 +14,7 @@ export class TavernAtmosphereService {
   static ensure(tavern) {
     let clone = TavernMigrations.migrate(tavern);
     if (!clone) return null;
+    clone.atmosphereSeed ||= foundry.utils.randomID(24);
     if (clone.atmosphere?.mood && Array.isArray(clone.atmosphere.rumors) && Array.isArray(clone.atmosphere.regulars)) {
       return clone;
     }
@@ -115,6 +116,7 @@ export class TavernAtmosphereService {
     clone = TavernAvailabilityService.embedPublicAvailability(clone);
     clone.publicAvailability = { appliedAt, atmosphereRevision };
     delete clone.atmosphere;
+    delete clone.atmosphereSeed;
     return clone;
   }
 
@@ -238,7 +240,7 @@ export class TavernAtmosphereService {
   }
 
   static #randomFor(tavern, revision, salt) {
-    const seed = this.#hash(`${tavern.id ?? tavern.name ?? "tavern"}:${revision}:${salt}`);
+    const seed = this.#hash(`${tavern.atmosphereSeed}:${tavern.id ?? tavern.name ?? "tavern"}:${revision}:${salt}`);
     let state = seed >>> 0;
     return () => {
       state += 0x6D2B79F5;

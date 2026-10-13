@@ -20,6 +20,28 @@ export class TavernPrivateStore {
     return foundry.utils.deepClone(this.#state);
   }
 
+  static get current() {
+    return foundry.utils.deepClone(this.#state.current);
+  }
+
+  static get saved() {
+    return foundry.utils.deepClone(this.#state.saved);
+  }
+
+  static savedById(id) {
+    return foundry.utils.deepClone(this.#state.saved.find((entry) => entry.id === id) ?? null);
+  }
+
+  static purchaseById(id) {
+    return foundry.utils.deepClone(this.#state.purchases?.[id] ?? null);
+  }
+
+  static pendingPurchases() {
+    return Object.entries(this.#state.purchases ?? {})
+      .filter(([, record]) => record.status === "pending")
+      .map(([id, record]) => ({ id, ...foundry.utils.deepClone(record) }));
+  }
+
   static async initialize() {
     this.#active = false;
     this.#journal = null;
@@ -129,7 +151,9 @@ export class TavernPrivateStore {
   static #sanitize(value) {
     return {
       current: value?.current ? foundry.utils.deepClone(value.current) : null,
-      saved: Array.isArray(value?.saved) ? foundry.utils.deepClone(value.saved) : []
+      saved: Array.isArray(value?.saved) ? foundry.utils.deepClone(value.saved) : [],
+      purchases: value?.purchases && typeof value.purchases === "object" && !Array.isArray(value.purchases)
+        ? foundry.utils.deepClone(value.purchases) : {}
     };
   }
 }

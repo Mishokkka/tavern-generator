@@ -101,6 +101,15 @@ export class TavernMigrations {
     for (const key of INVENTORY_KEYS) {
       for (const entry of tavern.inventory?.[key] ?? []) this.#normalizeEntryV3(entry, key);
     }
+    for (const room of tavern.inventory?.lodging ?? []) {
+      if (room.unlimited) continue;
+      const reserved = tavern.lodgingBookings.filter((booking) => booking.entryId === room.id)
+        .reduce((sum, booking) => sum + booking.quantity, 0);
+      room.total = Math.max(room.total, reserved);
+      room.stock = Math.min(room.stock, room.total - reserved);
+      room.maxStock = room.total;
+      room.occupied = room.total - room.stock;
+    }
   }
 
   static #normalizeInventory(inventory, legacyTavern = {}) {

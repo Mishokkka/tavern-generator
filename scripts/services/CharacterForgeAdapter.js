@@ -302,8 +302,7 @@ export class CharacterForgeAdapter {
     updated.savedAt = Date.now();
 
     const saved = await TavernState.saveTavern(updated);
-    const current = TavernState.getCurrent();
-    if (current?.id === saved.id) await TavernState.setCurrent(saved);
+    // saveTavern updates the matching active copy in the same journal write.
     return saved;
   }
 

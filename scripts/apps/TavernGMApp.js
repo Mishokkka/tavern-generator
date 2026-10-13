@@ -130,57 +130,57 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       button.addEventListener("keydown", (event) => this.#onTabKeydown(event));
     }
 
-    this.element.querySelector("[data-action='generate']")?.addEventListener("click", (event) => this.#onGenerate(event));
-    this.element.querySelector("[data-action='confirm']")?.addEventListener("click", (event) => this.#onConfirm(event));
-    this.element.querySelector("[data-action='openPlayers']")?.addEventListener("click", (event) => this.#onOpenPlayers(event));
-    this.element.querySelector("[data-action='clear']")?.addEventListener("click", (event) => this.#onClear(event));
-    this.element.querySelector("[data-action='rerollName']")?.addEventListener("click", (event) => this.#onRerollName(event));
-    this.element.querySelector("[data-action='applyPriceModifier']")?.addEventListener("click", (event) => this.#onApplyPriceModifier(event));
-    this.element.querySelector("[data-action='saveDraft']")?.addEventListener("click", (event) => this.#onSaveDraft(event));
-    this.element.querySelector("[data-action='loadSaved']")?.addEventListener("click", (event) => this.#onLoadSaved(event));
-    this.element.querySelector("[data-action='deleteSaved']")?.addEventListener("click", (event) => this.#onDeleteSaved(event));
-    this.element.querySelector("[data-action='browseSceneImage']")?.addEventListener("click", (event) => this.#onBrowseSceneImage(event));
-    this.element.querySelector("[data-action='createScene']")?.addEventListener("click", (event) => this.#onCreateScene(event));
-    this.element.querySelector("[data-action='openLinkedScene']")?.addEventListener("click", (event) => this.#onOpenLinkedScene(event));
-    this.element.querySelector("[data-action='createTavernkeeper']")?.addEventListener("click", (event) => this.#onCreateTavernkeeper(event));
-    this.element.querySelector("[data-action='openTavernkeeper']")?.addEventListener("click", (event) => this.#onOpenTavernkeeper(event));
-    this.element.querySelector("[data-action='undo']")?.addEventListener("click", (event) => this.#onUndo(event));
-    this.element.querySelector("[data-action='restockAll']")?.addEventListener("click", (event) => this.#onRestockAll(event));
-    this.element.querySelector("[data-action='regenerateAtmosphere']")?.addEventListener("click", (event) => this.#onRegenerateAtmosphere(event));
-    this.element.querySelector("[data-action='applyCrowdAvailability']")?.addEventListener("click", (event) => this.#onApplyCrowdAvailability(event));
-    this.element.querySelector("[data-action='rerollMood']")?.addEventListener("click", (event) => this.#onRerollLifeEntry(event));
-    this.element.querySelector("[data-action='rerollIncident']")?.addEventListener("click", (event) => this.#onRerollLifeEntry(event));
+    this.element.querySelector("[data-action='generate']")?.addEventListener("click", (event) => this.#runAction(() => this.#onGenerate(event)));
+    this.element.querySelector("[data-action='confirm']")?.addEventListener("click", (event) => this.#runAction(() => this.#onConfirm(event)));
+    this.element.querySelector("[data-action='openPlayers']")?.addEventListener("click", (event) => this.#runAction(() => this.#onOpenPlayers(event)));
+    this.element.querySelector("[data-action='clear']")?.addEventListener("click", (event) => this.#runAction(() => this.#onClear(event)));
+    this.element.querySelector("[data-action='rerollName']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRerollName(event)));
+    this.element.querySelector("[data-action='applyPriceModifier']")?.addEventListener("click", (event) => this.#runAction(() => this.#onApplyPriceModifier(event)));
+    this.element.querySelector("[data-action='saveDraft']")?.addEventListener("click", (event) => this.#runAction(() => this.#onSaveDraft(event)));
+    this.element.querySelector("[data-action='loadSaved']")?.addEventListener("click", (event) => this.#runAction(() => this.#onLoadSaved(event)));
+    this.element.querySelector("[data-action='deleteSaved']")?.addEventListener("click", (event) => this.#runAction(() => this.#onDeleteSaved(event)));
+    this.element.querySelector("[data-action='browseSceneImage']")?.addEventListener("click", (event) => this.#runAction(() => this.#onBrowseSceneImage(event)));
+    this.element.querySelector("[data-action='createScene']")?.addEventListener("click", (event) => this.#runAction(() => this.#onCreateScene(event)));
+    this.element.querySelector("[data-action='openLinkedScene']")?.addEventListener("click", (event) => this.#runAction(() => this.#onOpenLinkedScene(event)));
+    this.element.querySelector("[data-action='createTavernkeeper']")?.addEventListener("click", (event) => this.#runAction(() => this.#onCreateTavernkeeper(event)));
+    this.element.querySelector("[data-action='openTavernkeeper']")?.addEventListener("click", (event) => this.#runAction(() => this.#onOpenTavernkeeper(event)));
+    this.element.querySelector("[data-action='undo']")?.addEventListener("click", (event) => this.#runAction(() => this.#onUndo(event)));
+    this.element.querySelector("[data-action='restockAll']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRestockAll(event)));
+    this.element.querySelector("[data-action='regenerateAtmosphere']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRegenerateAtmosphere(event)));
+    this.element.querySelector("[data-action='applyCrowdAvailability']")?.addEventListener("click", (event) => this.#runAction(() => this.#onApplyCrowdAvailability(event)));
+    this.element.querySelector("[data-action='rerollMood']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRerollLifeEntry(event)));
+    this.element.querySelector("[data-action='rerollIncident']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRerollLifeEntry(event)));
 
     for (const button of this.element.querySelectorAll("[data-action='rerollLifeEntry']")) {
-      button.addEventListener("click", (event) => this.#onRerollLifeEntry(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onRerollLifeEntry(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='toggleLifePinned']")) {
-      button.addEventListener("click", (event) => this.#onToggleLifePinned(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onToggleLifePinned(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='sendLifeEntry']")) {
-      button.addEventListener("click", (event) => this.#onSendLifeEntry(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onSendLifeEntry(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='editEntry']")) {
-      button.addEventListener("click", (event) => this.#onEditEntry(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onEditEntry(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='addCustom']")) {
-      button.addEventListener("click", (event) => this.#onAddCustom(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onAddCustom(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='togglePinned']")) {
-      button.addEventListener("click", (event) => this.#onTogglePinned(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onTogglePinned(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='removeEntry']")) {
-      button.addEventListener("click", (event) => this.#onRemoveEntry(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onRemoveEntry(event)));
     }
 
     for (const button of this.element.querySelectorAll("[data-action='addRandom']")) {
-      button.addEventListener("click", (event) => this.#onAddRandom(event));
+      button.addEventListener("click", (event) => this.#runAction(() => this.#onAddRandom(event)));
     }
 
     for (const input of this.element.querySelectorAll("select[data-param], input[data-param]")) {
@@ -202,7 +202,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     for (const input of this.element.querySelectorAll("input[data-lodging-field]")) {
-      input.addEventListener("change", (event) => this.#onLodgingChange(event));
+      input.addEventListener("change", (event) => this.#runAction(() => this.#onLodgingChange(event)));
     }
   }
 
@@ -256,6 +256,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
         broadcast: true
       });
       this.draft = result.tavern;
+      this.undoDraft = null;
       if (result.wasCurrent) this.activeTavernId = this.draft.id;
       this.params = this.#paramsFromTavern(this.draft);
 
@@ -367,6 +368,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.draft) this.draft = TavernGenerator.generate(this.params);
     const saved = await TavernState.saveTavern(this.draft);
     this.draft = saved;
+    TavernSocket.refreshAll(saved);
     ui.notifications.info(`Таверна сохранена: ${saved.name}`);
     this.render();
   }
@@ -596,9 +598,16 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async #onUndo(event) {
     event.preventDefault();
     if (!this.undoDraft) return;
+    const latest = TavernState.getCurrent()?.id === this.draft?.id ? TavernState.getCurrent() : TavernState.getSavedById(this.draft?.id);
+    if (latest && Number(latest.storageRevision ?? 0) !== Number(this.undoRevision ?? 0)) {
+      this.undoDraft = null;
+      throw new Error("После правки произошла покупка или другое изменение. Отмена сброшена, чтобы сохранить актуальные запасы и брони.");
+    }
     const current = this.draft ? foundry.utils.deepClone(this.draft) : null;
     this.draft = foundry.utils.deepClone(this.undoDraft);
     this.undoDraft = current;
+    if (current?.id !== this.draft?.id) { this.render(); return; }
+    this.draft.storageRevision = current?.storageRevision ?? 0;
     await this.#persistLiveDraft();
     this.render();
   }
@@ -690,11 +699,14 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const current = TavernState.getCurrent();
     const saved = TavernState.getSavedById(this.draft.id);
     if (saved) this.draft = await TavernState.saveTavern(this.draft);
-    if (current?.id === this.draft.id) {
+    else if (current?.id === this.draft.id) {
       this.draft = await TavernState.setCurrent(this.draft);
-      this.activeTavernId = this.draft.id;
-      TavernSocket.refreshAll(this.draft);
     }
+    this.undoRevision = this.draft.storageRevision ?? 0;
+    if (current?.id === this.draft.id) {
+      this.activeTavernId = this.draft.id;
+    }
+    if (saved || current?.id === this.draft.id) TavernSocket.refreshAll(this.draft);
   }
 
   async #onLodgingChange(event) {
@@ -743,6 +755,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #syncFromCurrent() {
+    if (this.actionPending) return;
     const current = TavernState.getCurrent();
 
     if (!current) {
@@ -756,6 +769,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (this.activeTavernId !== current.id && this.draft?.id !== current.id) return;
 
+    if (Number(this.draft?.storageRevision ?? 0) !== Number(current.storageRevision ?? 0)) this.undoDraft = null;
     this.draft = foundry.utils.deepClone(current);
     this.activeTavernId = current.id;
     this.params = this.#paramsFromTavern(this.draft);
@@ -763,6 +777,22 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #checkpoint() {
     this.undoDraft = this.draft ? foundry.utils.deepClone(this.draft) : null;
+    this.undoRevision = this.draft?.storageRevision ?? 0;
+  }
+
+  async #runAction(task) {
+    if (this.actionPending) return;
+    this.actionPending = true;
+    const before = this.draft ? foundry.utils.deepClone(this.draft) : null;
+    try { await task(); }
+    catch (error) {
+      console.warn("fbl-tavern-generator | GM action failed", error);
+      const current = TavernState.getCurrent();
+      this.draft = current?.id === before?.id ? current : TavernState.getSavedById(before?.id) ?? before;
+      this.undoDraft = null;
+      ui.notifications.warn(error.message ?? String(error));
+      this.render();
+    } finally { this.actionPending = false; }
   }
 
   #categoryLength(category) {

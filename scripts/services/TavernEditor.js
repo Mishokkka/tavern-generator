@@ -9,6 +9,9 @@ export class TavernEditor {
     if (!clone) return null;
 
     const keys = TavernMigrations.categorySearchKeys(category);
+    if (keys.includes("lodging") && this.#bookings(clone, entryId).length) {
+      throw new Error("Нельзя удалить ночлег с действующими бронями. Дождись окончания оплаченного срока.");
+    }
     for (const key of keys) clone.inventory[key] = (clone.inventory[key] ?? []).filter((entry) => entry.id !== entryId);
 
     clone.summary = TavernViewModel.summary(clone);
@@ -67,8 +70,10 @@ export class TavernEditor {
     } else {
       const stock = Math.max(0, Math.trunc(Number(patch.stock ?? current.stock ?? 0) || 0));
       entry.stock = stock;
-      entry.maxStock = Math.max(stock, Math.trunc(Number(current.maxStock ?? stock) || 0));
+      entry.maxStock = Math.max(stock, Math.trunc(Number(patch.maxStock ?? current.maxStock ?? stock) || 0));
     }
+
+    if (key === "lodging") this.#assertRoomBookings(clone, current, entry);
 
     if (index >= 0) list[index] = entry;
     else list.push(entry);
@@ -103,6 +108,7 @@ export class TavernEditor {
 
     const room = (clone.inventory.lodging ?? []).find((entry) => entry.id === entryId);
     if (!room) return clone;
+    const previousRoom = foundry.utils.deepClone(room);
 
     if (Object.hasOwn(patch, "unlimited")) {
       room.unlimited = Boolean(patch.unlimited);
@@ -129,8 +135,25 @@ export class TavernEditor {
       room.occupied = Math.max(0, room.total - room.stock);
     }
 
+    this.#assertRoomBookings(clone, previousRoom, room);
     clone.summary = TavernViewModel.summary(clone);
     return clone;
+  }
+
+  static #bookings(tavern, entryId) {
+    return (tavern.lodgingBookings ?? []).filter((booking) => booking.entryId === entryId && Number(booking.remainingDays) > 0);
+  }
+
+  static #assertRoomBookings(tavern, previous, next) {
+    const bookings = this.#bookings(tavern, previous.id);
+    if (!bookings.length) return;
+    if (Boolean(previous.unlimited) !== Boolean(next.unlimited)) {
+      throw new Error("Нельзя менять ограничение мест у ночлега с действующими бронями.");
+    }
+    const reserved = bookings.reduce((sum, booking) => sum + Number(booking.quantity), 0);
+    if (!next.unlimited && (next.total < reserved || next.stock > next.total - reserved)) {
+      throw new Error(`Уже оплачено мест: ${reserved}. Вместимость не может быть меньше брони; свободно не более ${Math.max(0, next.total - reserved)}.`);
+    }
   }
 
   static findEntry(tavern, category, entryId) {

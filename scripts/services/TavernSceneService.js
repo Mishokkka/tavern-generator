@@ -936,7 +936,7 @@ export class TavernSceneService {
     const scene = tavern.scene.id ? game.scenes?.get(tavern.scene.id) : null;
     if (scene) return scene;
     if (!allowImport) return null;
-    return this.#importSceneFromCompendium(tavern.scene.compendium);
+    return this.#importSceneFromCompendium(tavern.scene.compendium, tavern.id);
   }
 
   static async #resolveSceneForLink(link, tavern, { allowImport = true } = {}) {
@@ -957,20 +957,22 @@ export class TavernSceneService {
     }
     if (!allowImport) return null;
 
-    const compendium = link?.compendium ?? tavern?.scene?.compendium ?? null;
-    const imported = await this.#importSceneFromCompendium(compendium);
+    const compendium = tavern?.scene?.compendium ?? null;
+    const imported = await this.#importSceneFromCompendium(compendium, tavern.id);
     if (imported) return imported;
 
     return this.#resolveSceneForTavern(tavern, { allowImport });
   }
 
-  static async #importSceneFromCompendium(compendium) {
+  static async #importSceneFromCompendium(compendium, tavernId) {
     if (!compendium?.pack || !compendium?.id) return null;
     const pack = game.packs.get(compendium.pack);
     if (!pack) throw new Error(`Компендиум сцен не найден: ${compendium.pack}`);
 
     const archived = await pack.getDocument(compendium.id);
     if (!archived) throw new Error("Архивная сцена не найдена в компендиуме.");
+    const linkedId = this.#sceneTavernId(archived);
+    if (linkedId && linkedId !== tavernId) throw new Error("Архивная сцена относится к другой таверне.");
 
     const archivedData = archived.toObject();
     const region = archivedData.flags?.[MODULE_ID]?.region
@@ -1076,7 +1078,7 @@ export class TavernSceneService {
   }
 
   static #sceneMeta(scene, tavern, link = {}) {
-    const existingCompendium = link?.compendium ?? tavern?.scene?.compendium ?? scene.getFlag?.(MODULE_ID, "compendium") ?? null;
+    const existingCompendium = tavern?.scene?.compendium ?? scene.getFlag?.(MODULE_ID, "compendium") ?? null;
     const imagePath = scene.background?.src ?? tavern?.scene?.img ?? link?.imagePath ?? null;
 
     return {

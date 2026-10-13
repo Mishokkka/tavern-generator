@@ -3,8 +3,23 @@ import { TavernMigrations } from "./TavernMigrations.js";
 import { TavernAvailabilityService } from "./TavernAvailabilityService.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
 import { TavernPrivateStore } from "./TavernPrivateStore.js";
+import { AsyncLock } from "./AsyncLock.js";
+import { CalendariaAdapter } from "./CalendariaAdapter.js";
 
 export class TavernState {
+  static #transactions = new WeakSet();
+
+  // Explicit tokens allow nested operations without making the queue reentrant for unrelated calls.
+  static async transaction(task, transaction = null) {
+    if (transaction && this.#transactions.has(transaction)) return task(transaction);
+    return AsyncLock.run("tavern-state", async () => {
+      const token = {};
+      this.#transactions.add(token);
+      try { return await task(token); }
+      finally { this.#transactions.delete(token); }
+    });
+  }
+
   static registerSettings() {
     game.settings.register(MODULE_ID, "currentTavern", {
       name: "Current Tavern",
@@ -68,8 +83,8 @@ export class TavernState {
 
     const hasPrivateData = Boolean(storedCurrent || storedSaved.length);
     const state = hasPrivateData
-      ? { current: storedCurrent, saved: storedSaved }
-      : { current: legacyCurrent, saved: legacySaved };
+      ? { ...stored, current: storedCurrent, saved: storedSaved }
+      : { ...stored, current: legacyCurrent, saved: legacySaved };
 
     await this.#writePrivateState(state);
     await this.#mirrorPublicState(state.current);
@@ -79,75 +94,97 @@ export class TavernState {
 
   static getCurrent() {
     if (TavernPrivateStore.active && game.user?.isGM) {
-      return TavernMigrations.migrate(TavernPrivateStore.state.current);
+      return TavernMigrations.migrate(TavernPrivateStore.current);
     }
     return TavernMigrations.migrate(game.settings.get(MODULE_ID, "currentTavern"));
   }
 
-  static async setCurrent(tavern, { touch = true } = {}) {
-    if (!game.user.isGM) throw new Error("Only a GM can set the active tavern.");
-    this.#assertPrivateStoreWritable();
-    const migrated = TavernMigrations.migrate(tavern);
-    if (touch || !Number.isFinite(Number(migrated.updatedAt))) migrated.updatedAt = Date.now();
-    const state = TavernPrivateStore.state;
-    state.current = foundry.utils.deepClone(migrated);
-    await this.#writePrivateState(state);
-    await this.#mirrorPublicState(migrated);
-    return migrated;
+  static async setCurrent(tavern, { touch = true, transaction = null } = {}) {
+    return this.transaction(() => this.#commitTavern(tavern, { activate: true, touch }), transaction);
   }
 
-  static async clearCurrent() {
-    if (!game.user.isGM) throw new Error("Only a GM can clear the active tavern.");
-    this.#assertPrivateStoreWritable();
-    const state = TavernPrivateStore.state;
-    state.current = null;
-    await this.#writePrivateState(state);
-    await game.settings.set(MODULE_ID, "currentTavern", null);
+  static async clearCurrent({ transaction = null } = {}) {
+    return this.transaction(async () => {
+      if (!game.user.isGM) throw new Error("Only a GM can clear the active tavern.");
+      this.#assertPrivateStoreWritable();
+      const state = TavernPrivateStore.state;
+      state.current = null;
+      await this.#writePrivateState(state);
+      await this.#mirrorPublicState(null);
+    }, transaction);
   }
 
   static getSaved() {
     if (!game.user?.isGM || !TavernPrivateStore.active) return [];
-    return TavernMigrations.migrateMany(TavernPrivateStore.state.saved);
+    return TavernMigrations.migrateMany(TavernPrivateStore.saved);
   }
 
-  static async setSavedMany(taverns) {
-    if (!game.user.isGM) throw new Error("Only a GM can update saved taverns.");
-    this.#assertPrivateStoreWritable();
-    const migrated = TavernMigrations.migrateMany(taverns ?? []);
-    migrated.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    const state = TavernPrivateStore.state;
-    state.saved = foundry.utils.deepClone(migrated);
-    await this.#writePrivateState(state);
-    return migrated;
+  static async setSavedMany(taverns, { transaction = null } = {}) {
+    return this.transaction(async () => {
+      if (!game.user.isGM) throw new Error("Only a GM can update saved taverns.");
+      this.#assertPrivateStoreWritable();
+      const migrated = TavernMigrations.migrateMany(taverns ?? []);
+      migrated.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+      const state = TavernPrivateStore.state;
+      for (const tavern of migrated) {
+        this.#assertRevision(tavern, state);
+        tavern.storageRevision = this.#latestRevision(tavern.id, state) + 1;
+      }
+      state.saved = foundry.utils.deepClone(migrated);
+      const active = migrated.find((tavern) => tavern.id === state.current?.id);
+      if (active) state.current = foundry.utils.deepClone(active);
+      await this.#writePrivateState(state);
+      if (active) await this.#mirrorPublicState(active);
+      return migrated;
+    }, transaction);
   }
 
-  static async saveTavern(tavern) {
-    if (!game.user.isGM) throw new Error("Only a GM can save taverns.");
-    if (!tavern) throw new Error("Таверна не выбрана.");
-
-    const saved = this.getSaved();
-    const clone = TavernMigrations.migrate(tavern);
-    clone.savedAt = Date.now();
-    clone.updatedAt = clone.savedAt;
-    clone.id ||= foundry.utils.randomID(16);
-
-    const index = saved.findIndex((entry) => entry.id === clone.id);
-    if (index >= 0) saved[index] = clone;
-    else saved.push(clone);
-
-    saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    await this.setSavedMany(saved);
-    return clone;
+  static async saveTavern(tavern, { transaction = null } = {}) {
+    return this.transaction(() => this.#commitTavern(tavern, { save: true }), transaction);
   }
 
-  static async deleteSaved(id) {
-    if (!game.user.isGM) throw new Error("Only a GM can delete saved taverns.");
-    const saved = this.getSaved().filter((entry) => entry.id !== id);
-    await this.setSavedMany(saved);
+  static async deleteSaved(id, { transaction = null } = {}) {
+    return this.transaction(async () => {
+      if (!game.user.isGM) throw new Error("Only a GM can delete saved taverns.");
+      const state = TavernPrivateStore.state;
+      state.saved = state.saved.filter((entry) => entry.id !== id);
+      await this.#writePrivateState(state);
+    }, transaction);
   }
 
   static getSavedById(id) {
-    return this.getSaved().find((entry) => entry.id === id) ?? null;
+    if (!game.user?.isGM || !TavernPrivateStore.active) return null;
+    return TavernMigrations.migrate(TavernPrivateStore.savedById(id));
+  }
+
+  static getPurchase(id) {
+    return game.user?.isGM ? TavernPrivateStore.purchaseById(id) : null;
+  }
+
+  static async recordPurchase(id, record, { transaction = null } = {}) {
+    return this.transaction(async () => {
+        const state = TavernPrivateStore.state;
+        state.purchases[id] = foundry.utils.deepClone(record);
+        await this.#writePrivateState(state);
+    }, transaction);
+  }
+
+  static pendingPurchases() {
+    if (!game.user?.isGM) return [];
+    return TavernPrivateStore.pendingPurchases();
+  }
+
+  static async resolvePendingPurchase(id, outcome) {
+    return this.transaction(async (transaction) => {
+      this.#assertPrivateStoreWritable();
+      const record = this.getPurchase(id);
+      if (record?.status !== "pending") throw new Error("Незавершённая покупка не найдена.");
+      if (!["completed", "cancelled"].includes(outcome)) throw new Error("Укажи completed или cancelled после сверки кошелька и запасов.");
+      await this.recordPurchase(id, { ...record, status: outcome === "completed" ? "completed" : "failed",
+        message: "Покупка отменена ГМом после проверки. Собери и оплати корзину заново.",
+        resolvedBy: game.user.id, resolvedAt: Date.now() }, { transaction });
+      return { id, outcome };
+    });
   }
 
   static resolveExactTavern({ tavernId = null, sceneId = null, fallback = null, requirePrivate = false } = {}) {
@@ -212,38 +249,38 @@ export class TavernState {
     };
   }
 
-  static async restoreTavernStorageSnapshot(snapshot) {
-    if (!game.user.isGM) throw new Error("Only a GM can restore tavern state.");
-    const id = String(snapshot?.tavernId ?? "").trim();
-    if (!id) throw new Error("Снимок таверны поврежден.");
+  static async restoreTavernStorageSnapshot(snapshot, { transaction = null } = {}) {
+    return this.transaction(async () => {
+      if (!game.user.isGM) throw new Error("Only a GM can restore tavern state.");
+      const id = String(snapshot?.tavernId ?? "").trim();
+      if (!id) throw new Error("Снимок таверны поврежден.");
 
-    const current = this.getCurrent();
-    if (snapshot.currentMatched) {
-      await this.setCurrent(foundry.utils.deepClone(snapshot.current), { touch: false });
-    } else if (current?.id === id) {
-      await this.clearCurrent();
-    }
+      const state = TavernPrivateStore.state;
+      if (snapshot.currentMatched) {
+        state.current = foundry.utils.deepClone(snapshot.current);
+      } else if (state.current?.id === id) {
+        state.current = null;
+      }
 
-    const saved = this.getSaved().filter((entry) => entry.id !== id);
-    if (snapshot.savedMatched && snapshot.saved) saved.push(foundry.utils.deepClone(snapshot.saved));
-    saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
-    await this.setSavedMany(saved);
+      const saved = state.saved.filter((entry) => entry.id !== id);
+      if (snapshot.savedMatched && snapshot.saved) saved.push(foundry.utils.deepClone(snapshot.saved));
+      saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+      state.saved = saved;
+      await this.#writePrivateState(state);
+      await this.#mirrorPublicState(state.current);
+    }, transaction);
   }
 
-  static async persistPurchaseTavern(tavern) {
-    if (!game.user.isGM) throw new Error("Only a GM can persist tavern purchases.");
-    if (!tavern?.id) throw new Error("У таверны отсутствует идентификатор.");
+  static async persistPurchaseTavern(tavern, { transaction = null, receipt = null } = {}) {
+    return this.transaction(async () => {
+      if (!game.user.isGM) throw new Error("Only a GM can persist tavern purchases.");
+      if (!tavern?.id) throw new Error("У таверны отсутствует идентификатор.");
 
-    let updated = TavernMigrations.migrate(tavern);
-    const current = this.getCurrent();
-    const saved = this.getSavedById(updated.id);
-
-    if (saved) updated = await this.saveTavern(updated);
-    if (current?.id === updated.id) updated = await this.setCurrent(updated, { touch: !saved });
-    if (current?.id !== updated.id && !saved) {
-      throw new Error("Таверна не сохранена в доверенном состоянии ГМа. Сначала сохрани или активируй её.");
-    }
-    return updated;
+      if (this.getCurrent()?.id !== tavern.id && !this.getSavedById(tavern.id)) {
+        throw new Error("Таверна не сохранена в доверенном состоянии ГМа. Сначала сохрани или активируй её.");
+      }
+      return this.#commitTavern(tavern, { receipt });
+    }, transaction);
   }
 
   static getLastDailyRefreshKey() {
@@ -301,6 +338,7 @@ export class TavernState {
         entry.occupied = Math.min(entry.total ?? entry.occupied ?? 0, (entry.occupied ?? 0) + count);
       }
 
+      const date = CalendariaAdapter.currentDateInfo();
       const booking = {
         id: foundry.utils.randomID(12),
         tavernId: migrated.id ?? null,
@@ -313,7 +351,9 @@ export class TavernState {
         totalDays: stayDays,
         remainingDays: stayDays,
         unlimited: Boolean(entry.unlimited),
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        calendarDayOrdinal: date.ordinal,
+        calendarClockId: date.clockId
       };
 
       migrated.lodgingBookings ??= [];
@@ -333,7 +373,7 @@ export class TavernState {
     return { tavern: migrated, entry, booking: null };
   }
 
-  static advanceLodgingDayInData(tavern) {
+  static advanceLodgingDayInData(tavern, days = 1, { ordinal = null, clockId = null } = {}) {
     const migrated = TavernMigrations.migrate(tavern);
     const bookings = Array.isArray(migrated.lodgingBookings) ? migrated.lodgingBookings : [];
     const remaining = [];
@@ -341,7 +381,15 @@ export class TavernState {
 
     for (const booking of bookings) {
       const next = foundry.utils.deepClone(booking);
-      next.remainingDays = Math.max(0, Math.trunc(Number(next.remainingDays ?? 0) || 0) - 1);
+      let elapsed = Math.max(0, Math.trunc(days));
+      if (ordinal !== null) {
+        if (next.calendarClockId === clockId && next.calendarDayOrdinal != null) {
+          elapsed = Math.min(elapsed, Math.max(0, ordinal - next.calendarDayOrdinal));
+          next.calendarDayOrdinal = Math.max(ordinal, next.calendarDayOrdinal);
+        } else next.calendarDayOrdinal = ordinal;
+        next.calendarClockId = clockId;
+      }
+      next.remainingDays = Math.max(0, Math.trunc(Number(next.remainingDays ?? 0) || 0) - elapsed);
 
       if (next.remainingDays > 0) {
         remaining.push(next);
@@ -383,6 +431,7 @@ export class TavernState {
   }
 
   static #assertPrivateStoreWritable() {
+    if (!game.user?.isGM) throw new Error("Только ГМ может изменять состояние таверн.");
     if (!TavernPrivateStore.active) {
       throw new Error("Закрытое хранилище таверн недоступно. Изменения не сохранены.");
     }
@@ -397,7 +446,49 @@ export class TavernState {
   }
 
   static async #mirrorPublicState(tavern) {
-    const publicView = tavern ? TavernAtmosphereService.publicView(tavern) : null;
-    await game.settings.set(MODULE_ID, "currentTavern", publicView ? foundry.utils.deepClone(publicView) : null);
+    try {
+      const publicView = tavern ? TavernAtmosphereService.publicView(tavern) : null;
+      await game.settings.set(MODULE_ID, "currentTavern", publicView ? foundry.utils.deepClone(publicView) : null);
+    } catch (error) {
+      // The private journal is already committed. A failed public mirror must never refund a purchase.
+      console.warn(`${MODULE_ID} | Public tavern snapshot could not be updated`, error);
+      ui.notifications.warn("Таверна сохранена, но публичное меню не обновилось. Открой его игрокам ещё раз.");
+    }
+  }
+
+  static #latestRevision(id, state) {
+    return Math.max(0, Number(state.current?.id === id ? state.current.storageRevision ?? 0 : 0),
+      Number(state.saved.find((entry) => entry.id === id)?.storageRevision ?? 0));
+  }
+
+  static #assertRevision(tavern, state) {
+    if (state.current?.id !== tavern.id && !state.saved.some((entry) => entry.id === tavern.id)) return;
+    if (Number(tavern.storageRevision ?? 0) !== this.#latestRevision(tavern.id, state)) {
+      throw new Error("Таверна уже изменена (покупка, новый день или другое окно ГМа). Загрузи свежую версию и повтори правку.");
+    }
+  }
+
+  static async #commitTavern(tavern, { activate = false, save = false, touch = true, receipt = null } = {}) {
+    this.#assertPrivateStoreWritable();
+    const clone = TavernMigrations.migrate(tavern);
+    if (!clone) throw new Error("Таверна не выбрана.");
+    clone.id ||= foundry.utils.randomID(16);
+    const state = TavernPrivateStore.state;
+    this.#assertRevision(clone, state);
+    clone.storageRevision = this.#latestRevision(clone.id, state) + 1;
+    if (touch) clone.updatedAt = Date.now();
+    const index = state.saved.findIndex((entry) => entry.id === clone.id);
+    if (save || index >= 0) {
+      clone.savedAt = Date.now();
+      if (index >= 0) state.saved[index] = foundry.utils.deepClone(clone);
+      else state.saved.push(foundry.utils.deepClone(clone));
+      state.saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+    }
+    const active = activate || state.current?.id === clone.id;
+    if (active) state.current = foundry.utils.deepClone(clone);
+    if (receipt) state.purchases[receipt.id] = foundry.utils.deepClone(receipt.record);
+    await this.#writePrivateState(state);
+    if (active) await this.#mirrorPublicState(clone);
+    return clone;
   }
 }
