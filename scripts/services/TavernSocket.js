@@ -1,11 +1,11 @@
-import { MODULE_ID, SOCKET_NAME } from "../constants.js";
+import { MODULE_ID } from "../constants.js";
 import { TavernState } from "./TavernState.js";
 import { TavernGenerator } from "./TavernGenerator.js";
 import { TavernPlayerApp } from "../apps/TavernPlayerApp.js";
 import { PurchaseSoundService } from "./PurchaseSoundService.js";
 import { TavernPurchaseService } from "./TavernPurchaseService.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
-import { TavernSocketIdentity } from "./TavernSocketIdentity.js";
+import { TavernSocketRelay } from "./TavernSocketRelay.js";
 
 const RESULT_CACHE_TTL = 30 * 60 * 1000;
 
@@ -22,18 +22,13 @@ export class TavernSocket {
     this.#registered = true;
 
     try {
-      await TavernSocketIdentity.initialize();
-      game.socket.on(SOCKET_NAME, (payload) => {
-        void this.#onMessage(payload).catch((error) => {
-          console.warn(`${MODULE_ID} | Rejected or failed socket message`, error);
-        });
-      });
-      this.#available = true;
+      this.#available = TavernSocketRelay.register((payload, sender) => this.#onMessage(payload, sender));
+      if (!this.#available) throw new Error("Канал синхронизации через User documents недоступен.");
       this.#registrationError = null;
     } catch (error) {
       this.#available = false;
       this.#registrationError = error;
-      console.error(`${MODULE_ID} | Secure socket features are unavailable`, error);
+      console.error(`${MODULE_ID} | Authenticated relay features are unavailable`, error);
     }
 
     return this.#available;
@@ -49,18 +44,22 @@ export class TavernSocket {
     this.#routes.set(key, handler);
   }
 
-  static async emit(payload) {
+  static async emit(payload, options = {}) {
     if (!this.#available) {
-      throw this.#registrationError ?? new Error("Защищённый канал таверны недоступен на этом клиенте.");
+      throw this.#registrationError ?? new Error("Канал синхронизации таверны недоступен на этом клиенте.");
     }
-    const signed = await TavernSocketIdentity.sign(payload);
-    game.socket.emit(SOCKET_NAME, signed);
-    return signed;
+    return TavernSocketRelay.emit(payload, options);
+  }
+
+  static async emitToUser(payload, userId) {
+    const targetUserId = String(userId ?? "").trim();
+    if (!targetUserId) throw new Error("Получатель сообщения таверны не указан.");
+    return this.emit(payload, { targetUserId });
   }
 
   static openForPlayers() {
     if (!game.user?.isGM) return;
-    if (!this.#available) return ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+    if (!this.#available) return ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
     void this.#safeEmit({
       type: "open-player",
       tavernData: TavernAtmosphereService.publicView(TavernState.getCurrent())
@@ -124,7 +123,7 @@ export class TavernSocket {
       return null;
     }
     if (targetGM !== game.user.id && !this.#available) {
-      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+      ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
       return null;
     }
 
@@ -157,7 +156,7 @@ export class TavernSocket {
       return null;
     }
     if (targetGM !== game.user.id && !this.#available) {
-      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+      ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
       return null;
     }
 
@@ -191,15 +190,9 @@ export class TavernSocket {
     return Boolean(game.user?.isGM && this.responsibleGMId() === game.user.id);
   }
 
-  static async #onMessage(payload) {
+  static async #onMessage(payload, sender) {
     const type = String(payload?.type ?? "").trim();
-    if (!type) return;
-
-    const sender = await TavernSocketIdentity.verify(payload);
-    if (!sender) {
-      console.warn(`${MODULE_ID} | Ignored unsigned, stale, replayed, or invalid socket message`, type);
-      return;
-    }
+    if (!type || !sender?.id || payload?.sender !== sender.id) return;
 
     if (type === "open-player") {
       if (!sender.isGM || game.user.isGM) return;
@@ -378,7 +371,7 @@ export class TavernSocket {
       this.#deliverPurchaseResultLocally(payload);
       return;
     }
-    await this.emit(payload);
+    await this.emitToUser(payload, payload.userId);
   }
 
   static async #safeEmitPurchaseResult(payload) {
@@ -433,7 +426,7 @@ export class TavernSocket {
     try {
       await this.emit(payload);
     } catch (error) {
-      console.warn(`${MODULE_ID} | Could not emit signed socket message`, error);
+      console.warn(`${MODULE_ID} | Could not emit authenticated relay message`, error);
     }
   }
 

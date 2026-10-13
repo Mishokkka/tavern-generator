@@ -15,9 +15,13 @@ const { TavernEditor } = await import("../scripts/services/TavernEditor.js");
 const { TavernPricing } = await import("../scripts/services/TavernPricing.js");
 const { PurchaseSoundService } = await import("../scripts/services/PurchaseSoundService.js");
 const { CurrencyAdapter } = await import("../scripts/services/CurrencyAdapter.js");
+const { CleanlinessAdapter } = await import("../scripts/services/CleanlinessAdapter.js");
 const { TavernPrivateStore } = await import("../scripts/services/TavernPrivateStore.js");
 const { FoundryDocumentUtils } = await import("../scripts/services/FoundryDocumentUtils.js");
 const { TavernSocketIdentity } = await import("../scripts/services/TavernSocketIdentity.js");
+const { TavernSocketRelay } = await import("../scripts/services/TavernSocketRelay.js");
+const { TavernSceneService } = await import("../scripts/services/TavernSceneService.js");
+const { TavernPlayerApp } = await import("../scripts/apps/TavernPlayerApp.js");
 
 let privateStoreJournal = null;
 
@@ -555,6 +559,61 @@ test("manual new day does not silently save an unsaved draft", async () => {
   assert.deepEqual(store.state.saved, []);
 });
 
+
+test("GM can restore a linked tavern from the trusted Scene snapshot", async () => {
+  const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
+  const publicView = TavernAtmosphereService.publicView(tavern);
+  const store = await activatePrivateStore();
+  await store.write({ current: null, saved: [] });
+
+  let viewed = 0;
+  const scene = {
+    id: "scene-restorable-tavern",
+    uuid: "Scene.scene-restorable-tavern",
+    name: tavern.name,
+    background: { src: "modules/fbl-tavern-generator/test.webp" },
+    flags: {
+      "fbl-tavern-generator": {
+        tavernId: tavern.id,
+        tavernPublicView: structuredClone(publicView),
+        shopButton: {
+          tavernId: tavern.id,
+          tavernName: tavern.name,
+          tavernPublicView: structuredClone(publicView)
+        }
+      }
+    },
+    getFlag(moduleId, key) { return this.flags?.[moduleId]?.[key] ?? null; },
+    async view() { viewed += 1; return this; }
+  };
+  game.scenes = new Map([[scene.id, scene]]);
+
+  const originalOpenSingleton = TavernPlayerApp.openSingleton;
+  let openedTavern = null;
+  TavernPlayerApp.openSingleton = ({ tavern: opened }) => { openedTavern = opened; return {}; };
+
+  try {
+    const result = await TavernSceneService.openTavernLink({
+      tavernId: tavern.id,
+      tavernName: "Поддельное имя из payload",
+      sceneId: scene.id,
+      sceneUuid: scene.uuid,
+      tavernPublicView: { id: tavern.id, name: "Поддельная таверна", inventory: {} }
+    });
+
+    assert.equal(result.scene, scene);
+    assert.equal(result.tavern.name, tavern.name);
+    assert.equal(openedTavern.name, tavern.name);
+    assert.equal(viewed, 1);
+    const restored = TavernState.getSavedById(tavern.id);
+    assert.equal(restored?.name, tavern.name);
+    assert.ok(restored?.atmosphere?.mood);
+    assert.ok(restored.inventory.food.every((entry) => !("crowdAvailability" in entry)));
+  } finally {
+    TavernPlayerApp.openSingleton = originalOpenSingleton;
+  }
+});
+
 test("public scene snapshots are never authoritative purchase state", async () => {
   const tavern = TavernGenerator.generate({ region: "common", quality: "modest", size: "small", terrain: "road", priceMultiplier: 1 });
   const trustedOther = TavernGenerator.generate({ region: "flechenrand", quality: "modest", size: "small", terrain: "town", priceMultiplier: 1 });
@@ -656,4 +715,144 @@ test("socket signatures survive JSON omission of undefined object properties", a
   assert.equal(Object.prototype.polluted, undefined);
 
   await assert.rejects(() => TavernSocketIdentity.sign({ type: "test", bad: Infinity }), /non-finite/);
+});
+
+
+test("native Foundry socket relay delivers player purchases and targeted GM results over LAN-safe transport", async () => {
+  let socketHandler = null;
+  const sent = [];
+  game.socket = {
+    on(channel, handler) {
+      assert.equal(channel, "module.fbl-tavern-generator");
+      socketHandler = handler;
+    },
+    emit(channel, envelope) {
+      assert.equal(channel, "module.fbl-tavern-generator");
+      sent.push(structuredClone(envelope));
+    }
+  };
+
+  const player = { id: "socket-player", name: "Player", isGM: false, active: true };
+  const gm = { id: "socket-gm", name: "GM", isGM: true, active: true };
+  const users = new Map([[player.id, player], [gm.id, gm]]);
+  game.users = { get: (id) => users.get(id) ?? null };
+  game.user = player;
+
+  const deliveries = [];
+  assert.equal(TavernSocketRelay.register((payload, user) => {
+    deliveries.push({ payload: structuredClone(payload), user });
+  }), true);
+  assert.equal(typeof socketHandler, "function");
+
+  await TavernSocketRelay.emit({
+    type: "cart-purchase-request",
+    sender: "spoofed-user",
+    requestId: "purchase-1"
+  }, { targetUserId: gm.id });
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].senderId, player.id);
+  assert.equal(sent[0].recipientId, gm.id);
+  assert.equal(sent[0].payload.sender, "spoofed-user");
+
+  // The packet is ignored by the sender and accepted by the addressed GM.
+  socketHandler(structuredClone(sent[0]));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(deliveries.length, 0);
+
+  game.user = gm;
+  socketHandler(structuredClone(sent[0]));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].user, player);
+  assert.equal(deliveries[0].payload.sender, player.id);
+  assert.equal(deliveries[0].payload.requestId, "purchase-1");
+
+  // Replaying the same packet is ignored.
+  socketHandler(structuredClone(sent[0]));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(deliveries.length, 1);
+
+  await TavernSocketRelay.emit({
+    type: "purchase-result",
+    userId: player.id,
+    requestId: "purchase-1",
+    ok: true
+  }, { targetUserId: player.id });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1].senderId, gm.id);
+  assert.equal(sent[1].recipientId, player.id);
+
+  game.user = player;
+  socketHandler(structuredClone(sent[1]));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(deliveries.length, 2);
+  assert.equal(deliveries[1].user, gm);
+  assert.equal(deliveries[1].payload.sender, gm.id);
+  assert.equal(deliveries[1].payload.ok, true);
+});
+
+
+test("cleanliness services use Quick Access integrated wash states", async () => {
+  const previousModules = game.modules;
+  const previousItems = game.items;
+  const previousPacks = game.packs;
+  const previousFromUuid = globalThis.fromUuid;
+
+  try {
+    game.modules = new Map([["fbl-quick-access", { active: true }]]);
+    game.items = [];
+    game.packs = [];
+    globalThis.fromUuid = async () => null;
+    await game.settings.set("fbl-quick-access", "featureWash", true);
+    await game.settings.set("fbl-quick-access", "washStateUuids", {});
+
+    const actor = {
+      items: [{ id: "old-wash", name: "Немытый", type: "criticalInjury" }],
+      flags: {},
+      createOptions: null,
+      deleteOptions: null,
+      async createEmbeddedDocuments(type, documents, options = {}) {
+        assert.equal(type, "Item");
+        this.createOptions = structuredClone(options);
+        const created = documents.map((data, index) => ({
+          ...structuredClone(data),
+          id: `created-${index}`
+        }));
+        this.items.push(...created);
+        return created;
+      },
+      async deleteEmbeddedDocuments(type, ids, options = {}) {
+        assert.equal(type, "Item");
+        this.deleteOptions = structuredClone(options);
+        const idSet = new Set(ids);
+        this.items = this.items.filter((item) => !idSet.has(item.id));
+        return [];
+      },
+      async setFlag(moduleId, key, value) {
+        this.flags[moduleId] ??= {};
+        this.flags[moduleId][key] = structuredClone(value);
+        return value;
+      }
+    };
+
+    const result = await CleanlinessAdapter.applyFromEntry(actor, {
+      name: "Горячая вода и мыло",
+      cleanliness: { level: 1, state: "Помытый", label: "Помытый" }
+    });
+
+    assert.equal(result.method, "quick-access-fallback-item");
+    assert.equal(result.changed, true);
+    assert.equal(actor.items.some((item) => item.name === "Немытый"), false);
+    assert.equal(actor.items.some((item) => item.name === "Помытый" && item.type === "criticalInjury"), true);
+    assert.equal(actor.createOptions.fblqaWashTransition, true);
+    assert.equal(actor.createOptions.render, false);
+    assert.equal(actor.deleteOptions.fblqaWashTransition, true);
+    assert.equal(actor.flags["fbl-tavern-generator"].lastCleanlinessService.resultingState, "Помытый");
+  } finally {
+    game.modules = previousModules;
+    game.items = previousItems;
+    game.packs = previousPacks;
+    globalThis.fromUuid = previousFromUuid;
+  }
 });

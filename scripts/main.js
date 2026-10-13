@@ -13,7 +13,6 @@ import { CharacterForgeAdapter } from "./services/CharacterForgeAdapter.js";
 import { TavernPricing } from "./services/TavernPricing.js";
 import { TavernDailyService } from "./services/TavernDailyService.js";
 import { TavernAtmosphereService } from "./services/TavernAtmosphereService.js";
-import { TavernSocketIdentity } from "./services/TavernSocketIdentity.js";
 
 let dataValidationReport = null;
 
@@ -67,7 +66,6 @@ const API = {
 
 Hooks.once("init", () => {
   TavernState.registerSettings();
-  TavernSocketIdentity.registerSettings();
   TavernPricing.registerSettings();
   TavernDailyService.registerSettings();
   TavernSceneService.registerSettings();
@@ -115,7 +113,7 @@ Hooks.once("ready", async () => {
 
   const socketReady = await TavernSocket.register();
   if (!socketReady) {
-    ui.notifications.error("FBL Tavern Generator: защищённый socket-канал недоступен. Удалённая синхронизация и покупки отключены; используй HTTPS или localhost.", { permanent: true });
+    ui.notifications.error("FBL Tavern Generator: канал синхронизации недоступен. Удалённое открытие, синхронизация и покупки отключены; перезагрузи страницу и проверь права пользователя Foundry.", { permanent: true });
   }
   TavernSceneService.registerCanvasHooks();
   TavernSceneService.registerSocketHandlers();
