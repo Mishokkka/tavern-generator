@@ -165,7 +165,7 @@ form.fbl-tavern {
   width: 100%;
 }
 
-/* GM application tabs */
+/* Tavern window tabs */
 .fbl-tavern .tg-tabs {
   position: sticky;
   top: 0;
@@ -1784,44 +1784,43 @@ form.fbl-tavern {
   }
 }
 
-/* 0.7.5: visible GM-only new-day action in the ApplicationV2 window header */
-.application.fbl-tavern-gm > .window-header .tg-header-new-day,
-.window-app.fbl-tavern-gm > .window-header .tg-header-new-day {
+/* GM navigation belongs to the tavern, alongside its menu. */
+.fbl-tavern .tg-tavern-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tg-gap);
+  margin: calc(-1 * var(--tg-pad-lg)) calc(-1 * var(--tg-pad-lg)) 0;
+  padding: 10px var(--tg-pad-lg);
+  background: var(--tg-bg-1);
+  border-bottom: 1px solid var(--tg-border);
+}
+
+.fbl-tavern .tg-tavern-navigation .tg-tabs {
+  position: static;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.fbl-tavern .tg-new-day {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
+  flex: 0 0 auto;
   width: auto;
-  min-width: max-content;
-  height: 28px;
-  margin-left: 6px;
-  padding: 0 10px;
-  border: 1px solid color-mix(in srgb, currentcolor 30%, transparent);
-  border-radius: 5px;
-  background: color-mix(in srgb, var(--tg-panel) 86%, transparent);
-  color: inherit;
-  font-size: 12px;
-  line-height: 1;
   white-space: nowrap;
-  cursor: pointer;
 }
 
-.application.fbl-tavern-gm > .window-header .tg-header-new-day:hover:not(:disabled),
-.window-app.fbl-tavern-gm > .window-header .tg-header-new-day:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tg-accent, #8b5a2b) 18%, var(--tg-panel));
-}
-
-.application.fbl-tavern-gm > .window-header .tg-header-new-day:disabled,
-.window-app.fbl-tavern-gm > .window-header .tg-header-new-day:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.application.fbl-tavern-gm > .window-header .tg-header-new-day i,
-.window-app.fbl-tavern-gm > .window-header .tg-header-new-day i {
-  width: 14px;
-  margin: 0;
-  font-size: 13px;
+.fbl-tavern .tg-tab-panel[hidden] {
+  display: none !important;
 }
 
 /* -------------------------------------------------------------------------

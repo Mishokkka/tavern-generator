@@ -130,7 +130,7 @@ export class TavernDailyService {
       let updated = result.tavern;
       if (result.changed && wasSaved) updated = await TavernState.saveTavern(updated, { transaction: token });
       else if (result.changed && wasCurrent) updated = await TavernState.setCurrent(updated, { transaction: token });
-      if (broadcast && wasCurrent) TavernSocket.refreshAll(updated);
+      if (broadcast && result.changed && (wasCurrent || wasSaved)) TavernSocket.refreshAll(updated);
 
       return {
         ...result,
