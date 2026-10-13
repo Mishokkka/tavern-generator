@@ -23,6 +23,7 @@ const { TavernSocketRelay } = await import("../scripts/services/TavernSocketRela
 const { TavernSceneService } = await import("../scripts/services/TavernSceneService.js");
 const { TavernPlayerApp } = await import("../scripts/apps/TavernPlayerApp.js");
 const { TavernGMApp } = await import("../scripts/apps/TavernGMApp.js");
+const { TavernEntryEditorDialog } = await import("../scripts/apps/TavernEntryEditorDialog.js");
 const { CalendariaAdapter } = await import("../scripts/services/CalendariaAdapter.js");
 const { TavernNames } = await import("../scripts/services/TavernNames.js");
 const { TavernSocket } = await import("../scripts/services/TavernSocket.js");
@@ -1358,18 +1359,28 @@ test("late day-change event does not age a booking purchased after the time jump
 async function gmButtons(tavern, { savedTavernId = null } = {}) {
   const app = new TavernGMApp({ tavern });
   const listeners = new Map();
+  const buttons = new Map();
+  const button = (selector) => {
+    if (!buttons.has(selector)) buttons.set(selector, { dataset: {}, addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } });
+    return buttons.get(selector);
+  };
   app.render = () => app;
   app.element = {
-    querySelectorAll: () => [],
+    querySelectorAll: (selector) => selector.startsWith("[data-action=") ? [button(selector)] : [],
     querySelector: (selector) => {
       if (selector === "select[name='savedTavernId']") return { value: savedTavernId };
       if (selector === "[name='priceMultiplierPercent']") return { value: "200" };
       if (!selector.startsWith("[data-action=")) return null;
-      return { addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } };
+      return button(selector);
     }
   };
   await app._onRender();
-  return { app, click: (action) => listeners.get(`[data-action='${action}']:click`)({ preventDefault() {} }) };
+  return { app, click: (action, dataset = {}) => {
+    const selector = `[data-action='${action}']`;
+    const currentTarget = button(selector);
+    Object.assign(currentTarget.dataset, dataset);
+    return listeners.get(`${selector}:click`)({ preventDefault() {}, currentTarget });
+  } };
 }
 
 test("GM undo reverses its own edit when no purchase intervened", async () => {
@@ -1785,4 +1796,124 @@ test("tavern draft updates synchronize its generator preview without overwriting
     assert.deepEqual(other.draft, untouched);
     assert.equal(TavernState.getSavedById(draft.id), null);
   } finally { await generator._onClose(); await other._onClose(); }
+});
+
+for (const saved of [false, true]) {
+  test(`deferred life updates preserve a later entry edit and new-day stock before saving a ${saved ? "saved" : "new"} tavern`, async () => {
+    const { store } = await purchaseFixture();
+    const draft = bookedTavern(2);
+    draft.inventory.food[0].stock = 0;
+    draft.inventory.food[0].maxStock = 10;
+    draft.inventory.food[0].pinned = true;
+    if (saved) await store.write({ current: draft, saved: [draft] });
+    const { app: generator, click: edit } = await gmButtons(draft);
+    const { app: tavern, click: life } = await tavernControls(draft);
+    const prompt = TavernEntryEditorDialog.prompt, callAll = Hooks.callAll;
+    const setting = getSetting("dailyInventoryRefreshEnabled");
+    let release, pending;
+    TavernEntryEditorDialog.prompt = () => new Promise((resolve) => { release = resolve; });
+    Hooks.callAll = (name, data) => { if (name === "fbl-tavern-generator.tavernDraftUpdated") TavernGMApp.receiveDraftUpdate(data); };
+    setSetting("dailyInventoryRefreshEnabled", true);
+    try {
+      const entry = draft.inventory.food[0];
+      const rumor = draft.atmosphere.rumors[0];
+      pending = edit("editEntry", { category: "food", entryId: entry.id });
+      assert.equal(generator.actionPending, true);
+      await life("toggleLifePinned", { section: "rumors", entryId: rumor.id });
+      await life("newDay");
+      const latest = structuredClone(tavern.tavernOverride);
+      const expectedStock = latest.inventory.food.find((item) => item.id === entry.id).stock;
+      assert.ok(expectedStock >= 7);
+      // The editor submits the whole form, including unchanged stale stock.
+      release({ ...entry, name: "Edited after the life update", basePrice: 123 });
+      await pending;
+      const edited = generator.draft.inventory.food.find((item) => item.id === entry.id);
+      assert.equal(edited.name, "Edited after the life update");
+      assert.equal(edited.basePrice, 123);
+      assert.equal(edited.stock, expectedStock);
+      assert.deepEqual(generator.draft.atmosphere, latest.atmosphere);
+      assert.deepEqual(generator.draft.lodgingBookings, latest.lodgingBookings);
+      assert.equal(generator.draft.lodgingBookings[0].remainingDays, 1);
+      assert.equal(generator.pendingDraftUpdate, null);
+      assert.equal(generator.undoDraft, null);
+      await edit("saveDraft");
+      const persisted = TavernState.getSavedById(draft.id);
+      assert.deepEqual(persisted.atmosphere, latest.atmosphere);
+      assert.deepEqual(persisted.lodgingBookings, latest.lodgingBookings);
+      assert.equal(persisted.inventory.food.find((item) => item.id === entry.id).stock, expectedStock);
+      assert.equal(persisted.inventory.food.find((item) => item.id === entry.id).name, edited.name);
+    } finally {
+      release?.(null); await pending;
+      TavernEntryEditorDialog.prompt = prompt; Hooks.callAll = callAll;
+      setSetting("dailyInventoryRefreshEnabled", setting);
+      await generator._onClose(); await tavern._onClose();
+    }
+  });
+}
+
+for (const failed of [false, true]) {
+  test(`deferred draft updates survive an entry dialog ${failed ? "failure" : "cancellation"}`, async () => {
+    await purchaseFixture();
+    const draft = bookedTavern(2);
+    const { app, click } = await gmButtons(draft);
+    const prompt = TavernEntryEditorDialog.prompt;
+    let release, reject, pending;
+    TavernEntryEditorDialog.prompt = () => new Promise((resolve, fail) => { release = resolve; reject = fail; });
+    try {
+      pending = click("editEntry", { category: "food", entryId: draft.inventory.food[0].id });
+      const next = TavernDailyService.refreshTavernForNewDay(draft).tavern;
+      TavernGMApp.receiveDraftUpdate(next);
+      if (failed) reject(new Error("test dialog failure"));
+      else release(null);
+      await pending;
+      assert.deepEqual(app.draft.lodgingBookings, next.lodgingBookings);
+      assert.deepEqual(app.draft.atmosphere, next.atmosphere);
+      assert.equal(app.actionPending, false);
+      assert.equal(app.pendingDraftUpdate, null);
+    } finally { release?.(null); await pending; TavernEntryEditorDialog.prompt = prompt; await app._onClose(); }
+  });
+}
+
+test("a deferred update cannot replace a different generator draft", async () => {
+  await purchaseFixture();
+  const draft = bookedTavern(2), other = TavernGenerator.generate();
+  const { app, click } = await gmButtons(draft);
+  const prompt = TavernEntryEditorDialog.prompt;
+  let release, pending;
+  TavernEntryEditorDialog.prompt = () => new Promise((resolve) => { release = resolve; });
+  try {
+    pending = click("editEntry", { category: "food", entryId: draft.inventory.food[0].id });
+    TavernGMApp.receiveDraftUpdate(TavernDailyService.refreshTavernForNewDay(draft).tavern);
+    app.draft = structuredClone(other);
+    release(null);
+    await pending;
+    assert.deepEqual(app.draft, other);
+    assert.equal(app.pendingDraftUpdate, null);
+  } finally { release?.(null); await pending; TavernEntryEditorDialog.prompt = prompt; await app._onClose(); }
+});
+
+test("reconciling a deferred update cannot change the mode of a newly booked room", async () => {
+  const { store } = await purchaseFixture();
+  const booked = bookedTavern(2);
+  const draft = structuredClone(booked);
+  draft.lodgingBookings = [];
+  Object.assign(draft.inventory.lodging[0], { stock: 1, occupied: 0 });
+  await store.write({ current: draft, saved: [draft] });
+  const { app, click } = await gmButtons(draft);
+  const prompt = TavernEntryEditorDialog.prompt;
+  let release, pending;
+  TavernEntryEditorDialog.prompt = () => new Promise((resolve) => { release = resolve; });
+  try {
+    const room = draft.inventory.lodging[0];
+    pending = click("editEntry", { category: "lodging", entryId: room.id });
+    const latest = await TavernState.saveTavern(booked);
+    TavernGMApp.receiveDraftUpdate(latest);
+    release({ ...room, unlimited: true });
+    await pending;
+    const persisted = TavernState.getSavedById(draft.id);
+    assert.deepEqual(persisted.lodgingBookings, latest.lodgingBookings);
+    assert.equal(persisted.inventory.lodging[0].unlimited, false);
+    assert.equal(persisted.inventory.lodging[0].stock, 0);
+    assert.equal(app.actionPending, false);
+  } finally { release?.(null); await pending; TavernEntryEditorDialog.prompt = prompt; await app._onClose(); }
 });

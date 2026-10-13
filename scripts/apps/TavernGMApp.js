@@ -45,6 +45,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.sceneConfig = TavernSceneService.defaultConfig();
     this.keeperConfig = CharacterForgeAdapter.defaultConfig();
     this.undoDraft = null;
+    this.pendingDraftUpdate = null;
     gmInstances.add(this);
   }
 
@@ -56,16 +57,77 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
+  /** Synchronize matching previews, retaining updates that arrive during a GM action. */
   static receiveDraftUpdate(tavern) {
     if (!game.user.isGM || !tavern?.id) return;
     for (const app of gmInstances) {
-      if (app.draft?.id !== tavern.id || app.actionPending) continue;
-      app.draft = foundry.utils.deepClone(tavern);
-      app.activeTavernId = TavernState.getCurrent()?.id === tavern.id ? tavern.id : null;
-      app.params = app.#paramsFromTavern(tavern);
-      app.undoDraft = null;
-      if (app.rendered) app.render();
+      if (app.draft?.id !== tavern.id) continue;
+      app.pendingDraftUpdate = {
+        before: app.pendingDraftUpdate?.tavern.id === tavern.id
+          ? app.pendingDraftUpdate.before : foundry.utils.deepClone(app.draft),
+        tavern: foundry.utils.deepClone(tavern)
+      };
+      if (!app.actionPending) {
+        app.#reconcileDraftUpdate();
+        if (app.rendered) app.render();
+      }
     }
+  }
+
+  // Keep the latest tavern update and replay only fields changed locally since it
+  // was deferred. Inventory arrays merge by id so a name edit cannot undo a refill.
+  static #mergeDraftUpdate(before, local, incoming) {
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const clone = (value) => foundry.utils.deepClone(value);
+    if (same(local, before)) return clone(incoming);
+    if (same(incoming, before) || same(local, incoming)) return clone(local);
+    const arrays = [before, local, incoming];
+    if (arrays.every(Array.isArray) && arrays.every((items) => items.every((item) => item?.id))) {
+      const [oldItems, localItems, newItems] = arrays.map((items) => new Map(items.map((item) => [item.id, item])));
+      return [...new Set([...newItems.keys(), ...localItems.keys()])]
+        .map((id) => this.#mergeDraftUpdate(oldItems.get(id), localItems.get(id), newItems.get(id)))
+        .filter((item) => item !== undefined);
+    }
+    const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    if (arrays.every(object)) {
+      const result = {};
+      for (const key of new Set([...Object.keys(before), ...Object.keys(local), ...Object.keys(incoming)])) {
+        const value = this.#mergeDraftUpdate(before[key], local[key], incoming[key]);
+        if (value !== undefined) result[key] = value;
+      }
+      return result;
+    }
+    // An explicit local edit wins over an automatic change to the same field.
+    return clone(local);
+  }
+
+  #reconcileDraftUpdate() {
+    const pending = this.pendingDraftUpdate;
+    if (!pending) return false;
+    this.pendingDraftUpdate = null;
+    if (this.draft?.id !== pending.tavern.id) return false;
+    const current = TavernState.getCurrent();
+    const saved = current?.id === this.draft.id ? current : TavernState.getSavedById(this.draft.id);
+    const incoming = Number(saved?.storageRevision ?? 0) > Number(pending.tavern.storageRevision ?? 0) ? saved : pending.tavern;
+    this.draft = TavernGMApp.#mergeDraftUpdate(pending.before, this.draft, incoming);
+    // A booking may have arrived after the editor validated the old room. Keep
+    // the authoritative room if replaying that edit would invalidate paid places.
+    for (const room of incoming.inventory?.lodging ?? []) {
+      const index = this.draft.inventory.lodging.findIndex((entry) => entry.id === room.id);
+      try {
+        if (index < 0) TavernGenerator.removeEntry(incoming, "lodging", room.id);
+        else TavernGenerator.upsertEntry(incoming, "lodging", room.id, this.draft.inventory.lodging[index]);
+      } catch (error) {
+        if (index < 0) this.draft.inventory.lodging.push(foundry.utils.deepClone(room));
+        else this.draft.inventory.lodging[index] = foundry.utils.deepClone(room);
+        ui.notifications.warn(error.message ?? String(error));
+      }
+    }
+    this.draft.summary = TavernGenerator.decoratePrices(this.draft)?.summary ?? this.draft.summary;
+    this.activeTavernId = current?.id === this.draft.id ? this.draft.id : null;
+    this.params = this.#paramsFromTavern(this.draft);
+    this.undoDraft = null;
+    return true;
   }
 
   async _onClose(options) {
@@ -203,6 +265,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     event.preventDefault();
     if (!game.user.isGM) return ui.notifications.warn("Только ГМ может подтверждать таверну.");
     if (!this.draft) this.draft = TavernGenerator.generate(this.params);
+    this.#reconcileDraftUpdate();
     this.draft = await TavernState.setCurrent(this.draft);
     this.activeTavernId = this.draft.id;
     TavernSocket.refreshAll(this.draft);
@@ -213,6 +276,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     event.preventDefault();
     if (!game.user.isGM) return;
     if (!this.draft) this.draft = TavernGenerator.generate(this.params);
+    this.#reconcileDraftUpdate();
     this.draft = await TavernState.setCurrent(this.draft);
     this.activeTavernId = this.draft.id;
     TavernSocket.refreshAll(this.draft);
@@ -258,6 +322,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     event.preventDefault();
     if (!game.user.isGM) return;
     if (!this.draft) this.draft = TavernGenerator.generate(this.params);
+    this.#reconcileDraftUpdate();
     const saved = await TavernState.saveTavern(this.draft);
     this.draft = saved;
     TavernSocket.refreshAll(saved);
@@ -318,9 +383,11 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     try {
       const { scene, meta } = await TavernSceneService.createSceneForTavern(this.draft, this.sceneConfig);
       this.draft.scene = meta;
+      this.#reconcileDraftUpdate();
       this.draft = await TavernState.saveTavern(this.draft);
 
       if (this.activeTavernId === this.draft.id || TavernState.getCurrent()?.id === this.draft.id) {
+        this.#reconcileDraftUpdate();
         this.draft = await TavernState.setCurrent(this.draft);
         this.activeTavernId = this.draft.id;
         TavernSocket.refreshAll(this.draft);
@@ -350,6 +417,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
           name: scene.name,
           img: scene.background?.src ?? this.draft.scene.img
         };
+        this.#reconcileDraftUpdate();
         this.draft = await TavernState.saveTavern(this.draft);
       }
       this.render();
@@ -371,6 +439,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
         replace: true,
         archiveToCompendium: this.keeperConfig.archiveToCompendium
       });
+      this.#reconcileDraftUpdate();
       this.draft = await CharacterForgeAdapter.persistTavernkeeper(this.draft, meta);
 
       if (this.keeperConfig.placeTokenOnScene !== false) {
@@ -382,6 +451,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
           });
           if (placed?.token?.id && this.draft?.scene) {
             this.draft.scene.tavernkeeperTokenId = placed.token.id;
+            this.#reconcileDraftUpdate();
             this.draft = await TavernState.saveTavern(this.draft);
           }
         } catch (tokenError) {
@@ -391,6 +461,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       }
 
       if (this.activeTavernId === this.draft.id || TavernState.getCurrent()?.id === this.draft.id) {
+        this.#reconcileDraftUpdate();
         this.draft = await TavernState.setCurrent(this.draft);
         this.activeTavernId = this.draft.id;
         TavernSocket.refreshAll(this.draft);
@@ -517,6 +588,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async #persistLiveDraft() {
     if (!game.user.isGM || !this.draft?.id) return;
+    this.#reconcileDraftUpdate();
     const current = TavernState.getCurrent();
     const saved = TavernState.getSavedById(this.draft.id);
     if (saved) this.draft = await TavernState.saveTavern(this.draft);
@@ -617,7 +689,9 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.actionPending = false;
       // A dialog or external call can defer a purchase refresh. Synchronize once it
       // finishes, but preserve a draft intentionally edited or replaced by the action.
-      if (JSON.stringify(this.draft) === JSON.stringify(before)) {
+      if (this.#reconcileDraftUpdate()) {
+        this.render();
+      } else if (JSON.stringify(this.draft) === JSON.stringify(before)) {
         this.#syncFromCurrent();
         this.render();
       }
