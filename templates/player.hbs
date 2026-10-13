@@ -1,39 +1,17 @@
 <section class="tg-wrap">
   {{#if tavern}}
-    <header class="tg-player-topbar">
-      <div class="tg-heading-block tg-player-title">
-        <h2>{{tavern.name}}</h2>
-        <p>{{tavern.publicSummary}}</p>
-      </div>
-
-      <aside class="tg-payment-inline">
-        {{#if isGM}}
-          <button type="button" class="tg-header-action" data-action="open-gm-life" data-tooltip="Открыть вкладку «Жизнь таверны»" aria-label="Открыть жизнь таверны">
-            <i class="fa-solid fa-user-shield"></i>
-          </button>
+    <section class="tg-player-toolbar" aria-label="Управление таверной">
+      <div class="tg-payment-summary">
+        {{#if showActorPicker}}
+          <label class="tg-payer-field">
+            <span class="tg-inline-label">Платит</span>
+            <select data-action="select-actor" name="selectedActorId" {{#if cart.locked}}disabled{{/if}}>
+              {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+            </select>
+          </label>
         {{/if}}
 
-        <div class="tg-header-search {{#if searchExpanded}}is-open{{/if}} {{#if searchQuery}}has-query{{/if}}">
-          <button type="button" class="tg-header-action tg-search-toggle" data-action="toggle-search" data-tooltip="Поиск по меню" aria-label="{{#if searchExpanded}}Скрыть поиск по меню{{else}}Раскрыть поиск по меню{{/if}}" aria-expanded="{{#if searchExpanded}}true{{else}}false{{/if}}">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <span class="tg-search-indicator" aria-hidden="true"></span>
-          </button>
-          <div class="tg-header-search-panel">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="search" data-action="menu-search" value="{{searchQuery}}" placeholder="Поиск по меню и описанию" autocomplete="off">
-            <button type="button" class="tg-search-clear" data-action="clear-search" data-tooltip="Очистить поиск" aria-label="Очистить поиск"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-        </div>
-
-        <div class="tg-wallet-inline">
-          {{#if showActorPicker}}
-            <label class="tg-actor-picker-inline">
-              <span class="tg-inline-label">Платит</span>
-              <select data-action="select-actor" name="selectedActorId" {{#if cart.locked}}disabled{{/if}}>
-                {{#each actors}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
-              </select>
-            </label>
-          {{/if}}
+        <div class="tg-wallet-summary">
           <span class="tg-inline-label">Кошелек</span>
           {{#if wallet.hasActor}}
             <span class="tg-money-list tg-money-list--wallet" aria-label="Кошелек персонажа">
@@ -46,14 +24,35 @@
             <small class="tg-wallet-note is-warning">Персонаж не привязан.</small>
           {{/if}}
         </div>
+      </div>
 
-        <button type="button" class="tg-cart-button" data-action="open-cart" data-tooltip="Корзина" aria-label="Корзина">
-          <i class="fa-solid {{#if cart.checkoutPending}}fa-spinner fa-spin{{else}}{{#if cart.checkoutRetry}}fa-rotate-right{{else}}fa-basket-shopping{{/if}}{{/if}}"></i>
-          <span class="tg-cart-count">{{cart.count}}</span>
-          <span class="tg-cart-sum">{{{cart.totalLabel}}}</span>
+      <div class="tg-player-actions">
+        {{#if isGM}}
+          <button type="button" class="tg-header-action" data-action="open-gm-life" data-tooltip="Открыть вкладку «Жизнь таверны»" aria-label="Открыть жизнь таверны">
+            <i class="fa-solid fa-user-shield"></i>
+          </button>
+        {{/if}}
+
+        <button type="button" class="tg-header-action tg-search-toggle {{#if searchQuery}}has-query{{/if}}" data-action="toggle-search" data-tooltip="Поиск по меню" aria-label="Открыть или скрыть поиск по меню" aria-expanded="{{searchExpanded}}">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <span class="tg-search-indicator" aria-hidden="true"></span>
         </button>
-      </aside>
-    </header>
+      </div>
+
+      <button type="button" class="tg-cart-button" data-action="open-cart" data-tooltip="Корзина" aria-label="Корзина">
+        <i class="fa-solid {{#if cart.checkoutPending}}fa-spinner fa-spin{{else}}fa-basket-shopping{{/if}}"></i>
+        <span class="tg-cart-count">{{cart.count}}</span>
+        <span class="tg-cart-sum">{{{cart.totalLabel}}}</span>
+      </button>
+
+      <div class="tg-player-search-row {{#if searchExpanded}}is-open{{/if}} {{#if searchQuery}}has-query{{/if}}" aria-hidden="{{#if searchExpanded}}false{{else}}true{{/if}}">
+        <div class="tg-search-field">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input type="search" data-action="menu-search" value="{{searchQuery}}" placeholder="Поиск по меню и описанию" aria-label="Поиск по меню и описанию" autocomplete="off">
+          <button type="button" class="tg-search-clear" data-action="clear-search" data-tooltip="Очистить поиск" aria-label="Очистить поиск"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+    </section>
 
 
     <section class="tg-menu-stack">

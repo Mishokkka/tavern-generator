@@ -1823,3 +1823,205 @@ form.fbl-tavern {
   margin: 0;
   font-size: 13px;
 }
+
+/* -------------------------------------------------------------------------
+   0.7.12 player toolbar: compact search toggle with inline expansion
+   ------------------------------------------------------------------------- */
+
+/* The primary controls stay on one row. Search itself occupies no space until
+   requested, then expands as a normal-flow row below the wallet/actions/cart. */
+.fbl-tavern .tg-player-toolbar {
+  display: grid;
+  grid-template-areas:
+    "payment actions cart"
+    "search search search";
+  grid-template-columns: minmax(300px, 1fr) auto auto;
+  align-items: stretch;
+  gap: var(--tg-gap-sm) var(--tg-gap);
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius);
+  background: rgba(12, 8, 5, 0.5) !important;
+}
+
+.fbl-tavern .tg-payment-summary {
+  grid-area: payment;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(150px, 1fr);
+  align-items: stretch;
+  gap: var(--tg-gap-sm);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-payment-summary > :only-child {
+  grid-column: 1 / -1;
+}
+
+.fbl-tavern .tg-payer-field,
+.fbl-tavern .tg-wallet-summary {
+  min-width: 0;
+  min-height: 44px;
+  padding: 5px 9px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(10, 8, 5, 0.62) !important;
+}
+
+.fbl-tavern .tg-payer-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.fbl-tavern .tg-payer-field select {
+  min-width: 0;
+  height: 32px;
+}
+
+.fbl-tavern .tg-wallet-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 3px 8px;
+}
+
+.fbl-tavern .tg-wallet-summary .tg-money-list {
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.fbl-tavern .tg-wallet-summary .tg-wallet-note {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fbl-tavern .tg-player-actions {
+  grid-area: actions;
+  display: flex;
+  align-items: stretch;
+  gap: var(--tg-gap-sm);
+  min-width: 0;
+}
+
+.fbl-tavern .tg-player-actions .tg-header-action {
+  align-self: stretch;
+  min-height: 44px;
+}
+
+.fbl-tavern .tg-search-toggle.has-query .tg-search-indicator {
+  display: block;
+}
+
+.fbl-tavern .tg-player-toolbar .tg-cart-button {
+  grid-area: cart;
+  align-self: stretch;
+  min-width: 132px;
+  min-height: 44px;
+}
+
+.fbl-tavern .tg-player-search-row {
+  grid-area: search;
+  display: none;
+  min-width: 0;
+}
+
+.fbl-tavern .tg-player-search-row.is-open {
+  display: block;
+}
+
+.fbl-tavern .tg-player-search-row .tg-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid var(--tg-border-soft);
+  border-radius: var(--tg-radius-sm);
+  background: rgba(10, 8, 5, 0.62) !important;
+}
+
+.fbl-tavern .tg-player-search-row .tg-search-field > i {
+  flex: 0 0 auto;
+  color: var(--tg-text-muted) !important;
+}
+
+.fbl-tavern .tg-player-search-row input[type="search"] {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  padding: 3px 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.fbl-tavern .tg-player-search-row input[type="search"]:focus {
+  outline: 0;
+  box-shadow: none !important;
+}
+
+.fbl-tavern .tg-player-search-row .tg-search-clear {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.fbl-tavern .tg-player-search-row.has-query .tg-search-clear {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@container tavern (max-width: 760px) {
+  .fbl-tavern .tg-player-toolbar {
+    grid-template-areas:
+      "payment actions cart"
+      "search search search";
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .fbl-tavern .tg-payment-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fbl-tavern .tg-payment-summary > :only-child {
+    grid-column: auto;
+  }
+}
+
+@container tavern (max-width: 560px) {
+  .fbl-tavern .tg-player-toolbar {
+    grid-template-areas:
+      "payment payment"
+      "actions cart"
+      "search search";
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .fbl-tavern .tg-player-actions {
+    justify-content: flex-start;
+  }
+}
+
+@container tavern (max-width: 460px) {
+  .fbl-tavern .tg-payer-field,
+  .fbl-tavern .tg-wallet-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fbl-tavern .tg-wallet-summary .tg-wallet-note {
+    grid-column: auto;
+    white-space: normal;
+  }
+}

@@ -1,4 +1,4 @@
-import { MODULE_ID, SOCKET_NAME } from "../constants.js";
+import { MODULE_ID } from "../constants.js";
 import { TavernState } from "./TavernState.js";
 import { TavernGenerator } from "./TavernGenerator.js";
 import { TavernMigrations } from "./TavernMigrations.js";
@@ -57,92 +57,138 @@ export class TavernDailyService {
     if (!this.#setting("calendariaIntegrationEnabled", true)) return null;
     if (!TavernSocket.isResponsibleGM()) return null;
 
-    const key = CalendariaAdapter.currentDayKey(payload);
-    if (!key) return null;
-    if (TavernState.getLastDailyRefreshKey() === key) return null;
+    return TavernState.transaction(async (transaction) => {
+      const dayInfo = CalendariaAdapter.currentDateInfo(payload);
+      const key = dayInfo.key;
+      if (!key) return null;
+      if (TavernState.getLastDailyRefreshKey() === key) return null;
 
-    const result = await this.advanceDay({ dayKey: key, reason: payload?.hookName ?? "manual-or-calendaria" });
-    await TavernState.setLastDailyRefreshKey(key);
-    return result;
+      const result = await this.advanceDay({ dayKey: key, dayInfo, reason: payload?.hookName ?? "manual-or-calendaria", transaction });
+      await TavernState.setLastDailyRefreshKey(key);
+      return result;
+    });
   }
 
-  static async advanceDay({ dayKey = null, reason = "manual" } = {}) {
-    if (!game.user?.isGM) throw new Error("Только ГМ может обновлять таверны по новому дню.");
+  static async advanceDay({ dayKey = null, dayInfo = null, reason = "manual", transaction = null } = {}) {
+    return TavernState.transaction(async (token) => {
+      if (!game.user?.isGM) throw new Error("Только ГМ может обновлять таверны по новому дню.");
 
-    const saved = TavernState.getSaved();
-    const current = TavernState.getCurrent();
-    const updatedSaved = [];
-    const changedIds = new Set();
-    let expiredTotal = 0;
+      const saved = TavernState.getSaved();
+      const current = TavernState.getCurrent();
+      let updatedSaved = [];
+      const changedIds = new Set();
+      let expiredTotal = 0;
 
-    for (const tavern of saved) {
-      const result = this.refreshTavernForNewDay(tavern, { dayKey, reason });
-      updatedSaved.push(result.tavern);
-      if (result.changed) changedIds.add(result.tavern.id);
-      expiredTotal += result.expired?.length ?? 0;
-    }
+      for (const savedTavern of saved) {
+        const tavern = current?.id === savedTavern.id ? current : savedTavern;
+        const result = this.refreshTavernForNewDay(tavern, { dayKey, dayInfo, reason });
+        updatedSaved.push(result.tavern);
+        if (result.changed) changedIds.add(result.tavern.id);
+        expiredTotal += result.expired?.length ?? 0;
+      }
 
-    if (updatedSaved.length) await TavernState.setSavedMany(updatedSaved);
+      if (changedIds.size) updatedSaved = await TavernState.setSavedMany(updatedSaved, { transaction: token });
 
-    let updatedCurrent = null;
-    if (current) {
-      const savedVersion = updatedSaved.find((tavern) => tavern.id === current.id);
-      if (savedVersion) updatedCurrent = savedVersion;
-      else updatedCurrent = this.refreshTavernForNewDay(current, { dayKey, reason }).tavern;
-      await TavernState.setCurrent(updatedCurrent);
-      changedIds.add(updatedCurrent.id);
-    }
+      let updatedCurrent = null;
+      if (current) {
+        const savedVersion = updatedSaved.find((tavern) => tavern.id === current.id);
+        if (savedVersion) updatedCurrent = savedVersion;
+        else {
+          const result = this.refreshTavernForNewDay(current, { dayKey, dayInfo, reason });
+          updatedCurrent = result.tavern;
+          expiredTotal += result.expired.length;
+          if (result.changed) {
+            updatedCurrent = await TavernState.setCurrent(updatedCurrent, { transaction: token });
+            changedIds.add(updatedCurrent.id);
+          }
+        }
+      }
 
-    const tavernData = updatedCurrent ?? null;
-    TavernSocket.refreshAll(tavernData);
+      const tavernData = updatedCurrent ?? null;
+      TavernSocket.refreshAll(tavernData);
 
-    return {
-      changed: changedIds.size,
-      expired: expiredTotal,
-      current: updatedCurrent
-    };
+      return {
+        changed: changedIds.size,
+        expired: expiredTotal,
+        current: updatedCurrent
+      };
+    }, transaction);
   }
 
-  static async advanceTavern(tavern, { dayKey = null, reason = "manual", broadcast = true } = {}) {
-    if (!game.user?.isGM) throw new Error("Только ГМ может начинать новый день в таверне.");
-    if (!tavern?.id) throw new Error("Таверна не выбрана.");
+  static async advanceTavern(tavern, { dayKey = null, dayInfo = null, reason = "manual", broadcast = true, transaction = null } = {}) {
+    return TavernState.transaction(async (token) => {
+      if (!game.user?.isGM) throw new Error("Только ГМ может начинать новый день в таверне.");
+      if (!tavern?.id) throw new Error("Таверна не выбрана.");
 
-    const tavernId = String(tavern.id);
-    const wasCurrent = TavernState.getCurrent()?.id === tavernId;
-    const wasSaved = Boolean(TavernState.getSavedById(tavernId));
-    const result = this.refreshTavernForNewDay(tavern, { dayKey, reason });
+      const tavernId = String(tavern.id);
+      const wasCurrent = TavernState.getCurrent()?.id === tavernId;
+      const wasSaved = Boolean(TavernState.getSavedById(tavernId));
+      // Read inside the transaction; a GM dialog may have been open during a purchase.
+      const latest = wasCurrent ? TavernState.getCurrent() : TavernState.getSavedById(tavernId);
+      const result = this.refreshTavernForNewDay(latest ?? tavern, { dayKey, dayInfo, reason });
 
-    let updated = result.tavern;
-    if (wasSaved) updated = await TavernState.saveTavern(updated);
-    if (wasCurrent) updated = await TavernState.setCurrent(updated, { touch: !wasSaved });
-    if (broadcast && wasCurrent) TavernSocket.refreshAll(updated);
+      let updated = result.tavern;
+      if (result.changed && wasSaved) updated = await TavernState.saveTavern(updated, { transaction: token });
+      else if (result.changed && wasCurrent) updated = await TavernState.setCurrent(updated, { transaction: token });
+      if (broadcast && wasCurrent) TavernSocket.refreshAll(updated);
 
-    return {
-      ...result,
-      tavern: updated,
-      wasCurrent,
-      wasSaved
-    };
+      return {
+        ...result,
+        tavern: updated,
+        wasCurrent,
+        wasSaved
+      };
+    }, transaction);
   }
 
-  static refreshTavernForNewDay(tavern, { dayKey = null, reason = "manual" } = {}) {
+  static refreshTavernForNewDay(tavern, { dayKey = null, dayInfo = null, reason = "manual" } = {}) {
     let clone = TavernMigrations.migrate(tavern);
     if (!clone) return { tavern: clone, changed: false, expired: [] };
+    if (dayKey && clone.refreshState?.lastDayKey === dayKey) return { tavern: clone, changed: false, expired: [] };
+
+    let days = 1;
+    const oldWorldDay = /^world:(-?\d+)$/.exec(clone.refreshState?.lastDayKey ?? "");
+    const newWorldDay = /^world:(-?\d+)$/.exec(dayKey ?? "");
+    const ordinal = dayInfo?.ordinal ?? (newWorldDay ? Number(newWorldDay[1]) : null);
+    const clockId = dayInfo?.clockId ?? (newWorldDay ? "world" : null);
+    const previous = clone.refreshState?.lastDayOrdinal ?? (oldWorldDay ? Number(oldWorldDay[1]) : dayInfo?.previousOrdinal);
+    if (ordinal !== null && previous != null) {
+      const previousClock = clone.refreshState?.clockId ?? (oldWorldDay ? "world" : clockId);
+      days = previousClock === clockId ? Math.max(0, Math.trunc(ordinal - previous)) : 0;
+      if (!days && previousClock === clockId) return { tavern: clone, changed: false, expired: [] };
+    }
 
     const before = JSON.stringify(clone);
-    const lodging = TavernState.advanceLodgingDayInData(clone);
+    const lodging = TavernState.advanceLodgingDayInData(clone, days, { ordinal, clockId });
     clone = lodging.tavern;
 
-    if (this.#setting("dailyInventoryRefreshEnabled", true)) {
+    if (days && this.#setting("dailyInventoryRefreshEnabled", true)) {
       this.#refreshStocks(clone);
       this.#refreshRoomOccupancy(clone);
     }
 
-    if (this.#setting("dailyMenuRotationEnabled", true)) clone = this.#rotateMenu(clone);
-    if (this.#setting("dailyAtmosphereRefreshEnabled", true)) clone = TavernAtmosphereService.advanceDay(clone);
+    // Catch up bookings exactly; roll the final day's menu once even for a long time jump.
+    if (days && this.#setting("dailyMenuRotationEnabled", true)) clone = this.#rotateMenu(clone);
+    if (days && this.#setting("dailyAtmosphereRefreshEnabled", true)) clone = TavernAtmosphereService.advanceDay(clone);
 
     clone.refreshState ??= {};
     clone.refreshState.lastDayKey = dayKey;
+    if (ordinal !== null) {
+      clone.refreshState.lastDayOrdinal = ordinal;
+      clone.refreshState.clockId = clockId;
+    } else if (!dayInfo && (!dayKey || dayKey.startsWith("manual:"))) {
+      // A manual/API advance consumes exactly one day and anchors future hooks
+      // at today's calendar position. Moving the clock back must not lower its watermark.
+      const currentDay = CalendariaAdapter.currentDateInfo();
+      const previousClock = clone.refreshState.clockId ?? (oldWorldDay ? "world" : null);
+      const previousOrdinal = clone.refreshState.lastDayOrdinal ?? (oldWorldDay ? Number(oldWorldDay[1]) : null);
+      clone.refreshState.lastDayKey = dayKey ?? currentDay.key;
+      if (currentDay.ordinal != null) {
+        clone.refreshState.lastDayOrdinal = previousClock === currentDay.clockId && previousOrdinal != null
+          ? Math.max(previousOrdinal, currentDay.ordinal) : currentDay.ordinal;
+        clone.refreshState.clockId = currentDay.clockId;
+      }
+    }
     clone.refreshState.lastReason = reason;
     clone.refreshState.lastRefreshedAt = Date.now();
     clone.summary = TavernGenerator.decoratePrices(clone)?.summary ?? clone.summary;
@@ -159,7 +205,7 @@ export class TavernDailyService {
       for (const entry of tavern.inventory?.[key] ?? []) {
         if (entry.unlimited) continue;
         const rawMax = Number(entry.maxStock ?? entry.stock ?? 1);
-        const max = Number.isFinite(rawMax) ? Math.max(1, rawMax) : 1;
+        const max = Number.isFinite(rawMax) ? Math.max(0, Math.trunc(rawMax)) : 0;
         const low = key === "services" ? 0.45 : 0.7;
         const high = 1;
         entry.stock = Math.min(max, Math.max(0, Math.round(max * this.#float(low, high))));

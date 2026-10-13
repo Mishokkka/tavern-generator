@@ -1,20 +1,17 @@
-import { MODULE_ID, SOCKET_NAME } from "../constants.js";
+import { MODULE_ID } from "../constants.js";
 import { TavernState } from "./TavernState.js";
 import { TavernGenerator } from "./TavernGenerator.js";
 import { TavernPlayerApp } from "../apps/TavernPlayerApp.js";
 import { PurchaseSoundService } from "./PurchaseSoundService.js";
 import { TavernPurchaseService } from "./TavernPurchaseService.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
-import { TavernSocketIdentity } from "./TavernSocketIdentity.js";
-
-const RESULT_CACHE_TTL = 30 * 60 * 1000;
+import { TavernSocketRelay } from "./TavernSocketRelay.js";
 
 export class TavernSocket {
   static #registered = false;
   static #available = false;
   static #registrationError = null;
   static #routes = new Map();
-  static #processedRequests = new Map();
   static #inFlightRequests = new Map();
 
   static async register() {
@@ -22,18 +19,13 @@ export class TavernSocket {
     this.#registered = true;
 
     try {
-      await TavernSocketIdentity.initialize();
-      game.socket.on(SOCKET_NAME, (payload) => {
-        void this.#onMessage(payload).catch((error) => {
-          console.warn(`${MODULE_ID} | Rejected or failed socket message`, error);
-        });
-      });
-      this.#available = true;
+      this.#available = TavernSocketRelay.register((payload, sender) => this.#onMessage(payload, sender));
+      if (!this.#available) throw new Error("Канал module socket недоступен.");
       this.#registrationError = null;
     } catch (error) {
       this.#available = false;
       this.#registrationError = error;
-      console.error(`${MODULE_ID} | Secure socket features are unavailable`, error);
+      console.error(`${MODULE_ID} | Module socket is unavailable`, error);
     }
 
     return this.#available;
@@ -49,18 +41,22 @@ export class TavernSocket {
     this.#routes.set(key, handler);
   }
 
-  static async emit(payload) {
+  static async emit(payload, options = {}) {
     if (!this.#available) {
-      throw this.#registrationError ?? new Error("Защищённый канал таверны недоступен на этом клиенте.");
+      throw this.#registrationError ?? new Error("Канал синхронизации таверны недоступен на этом клиенте.");
     }
-    const signed = await TavernSocketIdentity.sign(payload);
-    game.socket.emit(SOCKET_NAME, signed);
-    return signed;
+    return TavernSocketRelay.emit(payload, options);
+  }
+
+  static async emitToUser(payload, userId) {
+    const targetUserId = String(userId ?? "").trim();
+    if (!targetUserId) throw new Error("Получатель сообщения таверны не указан.");
+    return this.emit(payload, { targetUserId });
   }
 
   static openForPlayers() {
     if (!game.user?.isGM) return;
-    if (!this.#available) return ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+    if (!this.#available) return ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
     void this.#safeEmit({
       type: "open-player",
       tavernData: TavernAtmosphereService.publicView(TavernState.getCurrent())
@@ -124,7 +120,7 @@ export class TavernSocket {
       return null;
     }
     if (targetGM !== game.user.id && !this.#available) {
-      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+      ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
       return null;
     }
 
@@ -150,19 +146,20 @@ export class TavernSocket {
     return requestId;
   }
 
-  static async requestCartPurchase({ actorId, items = [], tavernId = null, sceneId = null, requestId = foundry.utils.randomID(20) }) {
+  static async requestCartPurchase({ actorId, items = [], tavernId = null, sceneId = null, expectedTotal = null, requestId = foundry.utils.randomID(20) }) {
     const targetGM = this.responsibleGMId();
     if (!targetGM) {
       ui.notifications.warn("Нет активного ГМа, который может обработать оплату корзины.");
       return null;
     }
     if (targetGM !== game.user.id && !this.#available) {
-      ui.notifications.warn("Защищённый канал таверны недоступен. Открой Foundry через HTTPS или localhost и перезагрузи страницу.");
+      ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
       return null;
     }
 
     const payload = {
       type: "cart-purchase-request",
+      expectedTotal,
       requestId,
       targetGM,
       actorId,
@@ -191,19 +188,13 @@ export class TavernSocket {
     return Boolean(game.user?.isGM && this.responsibleGMId() === game.user.id);
   }
 
-  static async #onMessage(payload) {
+  static async #onMessage(payload, sender) {
     const type = String(payload?.type ?? "").trim();
-    if (!type) return;
-
-    const sender = await TavernSocketIdentity.verify(payload);
-    if (!sender) {
-      console.warn(`${MODULE_ID} | Ignored unsigned, stale, replayed, or invalid socket message`, type);
-      return;
-    }
+    if (!type || !sender?.id || payload?.sender !== sender.id) return;
 
     if (type === "open-player") {
       if (!sender.isGM || game.user.isGM) return;
-      TavernPlayerApp.openSingleton({ tavern: payload.tavernData ?? null });
+      TavernPlayerApp.openSingleton({ tavern: payload.tavernData ?? null, followCurrent: true });
       return;
     }
 
@@ -253,40 +244,36 @@ export class TavernSocket {
 
   static async #handlePurchaseLines(payload, items, { cart }) {
     const requestId = String(payload?.requestId ?? "").trim() || foundry.utils.randomID(20);
-    const cacheKey = this.#requestKey(payload?.sender, requestId);
-    const cached = this.#getCachedResult(cacheKey);
-    if (cached) {
-      await this.#safeEmitPurchaseResult(cached);
-      return cached;
-    }
-
-    const inFlight = this.#inFlightRequests.get(cacheKey);
+    const requestKey = this.#requestKey(payload?.sender, requestId);
+    const inFlight = this.#inFlightRequests.get(requestKey);
     if (inFlight) {
       const result = await inFlight;
       await this.#safeEmitPurchaseResult(result);
       return result;
     }
 
-    const task = this.#processPurchaseLines(payload, items, { cart, requestId, cacheKey });
-    this.#inFlightRequests.set(cacheKey, task);
+    const task = this.#processPurchaseLines(payload, items, { cart, requestId });
+    this.#inFlightRequests.set(requestKey, task);
     try {
       return await task;
     } finally {
-      if (this.#inFlightRequests.get(cacheKey) === task) this.#inFlightRequests.delete(cacheKey);
+      if (this.#inFlightRequests.get(requestKey) === task) this.#inFlightRequests.delete(requestKey);
     }
   }
 
-  static async #processPurchaseLines(payload, items, { cart, requestId, cacheKey }) {
+  static async #processPurchaseLines(payload, items, { cart, requestId }) {
     try {
       const purchase = await TavernPurchaseService.execute({
         userId: payload.sender,
         actorId: payload.actorId,
         tavernId: payload.tavernId,
         sceneId: payload.sceneId,
+        requestId,
+        expectedTotal: payload.expectedTotal ?? null,
         items
       });
 
-      await this.#createPurchaseChat(purchase, { cart }).catch((error) => {
+      if (!purchase.replayed) await this.#createPurchaseChat(purchase, { cart }).catch((error) => {
         console.warn(`${MODULE_ID} | Purchase committed, but chat receipt failed`, error);
       });
 
@@ -307,9 +294,8 @@ export class TavernSocket {
         tavernData: TavernAtmosphereService.publicView(purchase.tavern)
       };
 
-      this.#rememberResult(cacheKey, result);
       try {
-        this.refreshAll(purchase.tavern);
+        if (purchase.tavern) this.refreshAll(purchase.tavern);
       } catch (error) {
         console.warn(`${MODULE_ID} | Purchase committed, but tavern refresh failed`, error);
       }
@@ -332,11 +318,11 @@ export class TavernSocket {
         requestId,
         userId: payload.sender,
         ok: false,
+        pending: error.code === "PURCHASE_PENDING",
         cart,
         message: error.message ?? String(error),
         tavernData
       };
-      this.#rememberResult(cacheKey, result);
       await this.#safeEmitPurchaseResult(result);
       return result;
     }
@@ -378,7 +364,7 @@ export class TavernSocket {
       this.#deliverPurchaseResultLocally(payload);
       return;
     }
-    await this.emit(payload);
+    await this.emitToUser(payload, payload.userId);
   }
 
   static async #safeEmitPurchaseResult(payload) {
@@ -392,9 +378,9 @@ export class TavernSocket {
   }
 
   static #deliverPurchaseResultLocally(payload) {
-    if (payload.tavernData) TavernPlayerApp.receiveTavernUpdate(payload.tavernData);
     const accepted = TavernPlayerApp.receivePurchaseResult(payload);
     if (accepted === false) return;
+    if (payload.tavernData) TavernPlayerApp.receiveTavernUpdate(payload.tavernData);
 
     if (payload.ok) {
       void PurchaseSoundService.playForCategory(payload.category).catch((error) => {
@@ -407,24 +393,6 @@ export class TavernSocket {
     TavernPlayerApp.renderOpenInstances();
   }
 
-  static #rememberResult(cacheKey, result) {
-    const now = Date.now();
-    this.#processedRequests.set(cacheKey, { at: now, result: foundry.utils.deepClone(result) });
-    for (const [key, record] of this.#processedRequests) {
-      if (now - record.at > RESULT_CACHE_TTL) this.#processedRequests.delete(key);
-    }
-  }
-
-  static #getCachedResult(cacheKey) {
-    const record = this.#processedRequests.get(cacheKey);
-    if (!record) return null;
-    if (Date.now() - record.at > RESULT_CACHE_TTL) {
-      this.#processedRequests.delete(cacheKey);
-      return null;
-    }
-    return foundry.utils.deepClone(record.result);
-  }
-
   static #requestKey(userId, requestId) {
     return `${String(userId ?? "unknown")}:${String(requestId ?? "")}`;
   }
@@ -433,7 +401,7 @@ export class TavernSocket {
     try {
       await this.emit(payload);
     } catch (error) {
-      console.warn(`${MODULE_ID} | Could not emit signed socket message`, error);
+      console.warn(`${MODULE_ID} | Could not emit module socket message`, error);
     }
   }
 

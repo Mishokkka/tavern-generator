@@ -25,11 +25,10 @@
       <strong>{{{totalLabel}}}</strong>
     </div>
 
-    <p class="tg-cart-note">Плательщик: <strong>{{actorName}}</strong>. Цена и остатки повторно проверяются ГМ-клиентом при оплате.</p>
-    {{#if checkoutRetry}}<p class="tg-cart-note is-warning">Результат предыдущего запроса неизвестен. Повтор будет отправлен с тем же идентификатором, поэтому уже обработанная покупка не спишется второй раз.</p>{{/if}}
+    <p class="tg-cart-note">Плательщик: <strong>{{actorName}}</strong>. Цена, кошелёк и остатки проверяются автоматически при оплате.</p>
     <footer class="tg-cart-actions">
       <button type="button" data-action="clear-cart" {{#if locked}}disabled{{/if}}><i class="fa-solid fa-trash"></i> Очистить</button>
-      <button type="button" data-action="checkout-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid {{#if checkoutPending}}fa-spinner fa-spin{{else}}{{#if checkoutRetry}}fa-rotate-right{{else}}fa-coins{{/if}}{{/if}}"></i> {{#if checkoutPending}}Обработка{{else}}{{#if checkoutRetry}}Повторить оплату{{else}}Оплатить{{/if}}{{/if}}</button>
+      <button type="button" data-action="checkout-cart" {{#if checkoutPending}}disabled{{/if}}><i class="fa-solid {{#if checkoutPending}}fa-spinner fa-spin{{else}}fa-coins{{/if}}"></i> {{#if checkoutPending}}Обработка{{else}}Оплатить{{/if}}</button>
     </footer>
   {{else}}
     <section class="tg-empty tg-cart-empty">

@@ -776,7 +776,7 @@ export class TavernSceneService {
   static async #handleTavernLinkRequest(payload) {
     try {
       const result = await this.#openTavernLinkAsGM(payload.link, { requestingUserId: payload.sender });
-      await TavernSocket.emit({
+      await TavernSocket.emitToUser({
         type: "tavern-link-result",
         userId: payload.sender,
         ok: true,
@@ -784,15 +784,15 @@ export class TavernSceneService {
         tavernId: result.tavern?.id,
         tavernData: TavernAtmosphereService.publicView(result.tavern),
         message: `Открыта таверна: ${result.tavern?.name ?? "без названия"}`
-      });
+      }, payload.sender);
     } catch (error) {
       console.error(`${MODULE_ID} | Tavern link activation failed`, error);
-      await TavernSocket.emit({
+      await TavernSocket.emitToUser({
         type: "tavern-link-result",
         userId: payload.sender,
         ok: false,
         message: error.message ?? String(error)
-      });
+      }, payload.sender);
     }
   }
 
@@ -812,13 +812,28 @@ export class TavernSceneService {
     if (!game.user.isGM) throw new Error("Только ГМ может открыть связанную таверну.");
 
     let tavern = this.#recoverTavernFromLink(link);
+    let scene = null;
+
+    // A scene created by this module is a trusted Foundry document. If the private
+    // tavern record was cleared or deleted later, recover the public snapshot from
+    // the real world Scene instead of trusting data carried in the socket payload.
+    if (!tavern) {
+      const recovered = this.#recoverTavernFromTrustedScene(link);
+      tavern = recovered?.tavern ?? null;
+      scene = recovered?.scene ?? null;
+    }
+
     if (!tavern) throw new Error("Не удалось восстановить данные таверны из метки.");
 
-    let scene = await this.#resolveSceneForLink(link, tavern, { allowImport: true });
+    scene ??= await this.#resolveSceneForLink(link, tavern, { allowImport: true });
     if (!scene) throw new Error("Связанная сцена таверны не найдена и не восстановлена из компендиума.");
 
     const sceneMeta = this.#sceneMeta(scene, tavern, link);
     tavern.scene = sceneMeta;
+
+    // Explicitly opening a valid linked Scene restores its snapshot into the GM
+    // private store. This makes subsequent purchases authoritative again without
+    // ever accepting a client-supplied tavern object as trusted state.
     tavern = await TavernState.saveTavern(tavern);
     Hooks.callAll(`${MODULE_ID}.refresh`, { sender: game.user.id });
 
@@ -854,34 +869,110 @@ export class TavernSceneService {
     return null;
   }
 
+  static #recoverTavernFromTrustedScene(link) {
+    const sceneId = String(link?.sceneId ?? "").trim();
+    if (!sceneId) return null;
+
+    const scene = game.scenes?.get?.(sceneId) ?? null;
+    if (!scene || !this.#sceneMatchesTavernLink(scene, link)) return null;
+
+    const shopButton = scene.getFlag?.(MODULE_ID, "shopButton") ?? scene.flags?.[MODULE_ID]?.shopButton ?? null;
+    const source = scene.getFlag?.(MODULE_ID, "tavernPublicView")
+      ?? scene.flags?.[MODULE_ID]?.tavernPublicView
+      ?? shopButton?.tavernPublicView
+      ?? scene.getFlag?.(MODULE_ID, "tavernData")
+      ?? scene.flags?.[MODULE_ID]?.tavernData
+      ?? shopButton?.tavernData
+      ?? null;
+    if (!source) return null;
+
+    // Always sanitize a legacy snapshot before promoting it back into the private
+    // store. The source itself comes from the server-synchronized Scene document.
+    const tavern = TavernAtmosphereService.ensure(TavernAtmosphereService.publicView(source));
+    const trustedId = this.#sceneTavernId(scene);
+    if (!tavern?.id || !trustedId || String(tavern.id) !== trustedId) return null;
+
+    return { scene, tavern };
+  }
+
+  static #sceneMatchesTavernLink(scene, link) {
+    if (!scene) return false;
+
+    const requestedSceneId = String(link?.sceneId ?? "").trim();
+    if (requestedSceneId && String(scene.id ?? "") !== requestedSceneId) return false;
+
+    const requestedSceneUuid = String(link?.sceneUuid ?? "").trim();
+    if (requestedSceneUuid && scene.uuid && String(scene.uuid) !== requestedSceneUuid) return false;
+
+    const trustedId = this.#sceneTavernId(scene);
+    const requestedTavernId = String(link?.tavernId ?? "").trim();
+    if (!trustedId) return false;
+    if (requestedTavernId && trustedId !== requestedTavernId) return false;
+
+    const shopButton = scene.getFlag?.(MODULE_ID, "shopButton") ?? scene.flags?.[MODULE_ID]?.shopButton ?? null;
+    const buttonId = String(shopButton?.tavernId ?? "").trim();
+    if (buttonId && buttonId !== trustedId) return false;
+
+    return true;
+  }
+
+  static #sceneTavernId(scene) {
+    const shopButton = scene?.getFlag?.(MODULE_ID, "shopButton") ?? scene?.flags?.[MODULE_ID]?.shopButton ?? null;
+    const publicView = scene?.getFlag?.(MODULE_ID, "tavernPublicView") ?? scene?.flags?.[MODULE_ID]?.tavernPublicView ?? null;
+    const legacyData = scene?.getFlag?.(MODULE_ID, "tavernData") ?? scene?.flags?.[MODULE_ID]?.tavernData ?? null;
+
+    return String(
+      scene?.getFlag?.(MODULE_ID, "tavernId")
+      ?? scene?.flags?.[MODULE_ID]?.tavernId
+      ?? shopButton?.tavernId
+      ?? publicView?.id
+      ?? legacyData?.id
+      ?? ""
+    ).trim();
+  }
+
   static async #resolveSceneForTavern(tavern, { allowImport = true } = {}) {
     if (!tavern?.scene) return null;
     const scene = tavern.scene.id ? game.scenes?.get(tavern.scene.id) : null;
     if (scene) return scene;
     if (!allowImport) return null;
-    return this.#importSceneFromCompendium(tavern.scene.compendium);
+    return this.#importSceneFromCompendium(tavern.scene.compendium, tavern.id);
   }
 
   static async #resolveSceneForLink(link, tavern, { allowImport = true } = {}) {
     const sceneId = link?.sceneId ?? tavern?.scene?.id;
     const worldScene = sceneId ? game.scenes?.get(sceneId) : null;
-    if (worldScene) return worldScene;
+    if (worldScene) {
+      const requestedUuid = String(link?.sceneUuid ?? "").trim();
+      if (requestedUuid && worldScene.uuid && String(worldScene.uuid) !== requestedUuid) {
+        throw new Error("Связь таверны указывает на другую сцену.");
+      }
+
+      const trustedId = this.#sceneTavernId(worldScene);
+      const expectedId = String(tavern?.id ?? "").trim();
+      const privateSceneId = String(tavern?.scene?.id ?? "").trim();
+      const isPrivateAssociation = privateSceneId && privateSceneId === String(worldScene.id ?? "");
+      if ((trustedId && trustedId === expectedId) || (!trustedId && isPrivateAssociation)) return worldScene;
+      throw new Error("Связанная сцена относится к другой таверне.");
+    }
     if (!allowImport) return null;
 
-    const compendium = link?.compendium ?? tavern?.scene?.compendium ?? null;
-    const imported = await this.#importSceneFromCompendium(compendium);
+    const compendium = tavern?.scene?.compendium ?? null;
+    const imported = await this.#importSceneFromCompendium(compendium, tavern.id);
     if (imported) return imported;
 
     return this.#resolveSceneForTavern(tavern, { allowImport });
   }
 
-  static async #importSceneFromCompendium(compendium) {
+  static async #importSceneFromCompendium(compendium, tavernId) {
     if (!compendium?.pack || !compendium?.id) return null;
     const pack = game.packs.get(compendium.pack);
     if (!pack) throw new Error(`Компендиум сцен не найден: ${compendium.pack}`);
 
     const archived = await pack.getDocument(compendium.id);
     if (!archived) throw new Error("Архивная сцена не найдена в компендиуме.");
+    const linkedId = this.#sceneTavernId(archived);
+    if (linkedId && linkedId !== tavernId) throw new Error("Архивная сцена относится к другой таверне.");
 
     const archivedData = archived.toObject();
     const region = archivedData.flags?.[MODULE_ID]?.region
@@ -987,7 +1078,7 @@ export class TavernSceneService {
   }
 
   static #sceneMeta(scene, tavern, link = {}) {
-    const existingCompendium = link?.compendium ?? tavern?.scene?.compendium ?? scene.getFlag?.(MODULE_ID, "compendium") ?? null;
+    const existingCompendium = tavern?.scene?.compendium ?? scene.getFlag?.(MODULE_ID, "compendium") ?? null;
     const imagePath = scene.background?.src ?? tavern?.scene?.img ?? link?.imagePath ?? null;
 
     return {

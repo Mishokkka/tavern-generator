@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 
+const QUICK_ACCESS_ID = "fbl-quick-access";
 const EXPANDED_CONDITIONS_ID = "forbidden-lands-expanded-conditions";
 const LEGACY_API_MODULE_IDS = [
   EXPANDED_CONDITIONS_ID,
@@ -70,8 +71,11 @@ export class CleanlinessAdapter {
       };
     }
 
+    const quickAccessResult = await this.#tryQuickAccessWash(actor, payload);
+    if (quickAccessResult?.applied) return quickAccessResult;
+
     const expandedConditionsResult = await this.#tryExpandedConditionsWash(actor, payload);
-    if (expandedConditionsResult) return expandedConditionsResult;
+    if (expandedConditionsResult?.applied) return expandedConditionsResult;
 
     const apiResult = await this.#tryLegacyApi(actor, payload);
     if (apiResult) return apiResult;
@@ -80,13 +84,14 @@ export class CleanlinessAdapter {
     if (flagResult) return flagResult;
 
     await actor.setFlag(MODULE_ID, "lastCleanlinessService", payload);
+    if (quickAccessResult || expandedConditionsResult) return quickAccessResult ?? expandedConditionsResult;
     Hooks.callAll(`${MODULE_ID}.cleanlinessPurchased`, actor, entry, payload);
     return {
       applied: true,
       changed: false,
       method: "module-fallback",
       payload,
-      message: `Услуга помытости куплена: ${payload.label}. Expanded Conditions не найден.`
+      message: `Услуга помытости куплена: ${payload.label}. Интеграция помытости недоступна.`
     };
   }
 
@@ -98,13 +103,35 @@ export class CleanlinessAdapter {
     return LEVEL_TO_WASH_STATE[level] ?? "Помытый";
   }
 
+
+  static async #tryQuickAccessWash(actor, payload) {
+    const module = game.modules.get(QUICK_ACCESS_ID);
+    if (!module?.active) return null;
+
+    const featureEnabled = this.#getSetting(QUICK_ACCESS_ID, "featureWash", true);
+    if (!featureEnabled) {
+      return {
+        applied: false,
+        changed: false,
+        method: "quick-access-wash-disabled",
+        payload,
+        message: "Помытость куплена, но функция помытости в Quick Access отключена."
+      };
+    }
+
+    return this.#applyWashCriticalInjury(actor, payload, {
+      moduleId: QUICK_ACCESS_ID,
+      methodPrefix: "quick-access",
+      documentOptions: { render: false, fblqaWashTransition: true }
+    });
+  }
+
   static async #tryExpandedConditionsWash(actor, payload) {
     const module = game.modules.get(EXPANDED_CONDITIONS_ID);
     if (!module?.active) return null;
 
     const featureEnabled = this.#getSetting(EXPANDED_CONDITIONS_ID, "featureWash", true);
     if (!featureEnabled) {
-      await actor.setFlag(MODULE_ID, "lastCleanlinessService", payload);
       return {
         applied: false,
         changed: false,
@@ -114,6 +141,14 @@ export class CleanlinessAdapter {
       };
     }
 
+    return this.#applyWashCriticalInjury(actor, payload, {
+      moduleId: EXPANDED_CONDITIONS_ID,
+      methodPrefix: "expanded-conditions",
+      documentOptions: {}
+    });
+  }
+
+  static async #applyWashCriticalInjury(actor, payload, { moduleId, methodPrefix, documentOptions = {} } = {}) {
     const targetState = this.#displayWashName(payload.targetState) ?? "Помытый";
     const currentItem = this.#getCurrentWashItem(actor);
     const currentState = currentItem ? this.#displayWashName(currentItem.name) : null;
@@ -131,7 +166,7 @@ export class CleanlinessAdapter {
       return {
         applied: true,
         changed: false,
-        method: "expanded-conditions-no-downgrade",
+        method: `${methodPrefix}-no-downgrade`,
         payload: { ...payload, targetState, resultingState: currentState },
         message: `Помытость уже не ниже: ${currentState}.`
       };
@@ -141,24 +176,25 @@ export class CleanlinessAdapter {
       .filter((item) => item.type === "criticalInjury" && this.#isWashName(item.name))
       .map((item) => item.id);
 
-    const source = await this.#findWashConditionSource(targetState);
+    const source = await this.#findWashConditionSource(targetState, moduleId);
     const itemData = source ? source.toObject() : this.#makeFallbackWashItem(targetState);
     delete itemData._id;
 
-    const created = await actor.createEmbeddedDocuments("Item", [itemData]);
+    const created = await actor.createEmbeddedDocuments("Item", [itemData], documentOptions);
     const createdId = created?.[0]?.id;
     try {
-      if (oldWashIds.length) await actor.deleteEmbeddedDocuments("Item", oldWashIds);
+      if (oldWashIds.length) await actor.deleteEmbeddedDocuments("Item", oldWashIds, documentOptions);
     } catch (error) {
       if (createdId) {
         try {
-          await actor.deleteEmbeddedDocuments("Item", [createdId]);
+          await actor.deleteEmbeddedDocuments("Item", [createdId], documentOptions);
         } catch (rollbackError) {
           console.warn(`${MODULE_ID} | Failed to roll back new wash condition`, rollbackError);
         }
       }
       throw error;
     }
+
     const resultingState = created?.[0]?.name ?? targetState;
     const finalPayload = {
       ...payload,
@@ -173,7 +209,7 @@ export class CleanlinessAdapter {
     return {
       applied: true,
       changed: true,
-      method: source ? "expanded-conditions-critical-injury" : "expanded-conditions-fallback-item",
+      method: source ? `${methodPrefix}-critical-injury` : `${methodPrefix}-fallback-item`,
       payload: finalPayload,
       message: `Помытость: ${resultingState}.`
     };
@@ -183,10 +219,12 @@ export class CleanlinessAdapter {
     const apis = [];
     for (const id of LEGACY_API_MODULE_IDS) {
       const module = game.modules.get(id);
-      if (module?.active && module.api) apis.push(module.api);
+      if (module?.active && module.api && this.#getSetting(id, "featureWash", true)) apis.push(module.api);
     }
-    if (game.fblExpandedConditions) apis.push(game.fblExpandedConditions);
-    if (game.expandedConditions) apis.push(game.expandedConditions);
+    const expandedDisabled = game.modules.get(EXPANDED_CONDITIONS_ID)?.active
+      && !this.#getSetting(EXPANDED_CONDITIONS_ID, "featureWash", true);
+    if (!expandedDisabled && game.fblExpandedConditions) apis.push(game.fblExpandedConditions);
+    if (!expandedDisabled && game.expandedConditions) apis.push(game.expandedConditions);
 
     for (const api of apis) {
       for (const methodName of ["setCleanliness", "applyCleanliness", "setWashState", "applyWashState", "setWashed", "setWashLevel"]) {
@@ -212,7 +250,7 @@ export class CleanlinessAdapter {
   }
 
   static async #tryFallbackFlags(actor, payload) {
-    const activeModuleId = LEGACY_API_MODULE_IDS.find((id) => game.modules.get(id)?.active);
+    const activeModuleId = LEGACY_API_MODULE_IDS.find((id) => game.modules.get(id)?.active && this.#getSetting(id, "featureWash", true));
     if (!activeModuleId) return null;
 
     await actor.update({
@@ -235,41 +273,42 @@ export class CleanlinessAdapter {
     return actor.items.find((item) => item.type === "criticalInjury" && this.#isWashName(item.name)) ?? null;
   }
 
-  static async #findWashConditionSource(name) {
+  static async #findWashConditionSource(name, moduleId = QUICK_ACCESS_ID) {
     const normalized = this.#normalize(name);
-    const cachedEntry = this.#washSourceCache.get(normalized);
+    const cacheKey = `${moduleId}:${normalized}`;
+    const cachedEntry = this.#washSourceCache.get(cacheKey);
     const cachedUuid = typeof cachedEntry === "string" ? cachedEntry : cachedEntry?.uuid;
     if (cachedEntry?.missUntil) {
       if (cachedEntry.missUntil > Date.now()) return null;
-      this.#washSourceCache.delete(normalized);
+      this.#washSourceCache.delete(cacheKey);
     } else if (cachedUuid) {
       try {
         const cached = await globalThis.fromUuid?.(cachedUuid);
         if (cached?.type === "criticalInjury") return cached;
-        this.#washSourceCache.delete(normalized);
+        this.#washSourceCache.delete(cacheKey);
       } catch (_error) {
-        this.#washSourceCache.delete(normalized);
+        this.#washSourceCache.delete(cacheKey);
       }
     }
 
-    const configuredUuids = this.#getSetting(EXPANDED_CONDITIONS_ID, "washStateUuids", {}) ?? {};
+    const configuredUuids = this.#getSetting(moduleId, "washStateUuids", {}) ?? {};
     const configuredUuid = configuredUuids[name] || configuredUuids[this.#displayWashName(name)] || configuredUuids[normalized];
 
     if (configuredUuid) {
       try {
         const document = await globalThis.fromUuid?.(configuredUuid);
-        if (document?.type === "criticalInjury") return this.#cacheWashSource(normalized, document);
+        if (document?.type === "criticalInjury") return this.#cacheWashSource(cacheKey, document);
       } catch (error) {
         console.warn(`${MODULE_ID} | Failed to resolve wash UUID ${configuredUuid}`, error);
       }
     }
 
     const worldItem = game.items.find((item) => item.type === "criticalInjury" && this.#normalize(item.name) === normalized);
-    if (worldItem) return this.#cacheWashSource(normalized, worldItem);
+    if (worldItem) return this.#cacheWashSource(cacheKey, worldItem);
 
     const packs = Array.from(game.packs ?? [])
       .filter((pack) => pack.documentName === "Item")
-      .sort((left, right) => this.#packPriority(right) - this.#packPriority(left));
+      .sort((left, right) => this.#packPriority(right, moduleId) - this.#packPriority(left, moduleId));
 
     for (const pack of packs) {
       try {
@@ -277,24 +316,25 @@ export class CleanlinessAdapter {
         const entry = index.find((item) => item.type === "criticalInjury" && this.#normalize(item.name) === normalized);
         if (!entry) continue;
         const document = await pack.getDocument(entry._id);
-        if (document?.type === "criticalInjury") return this.#cacheWashSource(normalized, document);
+        if (document?.type === "criticalInjury") return this.#cacheWashSource(cacheKey, document);
       } catch (error) {
         console.debug(`${MODULE_ID} | Could not scan wash conditions in ${pack.collection}`, error);
       }
     }
 
-    this.#washSourceCache.set(normalized, { missUntil: Date.now() + WASH_CACHE_MISS_TTL_MS });
+    this.#washSourceCache.set(cacheKey, { missUntil: Date.now() + WASH_CACHE_MISS_TTL_MS });
     return null;
   }
 
-  static #cacheWashSource(normalizedName, document) {
-    if (document?.uuid) this.#washSourceCache.set(normalizedName, { uuid: document.uuid });
+  static #cacheWashSource(cacheKey, document) {
+    if (document?.uuid) this.#washSourceCache.set(cacheKey, { uuid: document.uuid });
     return document;
   }
 
-  static #packPriority(pack) {
+  static #packPriority(pack, moduleId = QUICK_ACCESS_ID) {
     const haystack = `${pack?.collection ?? ""} ${pack?.metadata?.packageName ?? ""} ${pack?.metadata?.label ?? ""}`.toLocaleLowerCase("en-US");
-    return haystack.includes(EXPANDED_CONDITIONS_ID) || haystack.includes("expanded-condition") ? 1 : 0;
+    if (haystack.includes(moduleId)) return 2;
+    return haystack.includes(QUICK_ACCESS_ID) || haystack.includes(EXPANDED_CONDITIONS_ID) || haystack.includes("expanded-condition") ? 1 : 0;
   }
 
   static #makeFallbackWashItem(name) {
@@ -318,7 +358,8 @@ export class CleanlinessAdapter {
 
   static #getSetting(moduleId, key, fallback) {
     try {
-      return game.settings.get(moduleId, key);
+      const value = game.settings.get(moduleId, key);
+      return value ?? fallback;
     } catch (_error) {
       return fallback;
     }

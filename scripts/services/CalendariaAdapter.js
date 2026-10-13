@@ -7,7 +7,7 @@ const SEASON_KEYWORDS = {
 
 export class CalendariaAdapter {
   static isAvailable() {
-    return Boolean(game.modules?.get("calendaria")?.active || globalThis.Calendaria || game.calendaria);
+    return Boolean(game.modules?.get("calendaria")?.active || globalThis.CALENDARIA || globalThis.Calendaria || game.calendaria);
   }
 
   static currentDateInfo(source = null) {
@@ -20,6 +20,8 @@ export class CalendariaAdapter {
     const worldDay = Math.floor(Number(game.time?.worldTime ?? 0) / 86400);
     return {
       key: `world:${worldDay}`,
+      ordinal: worldDay,
+      clockId: "world",
       day: worldDay,
       month: null,
       year: null,
@@ -73,6 +75,14 @@ export class CalendariaAdapter {
   static #dateInfoFromPayload(source) {
     const args = Array.isArray(source?.args) ? source.args : Array.isArray(source) ? source : [source].filter(Boolean);
     for (const arg of args) {
+      if (arg?.current) {
+        const calendar = arg.calendar ?? globalThis.CALENDARIA?.managers?.CalendarManager?.getActiveCalendar?.();
+        const info = this.#calendariaInfo(arg.current, calendar, { components: true });
+        if (info) {
+          info.previousOrdinal = this.#calendariaInfo(arg.previous, calendar, { components: true })?.ordinal ?? null;
+          return info;
+        }
+      }
       const info = this.#dateInfoFromObject(arg, "hook");
       if (info) return info;
     }
@@ -80,6 +90,15 @@ export class CalendariaAdapter {
   }
 
   static #dateInfoFromApi() {
+    try {
+      const api = globalThis.CALENDARIA?.api;
+      const date = api?.getCurrentDateTime?.();
+      const calendar = globalThis.CALENDARIA?.managers?.CalendarManager?.getActiveCalendar?.();
+      const info = this.#calendariaInfo(date, calendar);
+      if (info) return info;
+    } catch (error) {
+      console.debug(`${MODULE_ID} | Calendaria API probe failed`, error);
+    }
     const candidates = [
       () => game.calendaria?.api?.getCurrentDate?.(),
       () => game.calendaria?.api?.currentDate?.(),
@@ -123,6 +142,8 @@ export class CalendariaAdapter {
 
     return {
       key: key ?? `${source}:season:${season.label}`,
+      ordinal: Math.floor(Number(game.time?.worldTime ?? 0) / 86400),
+      clockId: "world",
       day,
       month,
       year,
@@ -135,10 +156,31 @@ export class CalendariaAdapter {
   static #firstNumber(object, keys) {
     for (const key of keys) {
       const value = object?.[key];
+      if (value == null || value === "" || typeof value === "object") continue;
       const number = Number(value);
       if (Number.isFinite(number)) return number;
     }
     return null;
+  }
+
+  static #calendariaInfo(value, calendar, { components = false } = {}) {
+    if (!value || value.year == null || value.month == null || (components ? value.dayOfMonth : value.day) == null || !Number.isFinite(Number(value.year))) return null;
+    const year = Number(value.year);
+    const month = Number(value.month) + (components ? 1 : 0);
+    const day = components ? Number(value.dayOfMonth) + 1 : Number(value.day);
+    if (!Number.isFinite(month) || !Number.isFinite(day)) return null;
+    const daySeconds = Math.max(1, Number(calendar?.days?.hoursPerDay ?? 24)
+      * Number(calendar?.days?.minutesPerHour ?? 60) * Number(calendar?.days?.secondsPerMinute ?? 60));
+    let time = Number(game.time?.worldTime ?? 0);
+    if (calendar?.componentsToTime) {
+      time = calendar.componentsToTime({ year: year - Number(calendar.years?.yearZero ?? 0), month: month - 1, dayOfMonth: day - 1, hour: 0, minute: 0, second: 0 });
+    }
+    const seasonValue = (components ? calendar?.seasonsArray?.[value.season] : null)
+      ?? globalThis.CALENDARIA?.api?.getCurrentSeason?.() ?? value.season;
+    const season = this.normalizeSeason(typeof seasonValue === "object" ? seasonValue?.name ?? seasonValue?.label : typeof seasonValue === "string" ? seasonValue : null);
+    const clockId = `calendaria:${calendar?.id ?? calendar?._id ?? "active"}`;
+    return { key: `${clockId}:${year}-${month}-${day}`, ordinal: Math.floor(time / daySeconds), clockId,
+      day, month, year, season: season.label, seasonKey: season.key, source: "calendaria" };
   }
 
   static #firstString(object, keys) {

@@ -208,7 +208,8 @@ export class TavernInventory {
       stock,
       maxStock: item.unlimited ? null : stock,
       unlimited: Boolean(item.unlimited),
-      cleanliness: item.cleanliness ? foundry.utils.deepClone(item.cleanliness) : null
+      cleanliness: item.cleanliness ? foundry.utils.deepClone(item.cleanliness) : null,
+      seasonal: item.seasonal ? foundry.utils.deepClone(item.seasonal) : null
     };
   }
 

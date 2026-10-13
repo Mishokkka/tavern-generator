@@ -13,7 +13,6 @@ import { CharacterForgeAdapter } from "./services/CharacterForgeAdapter.js";
 import { TavernPricing } from "./services/TavernPricing.js";
 import { TavernDailyService } from "./services/TavernDailyService.js";
 import { TavernAtmosphereService } from "./services/TavernAtmosphereService.js";
-import { TavernSocketIdentity } from "./services/TavernSocketIdentity.js";
 
 let dataValidationReport = null;
 
@@ -41,9 +40,11 @@ const API = {
     return new TavernGMApp(appOptions).render(true);
   },
   openPlayer: () => TavernPlayerApp.openSingleton(),
-  clear: () => TavernState.clearCurrent(),
+  clear: async () => { await TavernState.clearCurrent(); TavernSocket.refreshAll(null); },
   getCurrent: () => TavernState.getCurrent(),
   getSaved: () => TavernState.getSaved(),
+  pendingPurchases: () => TavernState.pendingPurchases(),
+  resolvePendingPurchase: (id, outcome) => TavernState.resolvePendingPurchase(id, outcome),
   saveCurrent: () => TavernState.saveTavern(TavernState.getCurrent()),
   addFlagMoney: async (actor, coins) => {
     if (!game.user?.isGM) throw new Error("Только ГМ может изменять кошелёк через API таверны.");
@@ -67,7 +68,6 @@ const API = {
 
 Hooks.once("init", () => {
   TavernState.registerSettings();
-  TavernSocketIdentity.registerSettings();
   TavernPricing.registerSettings();
   TavernDailyService.registerSettings();
   TavernSceneService.registerSettings();
@@ -115,7 +115,7 @@ Hooks.once("ready", async () => {
 
   const socketReady = await TavernSocket.register();
   if (!socketReady) {
-    ui.notifications.error("FBL Tavern Generator: защищённый socket-канал недоступен. Удалённая синхронизация и покупки отключены; используй HTTPS или localhost.", { permanent: true });
+    ui.notifications.error("FBL Tavern Generator: канал синхронизации недоступен. Удалённое открытие, синхронизация и покупки отключены; перезагрузи страницу и проверь права пользователя Foundry.", { permanent: true });
   }
   TavernSceneService.registerCanvasHooks();
   TavernSceneService.registerSocketHandlers();
