@@ -1,16 +1,4 @@
 <section class="tg-wrap">
-  <nav class="tg-tabs" role="tablist" aria-label="Разделы генератора таверны">
-    <button type="button" id="tg-tab-tavern" class="tg-tab-button {{#if tabs.tavern.active}}is-active{{/if}}" data-action="selectTab" data-tab="tavern" role="tab" aria-controls="tg-panel-tavern" aria-selected="{{#if tabs.tavern.active}}true{{else}}false{{/if}}" tabindex="{{#if tabs.tavern.active}}0{{else}}-1{{/if}}">
-      <i class="fa-solid fa-beer-mug-empty"></i><span>Таверна</span>
-    </button>
-    {{#if isGM}}
-      <button type="button" id="tg-tab-life" class="tg-tab-button {{#if tabs.life.active}}is-active{{/if}}" data-action="selectTab" data-tab="life" role="tab" aria-controls="tg-panel-life" aria-selected="{{#if tabs.life.active}}true{{else}}false{{/if}}" tabindex="{{#if tabs.life.active}}0{{else}}-1{{/if}}" data-tooltip="{{#unless tavern}}Сначала сгенерируй или открой таверну{{/unless}}" {{#unless tavern}}disabled{{/unless}}>
-        <i class="fa-solid fa-user-shield"></i><span>Жизнь таверны</span>
-      </button>
-    {{/if}}
-  </nav>
-
-  <div id="tg-panel-tavern" class="tg-tab-panel {{#if tabs.tavern.active}}is-active{{/if}}" data-tab-panel="tavern" role="tabpanel" aria-labelledby="tg-tab-tavern" {{#unless tabs.tavern.active}}hidden{{/unless}}>
   <section class="tg-controls">
     <label>
       <span>Регион / страна</span>
@@ -109,6 +97,7 @@
           <h1>{{tavern.name}}</h1>
           <p>{{tavern.summary}}</p>
         </div>
+        <button type="button" data-action="openTavern"><i class="fa-solid fa-door-open"></i> Открыть таверну</button>
         <button type="button" data-action="rerollName"><i class="fa-solid fa-rotate"></i> Новое имя</button>
       </div>
 
@@ -288,101 +277,5 @@
       <i class="fa-solid fa-beer-mug-empty"></i>
       <p>Таверна еще не сгенерирована.</p>
     </section>
-  {{/if}}
-    </div>
-
-  {{#if isGM}}
-      <div id="tg-panel-life" class="tg-tab-panel {{#if tabs.life.active}}is-active{{/if}}" data-tab-panel="life" role="tabpanel" aria-labelledby="tg-tab-life" {{#unless tabs.life.active}}hidden{{/unless}}>
-        {{#if tavern}}
-    <section class="tg-life-dashboard">
-      <div class="tg-gm-only-note"><i class="fa-solid fa-user-shield"></i><span>Эта вкладка доступна только ГМу. Игроки увидят запись лишь после ручной отправки в чат.</span></div>
-
-      <div class="tg-panel tg-panel-full tg-life-overview">
-        <div class="tg-panel-head">
-          <div>
-            <h3>Жизнь таверны</h3>
-            <p><strong>{{tavern.atmosphere.mood.label}}</strong> · {{tavern.atmosphere.crowdLabel}} ({{tavern.atmosphere.crowd}}%)</p>
-          </div>
-          <div class="tg-panel-head-actions">
-            <button type="button" class="tg-apply-crowd" data-action="applyCrowdAvailability" data-tooltip="Сохранить текущую заполненность, обновить связанную сцену и доступность у игроков"><i class="fa-solid fa-check"></i><span>Применить заполненность</span></button>
-            <button type="button" data-action="rerollMood" data-section="mood" data-tooltip="Обновить только обстановку"><i class="fa-solid fa-cloud-sun"></i></button>
-            <button type="button" data-action="regenerateAtmosphere" data-tooltip="Полностью пересобрать слухи, посетителей и происшествие"><i class="fa-solid fa-arrows-rotate"></i></button>
-          </div>
-        </div>
-        <p class="tg-life-mood-text">{{tavern.atmosphere.mood.text}}</p>
-        {{#if availability}}
-          <div class="tg-life-availability">
-            <div><span>Нагрузка</span><strong>{{availability.label}}</strong></div>
-            <div><span>Конечные запасы</span><strong>{{availability.reservePercent}}% занято гостями</strong></div>
-            <div><span>Безлимитные товары</span><strong>{{availability.goodsCapLabel}}</strong></div>
-            <div><span>Услуги</span><strong>{{availability.servicesCapLabel}}</strong></div>
-          </div>
-          <p class="tg-life-availability-note">{{availability.summary}}</p>
-        {{/if}}
-      </div>
-
-      <div class="tg-life-grid">
-        <div class="tg-panel">
-          <div class="tg-panel-head"><h3>Слухи</h3></div>
-          <div class="tg-life-list">
-            {{#each tavern.atmosphere.rumors}}
-              <article class="tg-life-entry">
-                <div class="tg-life-entry-main">
-                  <strong>{{title}}</strong>
-                  <p>{{text}}</p>
-                  {{#if gmText}}<details><summary>Правда для ГМа</summary><p>{{gmText}}</p></details>{{/if}}
-                </div>
-                <div class="tg-life-actions">
-                  <button type="button" class="{{#if pinned}}is-pinned{{/if}}" data-action="toggleLifePinned" data-section="rumors" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить слух{{else}}Сохранить слух при смене дня{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
-                  <button type="button" data-action="rerollLifeEntry" data-section="rumors" data-entry-id="{{id}}" data-tooltip="Заменить слух"><i class="fa-solid fa-dice"></i></button>
-                  <button type="button" data-action="sendLifeEntry" data-section="rumors" data-entry-id="{{id}}" data-tooltip="Отправить игрокам в чат"><i class="fa-solid fa-comment"></i></button>
-                </div>
-              </article>
-            {{/each}}
-          </div>
-        </div>
-
-        <div class="tg-panel">
-          <div class="tg-panel-head"><h3>Завсегдатаи</h3></div>
-          <div class="tg-life-list">
-            {{#each tavern.atmosphere.regulars}}
-              <article class="tg-life-entry">
-                <div class="tg-life-entry-main">
-                  <strong>{{title}}</strong>
-                  <p>{{description}}</p>
-                  {{#if goal}}<small><b>Цель:</b> {{goal}}</small>{{/if}}
-                  {{#if gmText}}<details><summary>Секрет для ГМа</summary><p>{{gmText}}</p></details>{{/if}}
-                </div>
-                <div class="tg-life-actions">
-                  <button type="button" class="{{#if pinned}}is-pinned{{/if}}" data-action="toggleLifePinned" data-section="regulars" data-entry-id="{{id}}" data-tooltip="{{#if pinned}}Открепить посетителя{{else}}Сделать постоянным посетителем{{/if}}"><i class="fa-solid fa-thumbtack"></i></button>
-                  <button type="button" data-action="rerollLifeEntry" data-section="regulars" data-entry-id="{{id}}" data-tooltip="Заменить посетителя"><i class="fa-solid fa-dice"></i></button>
-                  <button type="button" data-action="sendLifeEntry" data-section="regulars" data-entry-id="{{id}}" data-tooltip="Представить игрокам в чате"><i class="fa-solid fa-comment"></i></button>
-                </div>
-              </article>
-            {{/each}}
-          </div>
-        </div>
-      </div>
-
-      <div class="tg-panel tg-panel-full tg-incident-card">
-        <div class="tg-panel-head">
-          <div>
-            <h3>Происшествие</h3>
-            <strong>{{tavern.atmosphere.incident.title}}</strong>
-          </div>
-          <div class="tg-panel-head-actions">
-            <button type="button" data-action="rerollIncident" data-section="incident" data-tooltip="Другое происшествие"><i class="fa-solid fa-dice"></i></button>
-            <button type="button" data-action="sendLifeEntry" data-section="incident" data-entry-id="{{tavern.atmosphere.incident.id}}" data-tooltip="Отправить происшествие игрокам в чат"><i class="fa-solid fa-comment"></i></button>
-          </div>
-        </div>
-        <p>{{tavern.atmosphere.incident.text}}</p>
-        {{#if tavern.atmosphere.incident.gmText}}<details><summary>Скрытая сторона происшествия</summary><p>{{tavern.atmosphere.incident.gmText}}</p></details>{{/if}}
-      </div>
-    </section>
-
-        {{else}}
-          <section class="tg-empty"><i class="fa-solid fa-user-shield"></i><p>Сначала сгенерируй или загрузи таверну.</p></section>
-        {{/if}}
-      </div>
   {{/if}}
 </section>

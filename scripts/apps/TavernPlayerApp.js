@@ -1,4 +1,4 @@
-import { TEMPLATES } from "../constants.js";
+import { MODULE_ID, TEMPLATES } from "../constants.js";
 import { TavernGenerator } from "../services/TavernGenerator.js";
 import { TavernState } from "../services/TavernState.js";
 import { CurrencyAdapter } from "../services/CurrencyAdapter.js";
@@ -6,6 +6,8 @@ import { TavernSocket } from "../services/TavernSocket.js";
 import { TavernCartApp } from "./TavernCartApp.js";
 import { TavernQuantityDialog } from "./TavernQuantityDialog.js";
 import { TavernAtmosphereService } from "../services/TavernAtmosphereService.js";
+import { TavernAvailabilityService } from "../services/TavernAvailabilityService.js";
+import { TavernDailyService } from "../services/TavernDailyService.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -49,7 +51,9 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   constructor(options = {}) {
-    super(options);
+    const appOptions = { ...options };
+    for (const key of ["tavern", "followCurrent", "tab"]) delete appOptions[key];
+    super(appOptions);
     this.selectedActorId = null;
     this.tavernOverride = options.tavern ? foundry.utils.deepClone(options.tavern) : null;
     this.cart = [];
@@ -62,12 +66,17 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.checkoutSnapshots = new Map();
     this.searchQuery = "";
     this.searchExpanded = false;
+    this.activeTab = game.user?.isGM && options.tab === "life" ? "life" : "menu";
+    this.gmActionPending = false;
   }
 
   static openSingleton(options = {}) {
     if (!singleton) singleton = new this(options);
     const explicit = Object.prototype.hasOwnProperty.call(options, "tavern");
-    if (singleton.setTavern(explicit ? options.tavern : TavernState.getCurrent())) singleton.followCurrent = options.followCurrent ?? !explicit;
+    if (singleton.setTavern(explicit ? options.tavern : TavernState.getCurrent())) {
+      singleton.followCurrent = options.followCurrent ?? !explicit;
+      if (options.tab) singleton.activeTab = game.user?.isGM && options.tab === "life" ? "life" : "menu";
+    }
     singleton.render(true);
     return singleton;
   }
@@ -135,6 +144,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (this.cart.length) ui.notifications.info("Открыта другая таверна. Корзина очищена.");
       this.cart = [];
       this.cartTavernId = nextId;
+      this.activeTab = "menu";
     }
     this.tavernOverride = tavern ? foundry.utils.deepClone(tavern) : null;
     this.renderedTavern = null;
@@ -168,9 +178,11 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _prepareContext(options) {
-    const sourceTavern = this.tavernOverride ?? TavernState.getCurrent();
+    const lifeTavern = this.#resolveGmTavern();
+    const sourceTavern = lifeTavern ?? this.tavernOverride ?? TavernState.getCurrent();
     const tavern = TavernGenerator.decoratePrices(TavernAtmosphereService.publicView(sourceTavern));
     this.renderedTavern = tavern ?? null;
+    if (!game.user.isGM || !tavern) this.activeTab = "menu";
 
     const actors = this.#ownedActors();
     const checkoutRecord = this.activeRequestId ? this.checkoutSnapshots.get(this.activeRequestId) ?? null : null;
@@ -179,6 +191,10 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return {
       tavern,
+      lifeTavern,
+      availability: lifeTavern ? TavernAvailabilityService.profile(lifeTavern) : null,
+      gmActionPending: this.gmActionPending,
+      tabs: { menu: { active: this.activeTab === "menu" }, life: { active: this.activeTab === "life" } },
       payer: selectedActor ? { id: selectedActor.id, name: selectedActor.name } : null,
       actors: actors.map((actor) => ({ id: actor.id, name: actor.name, selected: actor.id === selectedActor?.id })),
       showActorPicker: actors.length > 1,
@@ -197,18 +213,13 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _onRender(context, options) {
-    this.element.querySelector("[data-action='open-gm-life']")?.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (!game.user.isGM) return;
-      const tavern = this.#resolveGmTavern();
-      if (!tavern) return ui.notifications.warn("Не удалось восстановить полные данные таверны для ГМа.");
-      game.fblTaverns?.openGM?.({
-        tavern,
-        tavernId: tavern.id,
-        sceneId: tavern.scene?.id ?? globalThis.canvas?.scene?.id ?? null,
-        tab: "life"
-      });
-    });
+    for (const button of this.element.querySelectorAll("[data-action='select-tab']")) {
+      button.addEventListener("click", (event) => this.#onSelectTab(event));
+      button.addEventListener("keydown", (event) => this.#onTabKeydown(event));
+    }
+    for (const button of this.element.querySelectorAll("[data-gm-action]")) {
+      button.addEventListener("click", (event) => this.#onGmAction(event));
+    }
 
     this.element.querySelector("[data-action='toggle-search']")?.addEventListener("click", (event) => {
       event.preventDefault();
@@ -471,17 +482,111 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
 
+  #displayedTavernId() {
+    return (this.tavernOverride ?? TavernState.getCurrent())?.id ?? null;
+  }
+
   #resolveGmTavern() {
     if (!game.user.isGM) return null;
     const candidate = this.tavernOverride ?? TavernState.getCurrent();
-    const id = String(candidate?.id ?? "").trim();
-    if (!id) return candidate ? foundry.utils.deepClone(candidate) : null;
+    if (!candidate?.id) return null;
+    return TavernState.resolveExactTavern({ tavernId: candidate.id, sceneId: candidate.scene?.id,
+      fallback: candidate, requirePrivate: true });
+  }
 
-    const current = TavernState.getCurrent();
-    if (current?.id === id) return foundry.utils.deepClone(current);
-    const saved = TavernState.getSavedById(id);
-    if (saved) return foundry.utils.deepClone(saved);
-    return candidate ? foundry.utils.deepClone(candidate) : null;
+  #onSelectTab(event) {
+    event.preventDefault();
+    const tab = event.currentTarget.dataset.tab;
+    if (!["menu", "life"].includes(tab) || (tab === "life" && !game.user.isGM)) return;
+    this.activeTab = tab;
+    this.render();
+  }
+
+  #onTabKeydown(event) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = [...this.element.querySelectorAll("[data-action='select-tab']")];
+    const index = Math.max(0, tabs.indexOf(event.currentTarget));
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+      : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    event.preventDefault();
+    tabs[next]?.focus();
+    tabs[next]?.click();
+  }
+
+  async #onGmAction(event) {
+    event.preventDefault();
+    if (!game.user.isGM) return ui.notifications.warn("Это действие доступно только ГМу.");
+    if (this.gmActionPending) return;
+    const tavern = this.#resolveGmTavern();
+    if (!tavern) return ui.notifications.warn("Полные данные этой таверны недоступны.");
+    const { gmAction: action, section, entryId } = event.currentTarget.dataset;
+
+    // Lock before opening the confirmation dialog, so a double click cannot advance twice.
+    this.gmActionPending = true;
+    this.render();
+    try {
+      if (action === "newDay") {
+        const confirmed = await foundry.applications.api.DialogV2.confirm({
+          window: { title: "Новый день в таверне" },
+          content: `<p>Начать новый день в таверне <strong>${foundry.utils.escapeHTML(tavern.name)}</strong>? Обновятся брони, запасы, часть меню и Жизнь таверны.</p>`,
+          rejectClose: false,
+          modal: true
+        });
+        if (!confirmed) return;
+        if (this.#displayedTavernId() !== tavern.id) throw new Error("Открыта другая таверна. Новый день отменён; повтори действие в нужной таверне.");
+        const result = await TavernDailyService.advanceTavern(tavern, {
+          dayKey: `manual:${foundry.utils.randomID(24)}`, reason: "gm-tavern", broadcast: true
+        });
+        this.#acceptGmResult(result.tavern);
+        const suffix = result.expired.length ? ` Освобождено бронирований: ${result.expired.length}.` : "";
+        ui.notifications.info(`В таверне «${result.tavern.name}» начался новый день.${suffix}`);
+        return;
+      }
+      if (action === "sendLifeEntry") {
+        const entry = TavernAtmosphereService.findEntry(tavern, section, entryId);
+        if (!entry) throw new Error("Запись таверны не найдена.");
+        const escape = (value) => foundry.utils.escapeHTML(String(value ?? ""));
+        const labels = { mood: "Обстановка", rumors: "Слух", regulars: "Посетитель", incident: "Происшествие" };
+        await ChatMessage.create({
+          speaker: ChatMessage.getSpeaker?.() ?? {},
+          content: `<section class="tg-chat-life"><header>${escape(tavern.name)} · ${escape(labels[section] ?? "Таверна")}</header><h3>${escape(entry.title ?? entry.label)}</h3><p>${escape(entry.text ?? entry.description)}</p></section>`
+        });
+        return;
+      }
+      const result = await TavernState.transaction(async (transaction) => {
+        if (!game.user.isGM || this.#displayedTavernId() !== tavern.id) throw new Error("Выбранная таверна изменилась. Повтори действие.");
+        let next = this.#resolveGmTavern();
+        if (!next) throw new Error("Полные данные этой таверны недоступны.");
+        if (action === "regenerateAtmosphere") next = TavernAtmosphereService.regenerate(next);
+        else if (action === "toggleLifePinned") next = TavernAtmosphereService.togglePinned(next, section, entryId);
+        else if (["rerollLifeEntry", "rerollMood", "rerollIncident"].includes(action)) {
+          next = TavernAtmosphereService.rerollEntry(next, section ?? (action === "rerollMood" ? "mood" : "incident"), entryId);
+        } else if (action === "applyCrowdAvailability") {
+          next = TavernAvailabilityService.clearEmbeddedAvailability(TavernAtmosphereService.ensure(next));
+          next.atmosphere.availabilityAppliedAt = Date.now();
+        } else throw new Error("Неизвестное действие таверны.");
+        const saved = Boolean(TavernState.getSavedById(next.id));
+        const current = TavernState.getCurrent()?.id === next.id;
+        if (saved) next = await TavernState.saveTavern(next, { transaction });
+        else if (current) next = await TavernState.setCurrent(next, { transaction });
+        return { tavern: next, persisted: saved || current };
+      });
+      this.#acceptGmResult(result.tavern);
+      if (result.persisted) TavernSocket.refreshAll(result.tavern);
+      if (action === "applyCrowdAvailability") ui.notifications.info(`Заполненность применена: ${result.tavern.name}.`);
+    } catch (error) {
+      console.warn("fbl-tavern-generator | Tavern GM action failed", error);
+      ui.notifications.warn(error.message ?? String(error));
+    } finally {
+      this.gmActionPending = false;
+      this.render();
+    }
+  }
+
+  #acceptGmResult(tavern) {
+    if (this.#displayedTavernId() === tavern.id) this.setTavern(tavern);
+    Hooks.callAll(`${MODULE_ID}.tavernDraftUpdated`, foundry.utils.deepClone(tavern));
+    TavernCartApp.refreshOpen();
   }
 
 

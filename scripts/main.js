@@ -37,9 +37,12 @@ const API = {
     const appOptions = { ...options, tavern };
     delete appOptions.tavernId;
     delete appOptions.sceneId;
+    if (options.tab === "life" || options.activeTab === "life") {
+      return TavernPlayerApp.openSingleton({ tavern: tavern ?? TavernState.getCurrent(), tab: "life", followCurrent: !requestedId });
+    }
     return new TavernGMApp(appOptions).render(true);
   },
-  openPlayer: () => TavernPlayerApp.openSingleton(),
+  openPlayer: (options = {}) => TavernPlayerApp.openSingleton(options),
   clear: async () => { await TavernState.clearCurrent(); TavernSocket.refreshAll(null); },
   getCurrent: () => TavernState.getCurrent(),
   getSaved: () => TavernState.getSaved(),
@@ -128,6 +131,7 @@ Hooks.once("ready", async () => {
   window.setTimeout(() => TavernSceneService.refreshSceneMenuButton(), 250);
   window.setTimeout(() => TavernSceneService.refreshSceneMenuButton(), 1500);
   Hooks.on(`${MODULE_ID}.refresh`, () => TavernGMApp.renderOpenInstances({ syncCurrent: true }));
+  Hooks.on(`${MODULE_ID}.tavernDraftUpdated`, (tavern) => TavernGMApp.receiveDraftUpdate(tavern));
 
   game.fblTaverns = API;
 
