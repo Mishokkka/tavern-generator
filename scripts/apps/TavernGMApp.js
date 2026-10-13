@@ -598,15 +598,26 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async #onUndo(event) {
     event.preventDefault();
     if (!this.undoDraft) return;
-    const latest = TavernState.getCurrent()?.id === this.draft?.id ? TavernState.getCurrent() : TavernState.getSavedById(this.draft?.id);
+    const active = TavernState.getCurrent();
+    const latest = active?.id === this.undoDraft.id ? active : TavernState.getSavedById(this.undoDraft.id);
+    const current = this.draft ? foundry.utils.deepClone(this.draft) : null;
+    if (current?.id !== this.undoDraft.id) {
+      // Switching the editor back must not compare revisions of two different taverns
+      // or restore stale stock if the previous tavern was purchased from while hidden.
+      this.draft = foundry.utils.deepClone(latest ?? this.undoDraft);
+      this.undoDraft = current;
+      this.undoRevision = current?.storageRevision ?? 0;
+      this.activeTavernId = active?.id === this.draft.id ? this.draft.id : null;
+      this.params = this.#paramsFromTavern(this.draft);
+      this.render();
+      return;
+    }
     if (latest && Number(latest.storageRevision ?? 0) !== Number(this.undoRevision ?? 0)) {
       this.undoDraft = null;
       throw new Error("После правки произошла покупка или другое изменение. Отмена сброшена, чтобы сохранить актуальные запасы и брони.");
     }
-    const current = this.draft ? foundry.utils.deepClone(this.draft) : null;
     this.draft = foundry.utils.deepClone(this.undoDraft);
     this.undoDraft = current;
-    if (current?.id !== this.draft?.id) { this.render(); return; }
     this.draft.storageRevision = current?.storageRevision ?? 0;
     await this.#persistLiveDraft();
     this.render();
@@ -792,7 +803,15 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.undoDraft = null;
       ui.notifications.warn(error.message ?? String(error));
       this.render();
-    } finally { this.actionPending = false; }
+    } finally {
+      this.actionPending = false;
+      // A dialog or external call can defer a purchase refresh. Synchronize once it
+      // finishes, but preserve a draft intentionally edited or replaced by the action.
+      if (JSON.stringify(this.draft) === JSON.stringify(before)) {
+        this.#syncFromCurrent();
+        this.render();
+      }
+    }
   }
 
   #categoryLength(category) {

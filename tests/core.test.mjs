@@ -794,6 +794,17 @@ test("native Foundry socket relay delivers player purchases and targeted GM resu
   assert.equal(deliveries[1].user, gm);
   assert.equal(deliveries[1].payload.sender, gm.id);
   assert.equal(deliveries[1].payload.ok, true);
+
+  // Sender clock skew must not prevent delivery; duplicates still expire by local arrival time.
+  for (const skew of [-24 * 60 * 60 * 1000, 24 * 60 * 60 * 1000]) {
+    const packet = { ...structuredClone(sent[1]), id: `clock-skew-${skew}`, sentAt: Date.now() + skew };
+    const before = deliveries.length;
+    socketHandler(packet);
+    socketHandler(structuredClone(packet));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(deliveries.length, before + 1);
+    assert.equal(deliveries.at(-1).payload.ok, true);
+  }
 });
 
 
@@ -859,6 +870,83 @@ test("cleanliness services use Quick Access integrated wash states", async () =>
     game.packs = previousPacks;
     globalThis.fromUuid = previousFromUuid;
   }
+});
+
+async function withWashModules(quickEnabled, expandedEnabled, task) {
+  const quickId = "fbl-quick-access";
+  const expandedId = "forbidden-lands-expanded-conditions";
+  const previous = { modules: game.modules, items: game.items, packs: game.packs, fromUuid: globalThis.fromUuid };
+  const settings = [quickId, expandedId].flatMap((id) => ["featureWash", "washStateUuids"].map((key) =>
+    [id, key, game.settings.get(id, key)]));
+  const actor = {
+    items: [], flags: {},
+    async setFlag(moduleId, key, value) { (this.flags[moduleId] ??= {})[key] = structuredClone(value); },
+    async createEmbeddedDocuments(_type, data) {
+      const created = data.map((item) => ({ ...structuredClone(item), id: foundry.utils.randomID() }));
+      this.items.push(...created);
+      return created;
+    },
+    async deleteEmbeddedDocuments(_type, ids) { this.items = this.items.filter((item) => !ids.includes(item.id)); }
+  };
+  const entry = { name: "Купание", cleanliness: { level: 2, state: "Хорошенько помытый" } };
+  const pack = (moduleId) => ({
+    documentName: "Item", collection: `${moduleId}.wash`, metadata: { packageName: moduleId },
+    getIndex: async () => [{ _id: "wash", name: entry.cleanliness.state, type: "criticalInjury" }],
+    getDocument: async () => ({ type: "criticalInjury", uuid: `Compendium.${moduleId}.wash.wash`,
+      toObject: () => ({ name: entry.cleanliness.state, type: "criticalInjury", system: { origin: moduleId } }) })
+  });
+  try {
+    game.modules = new Map([[quickId, { active: true }], [expandedId, { active: true }]]);
+    game.items = [];
+    game.packs = [pack(quickId), pack(expandedId)];
+    globalThis.fromUuid = async () => null;
+    await game.settings.set(quickId, "featureWash", quickEnabled);
+    await game.settings.set(expandedId, "featureWash", expandedEnabled);
+    await game.settings.set(quickId, "washStateUuids", {});
+    await game.settings.set(expandedId, "washStateUuids", {});
+    await task({ actor, entry, quickId, expandedId });
+  } finally {
+    game.modules = previous.modules;
+    game.items = previous.items;
+    game.packs = previous.packs;
+    globalThis.fromUuid = previous.fromUuid;
+    for (const [id, key, value] of settings) await game.settings.set(id, key, value);
+  }
+}
+
+test("disabled Quick Access wash falls through to enabled Expanded Conditions and its own pack", async () => {
+  await withWashModules(false, true, async ({ actor, entry, expandedId }) => {
+    const result = await CleanlinessAdapter.applyFromEntry(actor, entry);
+    assert.equal(result.applied, true);
+    assert.equal(result.method, "expanded-conditions-critical-injury");
+    assert.equal(actor.items.length, 1);
+    assert.equal(actor.items[0].system.origin, expandedId);
+  });
+});
+
+test("enabled Quick Access wash prefers its own pack even when Expanded Conditions is listed first", async () => {
+  await withWashModules(true, true, async ({ actor, entry, quickId }) => {
+    game.packs.reverse();
+    const result = await CleanlinessAdapter.applyFromEntry(actor, entry);
+    assert.equal(result.method, "quick-access-critical-injury");
+    assert.equal(actor.items[0].system.origin, quickId);
+  });
+});
+
+test("disabled wash integrations return the disabled message without bypassing settings via legacy APIs or flags", async () => {
+  await withWashModules(false, false, async ({ actor, entry, expandedId }) => {
+    const previousGlobalApi = game.fblExpandedConditions;
+    try {
+      const api = { setWashState: () => assert.fail("Disabled integration must not apply wash") };
+      game.modules.get(expandedId).api = api;
+      game.fblExpandedConditions = api;
+      const result = await CleanlinessAdapter.applyFromEntry(actor, entry);
+      assert.equal(result.applied, false);
+      assert.equal(result.method, "quick-access-wash-disabled");
+      assert.equal(actor.items.length, 0);
+      assert.equal(actor.flags["fbl-tavern-generator"].lastCleanlinessService.level, 2);
+    } finally { game.fblExpandedConditions = previousGlobalApi; }
+  });
 });
 
 // Regression cases from the October audit. Each fixture represents a normal trusted table.
@@ -1188,13 +1276,14 @@ test("late day-change event does not age a booking purchased after the time jump
   } finally { game.time.worldTime = 0; }
 });
 
-async function gmButtons(tavern) {
+async function gmButtons(tavern, { savedTavernId = null } = {}) {
   const app = new TavernGMApp({ tavern });
   const listeners = new Map();
   app.render = () => app;
   app.element = {
     querySelectorAll: () => [],
     querySelector: (selector) => {
+      if (selector === "select[name='savedTavernId']") return { value: savedTavernId };
       if (selector === "[name='priceMultiplierPercent']") return { value: "200" };
       if (!selector.startsWith("[data-action=")) return null;
       return { addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } };
@@ -1228,6 +1317,101 @@ test("GM undo cannot rewind an intervening purchase", async () => {
     assert.equal(actor.wallet().copper, 90);
     assert.equal(app.undoDraft, null);
   } finally { await app._onClose(); }
+});
+
+test("GM undo and redo across taverns use each tavern's revision and form parameters", async () => {
+  const { tavern } = await purchaseFixture();
+  const other = await TavernState.saveTavern(TavernGenerator.generate({ region: "boltrask", quality: "rich" }));
+  const { app, click } = await gmButtons(tavern, { savedTavernId: other.id });
+  try {
+    await click("applyPriceModifier");
+    await click("applyPriceModifier");
+    const edited = structuredClone(app.draft);
+    assert.notEqual(edited.storageRevision, other.storageRevision);
+    await click("loadSaved");
+    assert.equal(app.draft.id, other.id);
+    await click("undo");
+    assert.equal(app.draft.id, edited.id);
+    assert.equal(app.draft.storageRevision, edited.storageRevision);
+    assert.equal(app.activeTavernId, edited.id);
+    assert.equal(app.params.priceMultiplier, edited.priceMultiplier);
+    assert.equal(TavernState.getCurrent().storageRevision, edited.storageRevision);
+    await click("undo");
+    assert.equal(app.draft.id, other.id);
+    assert.equal(app.activeTavernId, null);
+    assert.equal(app.params.region, other.region);
+    assert.equal(app.params.priceMultiplier, other.priceMultiplier);
+  } finally { await app._onClose(); }
+});
+
+test("GM undo of a tavern switch displays purchases made while the old tavern was hidden", async () => {
+  const { tavern, request, actor } = await purchaseFixture();
+  const other = await TavernState.saveTavern(TavernGenerator.generate());
+  const { app, click } = await gmButtons(tavern, { savedTavernId: other.id });
+  try {
+    await click("loadSaved");
+    await TavernPurchaseService.execute(request);
+    await click("undo");
+    assert.equal(app.draft.id, tavern.id);
+    assert.equal(app.draft.inventory.food[0].stock, 9);
+    assert.equal(app.draft.storageRevision, TavernState.getCurrent().storageRevision);
+    assert.equal(actor.wallet().copper, 95);
+    assert.equal(TavernState.getCurrent().inventory.food[0].stock, 9);
+  } finally { await app._onClose(); }
+});
+
+test("GM synchronizes a purchase refresh deferred by a cancelled dialog", async () => {
+  const { tavern, request } = await purchaseFixture();
+  const { app, click } = await gmButtons(tavern);
+  const originalConfirm = foundry.applications.api.DialogV2.confirm;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let pending;
+  try {
+    app.rendered = true;
+    foundry.applications.api.DialogV2.confirm = () => gate;
+    pending = click("clear");
+    assert.equal(app.actionPending, true);
+    await TavernPurchaseService.execute(request);
+    TavernGMApp.renderOpenInstances({ syncCurrent: true });
+    assert.equal(app.draft.inventory.food[0].stock, 10);
+    release(false);
+    await pending;
+    assert.equal(app.actionPending, false);
+    assert.equal(app.draft.inventory.food[0].stock, 9);
+    assert.equal(app.draft.storageRevision, TavernState.getCurrent().storageRevision);
+  } finally {
+    release(false);
+    await pending;
+    foundry.applications.api.DialogV2.confirm = originalConfirm;
+    await app._onClose();
+  }
+});
+
+test("GM deferred refresh does not overwrite an intentionally changed local draft", async () => {
+  const { tavern, request } = await purchaseFixture();
+  const { app, click } = await gmButtons(tavern);
+  const originalConfirm = foundry.applications.api.DialogV2.confirm;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let pending;
+  try {
+    app.rendered = true;
+    foundry.applications.api.DialogV2.confirm = () => gate;
+    pending = click("clear");
+    app.draft.name = "Несохранённый черновик";
+    await TavernPurchaseService.execute(request);
+    TavernGMApp.renderOpenInstances({ syncCurrent: true });
+    release(false);
+    await pending;
+    assert.equal(app.draft.name, "Несохранённый черновик");
+    assert.equal(TavernState.getCurrent().inventory.food[0].stock, 9);
+  } finally {
+    release(false);
+    await pending;
+    foundry.applications.api.DialogV2.confirm = originalConfirm;
+    await app._onClose();
+  }
 });
 
 test("restoring a deleted private tavern accepts the revision carried by its scene snapshot", async () => {

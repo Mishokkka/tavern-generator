@@ -1,8 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 
 const SOCKET_CHANNEL = `module.${MODULE_ID}`;
-const MAX_MESSAGE_AGE_MS = 5 * 60 * 1000;
-const MAX_FUTURE_SKEW_MS = 30 * 1000;
 const REPLAY_TTL_MS = 10 * 60 * 1000;
 const OMIT = Symbol("omit-json-property");
 
@@ -14,6 +12,7 @@ const OMIT = Symbol("omit-json-property");
  * an update can be persisted without the remote client observing the matching updateUser hook.
  * Foundry's module socket exists specifically for inter-client messages, works over ordinary LAN
  * HTTP sessions, and does not require Web Crypto or an additional dependency such as socketlib.
+ * Sender IDs are client-provided, not authenticated by the server; this is a trusted-table transport.
  */
 export class TavernSocketRelay {
   static #registered = false;
@@ -79,15 +78,14 @@ export class TavernSocketRelay {
     if (!sender || sender.id !== envelope.senderId || !sender.active) return;
 
     const now = Date.now();
-    if (envelope.sentAt < now - MAX_MESSAGE_AGE_MS || envelope.sentAt > now + MAX_FUTURE_SKEW_MS) return;
-
+    // Client wall clocks may differ. Replay expiry uses only the receiver's arrival time.
     this.#pruneSeen(now);
     const replayKey = `${envelope.senderId}:${envelope.id}`;
     if (this.#seen.has(replayKey)) return;
     this.#seen.set(replayKey, now);
 
     const payload = envelope.payload;
-    // The transport owns the sender field. Callers cannot accidentally keep a stale/spoofed value
+    // The transport owns the sender field. Callers cannot accidentally keep a stale value
     // from their own payload object.
     payload.sender = envelope.senderId;
 

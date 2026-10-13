@@ -72,10 +72,10 @@ export class CleanlinessAdapter {
     }
 
     const quickAccessResult = await this.#tryQuickAccessWash(actor, payload);
-    if (quickAccessResult) return quickAccessResult;
+    if (quickAccessResult?.applied) return quickAccessResult;
 
     const expandedConditionsResult = await this.#tryExpandedConditionsWash(actor, payload);
-    if (expandedConditionsResult) return expandedConditionsResult;
+    if (expandedConditionsResult?.applied) return expandedConditionsResult;
 
     const apiResult = await this.#tryLegacyApi(actor, payload);
     if (apiResult) return apiResult;
@@ -84,6 +84,7 @@ export class CleanlinessAdapter {
     if (flagResult) return flagResult;
 
     await actor.setFlag(MODULE_ID, "lastCleanlinessService", payload);
+    if (quickAccessResult || expandedConditionsResult) return quickAccessResult ?? expandedConditionsResult;
     Hooks.callAll(`${MODULE_ID}.cleanlinessPurchased`, actor, entry, payload);
     return {
       applied: true,
@@ -109,7 +110,6 @@ export class CleanlinessAdapter {
 
     const featureEnabled = this.#getSetting(QUICK_ACCESS_ID, "featureWash", true);
     if (!featureEnabled) {
-      await actor.setFlag(MODULE_ID, "lastCleanlinessService", payload);
       return {
         applied: false,
         changed: false,
@@ -132,7 +132,6 @@ export class CleanlinessAdapter {
 
     const featureEnabled = this.#getSetting(EXPANDED_CONDITIONS_ID, "featureWash", true);
     if (!featureEnabled) {
-      await actor.setFlag(MODULE_ID, "lastCleanlinessService", payload);
       return {
         applied: false,
         changed: false,
@@ -220,10 +219,12 @@ export class CleanlinessAdapter {
     const apis = [];
     for (const id of LEGACY_API_MODULE_IDS) {
       const module = game.modules.get(id);
-      if (module?.active && module.api) apis.push(module.api);
+      if (module?.active && module.api && this.#getSetting(id, "featureWash", true)) apis.push(module.api);
     }
-    if (game.fblExpandedConditions) apis.push(game.fblExpandedConditions);
-    if (game.expandedConditions) apis.push(game.expandedConditions);
+    const expandedDisabled = game.modules.get(EXPANDED_CONDITIONS_ID)?.active
+      && !this.#getSetting(EXPANDED_CONDITIONS_ID, "featureWash", true);
+    if (!expandedDisabled && game.fblExpandedConditions) apis.push(game.fblExpandedConditions);
+    if (!expandedDisabled && game.expandedConditions) apis.push(game.expandedConditions);
 
     for (const api of apis) {
       for (const methodName of ["setCleanliness", "applyCleanliness", "setWashState", "applyWashState", "setWashed", "setWashLevel"]) {
@@ -249,7 +250,7 @@ export class CleanlinessAdapter {
   }
 
   static async #tryFallbackFlags(actor, payload) {
-    const activeModuleId = LEGACY_API_MODULE_IDS.find((id) => game.modules.get(id)?.active);
+    const activeModuleId = LEGACY_API_MODULE_IDS.find((id) => game.modules.get(id)?.active && this.#getSetting(id, "featureWash", true));
     if (!activeModuleId) return null;
 
     await actor.update({
@@ -332,7 +333,8 @@ export class CleanlinessAdapter {
 
   static #packPriority(pack, moduleId = QUICK_ACCESS_ID) {
     const haystack = `${pack?.collection ?? ""} ${pack?.metadata?.packageName ?? ""} ${pack?.metadata?.label ?? ""}`.toLocaleLowerCase("en-US");
-    return haystack.includes(moduleId) || haystack.includes(QUICK_ACCESS_ID) || haystack.includes(EXPANDED_CONDITIONS_ID) || haystack.includes("expanded-condition") ? 1 : 0;
+    if (haystack.includes(moduleId)) return 2;
+    return haystack.includes(QUICK_ACCESS_ID) || haystack.includes(EXPANDED_CONDITIONS_ID) || haystack.includes("expanded-condition") ? 1 : 0;
   }
 
   static #makeFallbackWashItem(name) {
