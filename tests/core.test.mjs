@@ -1161,6 +1161,84 @@ test("repeated calendar hooks serialize and advance each tavern only once", asyn
   assert.deepEqual(TavernState.getCurrent(), TavernState.getSavedById(tavern.id));
 });
 
+test("API new day anchors saved and unsaved taverns before a delayed Calendaria hook", async () => {
+  const store = await activatePrivateStore();
+  const originalDateInfo = CalendariaAdapter.currentDateInfo;
+  const originalAtmosphereSetting = getSetting("dailyAtmosphereRefreshEnabled");
+  const originalCalendarSetting = getSetting("calendariaIntegrationEnabled");
+  const originalRefreshKey = getSetting("lastDailyRefreshKey");
+  let day = 0;
+  CalendariaAdapter.currentDateInfo = () => ({ key: `calendar:${day}`, ordinal: day, clockId: "calendaria:review" });
+  try {
+    setSetting("calendariaIntegrationEnabled", true);
+    setSetting("dailyAtmosphereRefreshEnabled", true);
+    for (const saveCurrent of [true, false]) {
+      day = 0;
+      const current = bookedTavern(10);
+      const other = bookedTavern(10);
+      await store.write({ current, saved: saveCurrent ? [current, other] : [other] });
+      setSetting("lastDailyRefreshKey", "calendar:0");
+      day = 5;
+      const result = await TavernDailyService.advanceDay({ reason: "api" });
+      assert.equal(result.current.lodgingBookings[0].remainingDays, 9);
+      assert.equal(TavernState.getSavedById(other.id).lodgingBookings[0].remainingDays, 9);
+      assert.equal(result.current.refreshState.lastDayOrdinal, 5);
+      assert.equal(result.current.refreshState.lastDayKey, "calendar:5");
+      assert.equal(result.current.refreshState.clockId, "calendaria:review");
+      const beforeHook = store.state;
+      const repeat = await TavernDailyService.handlePossibleDayChange();
+      assert.equal(repeat.changed, 0);
+      assert.deepEqual(store.state, beforeHook);
+      day = 6;
+      await TavernDailyService.handlePossibleDayChange();
+      assert.equal(TavernState.getCurrent().lodgingBookings[0].remainingDays, 8);
+      assert.equal(TavernState.getSavedById(other.id).lodgingBookings[0].remainingDays, 8);
+      if (saveCurrent) assert.deepEqual(TavernState.getCurrent(), TavernState.getSavedById(current.id));
+    }
+  } finally {
+    CalendariaAdapter.currentDateInfo = originalDateInfo;
+    setSetting("dailyAtmosphereRefreshEnabled", originalAtmosphereSetting);
+    setSetting("calendariaIntegrationEnabled", originalCalendarSetting);
+    setSetting("lastDailyRefreshKey", originalRefreshKey);
+  }
+});
+
+test("manual new day anchors only the selected tavern and still allows another manual day", async () => {
+  const store = await activatePrivateStore();
+  const originalWorldTime = game.time.worldTime;
+  game.time.worldTime = 0;
+  const current = bookedTavern(10);
+  const other = bookedTavern(10);
+  await store.write({ current, saved: [current, other] });
+  try {
+    game.time.worldTime = 5 * 86400;
+    const first = await TavernDailyService.advanceTavern(current, { dayKey: "manual:first", broadcast: false });
+    assert.equal(first.tavern.lodgingBookings[0].remainingDays, 9);
+    assert.equal(first.tavern.refreshState.lastDayOrdinal, 5);
+    assert.equal(first.tavern.refreshState.clockId, "world");
+    assert.equal(TavernDailyService.refreshTavernForNewDay(first.tavern, { dayKey: "world:5" }).changed, false);
+    const second = await TavernDailyService.advanceTavern(first.tavern, { dayKey: "manual:second", broadcast: false });
+    assert.equal(second.tavern.lodgingBookings[0].remainingDays, 8);
+    assert.equal(second.tavern.refreshState.lastDayOrdinal, 5);
+    assert.deepEqual(TavernState.getSavedById(other.id), other);
+  } finally { game.time.worldTime = originalWorldTime; }
+});
+
+test("API new day preserves the calendar watermark when the clock moves backwards", () => {
+  const originalWorldTime = game.time.worldTime;
+  try {
+    game.time.worldTime = 5 * 86400;
+    const tavern = bookedTavern(10);
+    game.time.worldTime = 2 * 86400;
+    const manual = TavernDailyService.refreshTavernForNewDay(tavern, { reason: "api" }).tavern;
+    assert.equal(manual.lodgingBookings[0].remainingDays, 9);
+    assert.equal(manual.refreshState.lastDayOrdinal, 5);
+    assert.equal(TavernDailyService.refreshTavernForNewDay(manual, { dayKey: "world:5" }).changed, false);
+    const next = TavernDailyService.refreshTavernForNewDay(manual, { dayKey: "world:6" }).tavern;
+    assert.equal(next.lodgingBookings[0].remainingDays, 8);
+  } finally { game.time.worldTime = originalWorldTime; }
+});
+
 test("Calendaria 1.0.11 API and dayChange payload agree on date, season and custom day length", () => {
   const calendar = { id: "custom", years: { yearZero: 100 }, days: { hoursPerDay: 10, minutesPerHour: 60, secondsPerMinute: 60 },
     seasonsArray: [{ name: "Зарость" }],

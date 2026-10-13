@@ -176,6 +176,18 @@ export class TavernDailyService {
     if (ordinal !== null) {
       clone.refreshState.lastDayOrdinal = ordinal;
       clone.refreshState.clockId = clockId;
+    } else if (!dayInfo && (!dayKey || dayKey.startsWith("manual:"))) {
+      // A manual/API advance consumes exactly one day and anchors future hooks
+      // at today's calendar position. Moving the clock back must not lower its watermark.
+      const currentDay = CalendariaAdapter.currentDateInfo();
+      const previousClock = clone.refreshState.clockId ?? (oldWorldDay ? "world" : null);
+      const previousOrdinal = clone.refreshState.lastDayOrdinal ?? (oldWorldDay ? Number(oldWorldDay[1]) : null);
+      clone.refreshState.lastDayKey = dayKey ?? currentDay.key;
+      if (currentDay.ordinal != null) {
+        clone.refreshState.lastDayOrdinal = previousClock === currentDay.clockId && previousOrdinal != null
+          ? Math.max(previousOrdinal, currentDay.ordinal) : currentDay.ordinal;
+        clone.refreshState.clockId = currentDay.clockId;
+      }
     }
     clone.refreshState.lastReason = reason;
     clone.refreshState.lastRefreshedAt = Date.now();
