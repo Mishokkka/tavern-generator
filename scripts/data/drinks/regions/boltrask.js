@@ -87,5 +87,45 @@ export const BOLTRASK_DRINK_TABLE = [
     "port",
     "village"
   ]
+},
+{
+  "name": "Ячменный напиток с патокой",
+  "type": "drink",
+  "regions": [
+    "boltrask"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Горячий отвар жареного ячменя с каплей патоки, без брожения."
+},
+{
+  "name": "Садовый яблочный компот",
+  "type": "drink",
+  "regions": [
+    "boltrask"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 5,
+  "weight": 8,
+  "desc": "Компот из яблок зерновых равнин, подается теплым или остывшим."
+},
+{
+  "name": "Выдержанный эль к воскресному обеду",
+  "type": "drink",
+  "regions": [
+    "boltrask"
+  ],
+  "local": true,
+  "min": 7,
+  "max": 15,
+  "weight": 8,
+  "desc": "Эль из отборного солода с мягкой горечью, который подают небольшими кружками.",
+  "quality": [
+    "good",
+    "fine"
+  ]
 }
- ];
+];

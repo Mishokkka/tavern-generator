@@ -51,24 +51,25 @@ export const TIRABOR_FOOD_TABLE = [
     "weight": 7,
     "desc": "Пирог с подземными грибами и луком."
   },
-  {
-    "name": "Солонина с горчицей",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "road",
-      "town",
-      "city"
-    ],
-    "min": 7,
-    "max": 16,
-    "weight": 7,
-    "desc": "Соленая говядина с густой горчицей."
-  },
+
+{
+  "name": "Тироборская солонина с оливками",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "road",
+    "town",
+    "city"
+  ],
+  "min": 7,
+  "max": 16,
+  "weight": 7,
+  "desc": "Ломти соленой говядины, дорожные сухари и соленые оливки с теплых равнин."
+},
   {
     "name": "Каменная каша",
     "type": "food",
@@ -120,23 +121,26 @@ export const TIRABOR_FOOD_TABLE = [
     "weight": 8,
     "desc": "Каша с солеными грибами и маслом."
   },
-  {
-    "name": "Козье жаркое с кореньями",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town",
-      "road"
-    ],
-    "min": 9,
-    "max": 20,
-    "weight": 7,
-    "desc": "Козлятина, коренья и густая подлива."
-  },
+
+{
+  "name": "Козлятина с лимоном и душицей",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "town",
+    "road",
+    "city",
+    "village"
+  ],
+  "min": 9,
+  "max": 20,
+  "weight": 7,
+  "desc": "Козлятину медленно томят с лимоном, душицей и луком. В горных дворах лимоны берут из привозных припасов."
+},
   {
     "name": "Сырная похлебка",
     "type": "food",
@@ -154,23 +158,24 @@ export const TIRABOR_FOOD_TABLE = [
     "weight": 7,
     "desc": "Густая похлебка с твердым сыром и крупой."
   },
-  {
-    "name": "Ржаная лепешка с рудничной солью",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "road",
-      "town"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 8,
-    "desc": "Ржаная лепешка с грубой солью."
-  },
+
+{
+  "name": "Ржаная лепешка с пищевой каменной солью",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "road",
+    "town"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Плотная ржаная лепешка с очищенной пищевой солью и тмином."
+},
   {
     "name": "Жаркое из горного козла",
     "type": "food",
@@ -188,40 +193,44 @@ export const TIRABOR_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Тираборские грибные лепешки",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 5,
-    "max": 12,
-    "weight": 7,
-    "desc": "Плотные лепешки с рублеными подземными грибами.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town",
-      "city"
-    ]
-  },
-  {
-    "name": "Похлебка из кореньев и сыра",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 5,
-    "max": 13,
-    "weight": 7,
-    "desc": "Коренья, твердый сыр и густой соленый бульон.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town",
-      "city"
-    ]
-  },
+
+{
+  "name": "Тироборские грибные лепешки",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 5,
+  "max": 12,
+  "weight": 7,
+  "desc": "Плотные лепешки с рублеными подземными грибами.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "town",
+    "city"
+  ]
+},
+
+{
+  "name": "Запеченные баклажаны с бобами",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 5,
+  "max": 13,
+  "weight": 7,
+  "desc": "Баклажаны и белые бобы запекают с томатами, оливковым маслом и крошкой рассольного сыра; блюдо равнинных дворов.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road",
+    "port"
+  ]
+},
   {
     "name": "Копченая форель из штолен",
     "type": "food",
@@ -239,39 +248,44 @@ export const TIRABOR_FOOD_TABLE = [
       "city"
     ]
   },
-  {
-    "name": "Плотный грибной пирог",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 6,
-    "max": 15,
-    "weight": 6,
-    "desc": "Закрытый пирог с грибами, луком и сырной коркой.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town"
-    ]
-  },
-  {
-    "name": "Ячменная каша с рудничной солью",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Ячмень с маслом и крупной темной солью.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "road",
-      "town"
-    ]
-  },
+
+{
+  "name": "Слоеный пирог с зеленью и рассольным сыром",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 6,
+  "max": 15,
+  "weight": 6,
+  "desc": "Тонкие слои теста, рубленая зелень и соленый рассольный сыр; рецепт теплых равнин Тиробора.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road",
+    "port"
+  ]
+},
+
+{
+  "name": "Ячменная каша с маслом и солью",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Ячмень, масло и очищенная пищевая каменная соль; простая еда горняцкого двора.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "road",
+    "town"
+  ]
+},
   {
     "name": "Фильминдова каша отдыха",
     "type": "food",
@@ -306,5 +320,31 @@ export const TIRABOR_FOOD_TABLE = [
       "road",
       "town"
     ]
-  }
+  },
+
+{
+  "name": "Густой фасолевый суп сменного двора",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Белая фасоль, лук и сушеные томаты с ложкой оливкового масла; недорогой общий котел после смены."
+},
+
+{
+  "name": "Сырный пирог к окончанию смены",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "min": 9,
+  "max": 18,
+  "weight": 8,
+  "desc": "Открытый пирог с рассольным овечьим сыром, луком и душицей; подают горячим после работы."
+}
 ];

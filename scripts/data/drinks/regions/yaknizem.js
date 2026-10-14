@@ -70,23 +70,25 @@ export const YAKNIZEM_DRINK_TABLE = [
     "weight": 7,
     "desc": "Кисловатый напиток из березового сока."
   },
-  {
-    "name": "Кумыс дорожный",
-    "type": "drink",
-    "regions": [
-      "yaknizem"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 8,
-    "desc": "Кислый напиток из кобыльего молока.",
-    "local": true,
-    "terrains": [
-      "road",
-      "village",
-      "wilderness"
-    ]
-  },
+
+{
+  "name": "Кислое коровье молоко южных дворов",
+  "type": "drink",
+  "regions": [
+    "yaknizem"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Густое кислое коровье молоко из хозяйств болотного юга; подают свежим к картофельным блюдам.",
+  "local": true,
+  "terrains": [
+    "village",
+    "town",
+    "road",
+    "city"
+  ]
+},
   {
     "name": "Настой полыни",
     "type": "drink",
@@ -122,22 +124,35 @@ export const YAKNIZEM_DRINK_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Дрыгвяная картофельная брага",
-    "type": "drink",
-    "regions": [
-      "yaknizem"
-    ],
-    "local": true,
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Крепкая брага из картофеля; пахнет болотом, работает честно.",
-    "terrains": [
-      "town",
-      "village",
-      "road",
-      "wilderness"
-    ]
-  }
+
+{
+  "name": "Дрыгвяная картофельная брага",
+  "type": "drink",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Мутный напиток брожения из картофельного сусла; резкий, кисловатый, без перегонки.",
+  "terrains": [
+    "town",
+    "village",
+    "road",
+    "wilderness"
+  ]
+},
+{
+  "name": "Болотный ягодный морс",
+  "type": "drink",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Кислый безалкогольный морс из ягод Дрыгвы с небольшим количеством меда."
+}
 ];

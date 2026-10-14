@@ -186,22 +186,27 @@ export const SANGREN_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Телятина с лимоном",
-    "type": "food",
-    "regions": [
-      "sangren"
-    ],
-    "min": 16,
-    "max": 34,
-    "weight": 4,
-    "desc": "Телятина, жаренная с лимонным соком и белыми травами.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ]
-  },
+
+{
+  "name": "Телятина с лимоном",
+  "type": "food",
+  "regions": [
+    "sangren"
+  ],
+  "min": 16,
+  "max": 34,
+  "weight": 4,
+  "desc": "Телятина, жаренная с лимонным соком и белыми травами.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ],
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
   {
     "name": "Рис с травами и сыром",
     "type": "food",
@@ -303,5 +308,29 @@ export const SANGREN_FOOD_TABLE = [
       "town",
       "road"
     ]
-  }
+  },
+{
+  "name": "Пшеничная каша с оливной пастой",
+  "type": "food",
+  "regions": [
+    "sangren"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Разваренная пшеница с ложкой пасты из оливок; простая еда виноградных долин."
+},
+{
+  "name": "Миндальное печенье к вину",
+  "type": "food",
+  "regions": [
+    "sangren"
+  ],
+  "local": true,
+  "min": 6,
+  "max": 13,
+  "weight": 8,
+  "desc": "Небольшая порция сухого миндального печенья с лимонной цедрой."
+}
 ];

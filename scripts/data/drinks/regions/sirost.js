@@ -69,40 +69,42 @@ export const SIROST_DRINK_TABLE = [
       "port"
     ]
   },
-  {
-    "name": "Хересный стаканчик",
-    "type": "drink",
-    "regions": [
-      "sirost"
-    ],
-    "min": 5,
-    "max": 12,
-    "weight": 6,
-    "desc": "Крепленое сухое вино из южных погребов.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "port"
-    ]
-  },
-  {
-    "name": "Сухая анисовая настойка",
-    "type": "drink",
-    "regions": [
-      "sirost"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 5,
-    "desc": "Прозрачный крепкий напиток с анисом.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ]
-  },
+
+{
+  "name": "Виноградный отвар с апельсиновой коркой",
+  "type": "drink",
+  "regions": [
+    "sirost"
+  ],
+  "min": 5,
+  "max": 12,
+  "weight": 6,
+  "desc": "Безалкогольный напиток из изюма и апельсиновой цедры; подается теплым.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "port"
+  ]
+},
+
+{
+  "name": "Настой жареного цикория",
+  "type": "drink",
+  "regions": [
+    "sirost"
+  ],
+  "min": 6,
+  "max": 14,
+  "weight": 5,
+  "desc": "Горький безалкогольный настой обжаренного корня, который любят в дешевых читальнях.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ]
+},
   {
     "name": "Республиканская горькая",
     "type": "drink",
@@ -119,5 +121,17 @@ export const SIROST_DRINK_TABLE = [
       "town",
       "road"
     ]
-  }
+  },
+{
+  "name": "Кислый отвар шиповника с изюмом",
+  "type": "drink",
+  "regions": [
+    "sirost"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Безалкогольный отвар сушеного шиповника и изюма; дешевый напиток дорожных дворов."
+}
 ];

@@ -37,23 +37,24 @@ export const KALDVELG_DRINK_TABLE = [
     "weight": 7,
     "desc": "Горячий настой из сушеных кислых ягод."
   },
-  {
-    "name": "Северное кислое пиво",
-    "type": "drink",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Кисловатое пиво местной варки."
-  },
+
+{
+  "name": "Северное кислое пиво",
+  "type": "drink",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "road"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Кисловатое пиво, сваренное из привозного солода; берегут от промерзания в кладовой."
+},
   {
     "name": "Можжевеловая настойка",
     "type": "drink",
@@ -89,24 +90,25 @@ export const KALDVELG_DRINK_TABLE = [
       "mountain"
     ]
   },
-  {
-    "name": "Брусничная наливка",
-    "type": "drink",
-    "regions": [
-      "kaldvelg"
-    ],
-    "min": 5,
-    "max": 12,
-    "weight": 5,
-    "desc": "Кисло-сладкая наливка из брусники.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "mountain"
-    ]
-  },
+
+{
+  "name": "Брусничная наливка",
+  "type": "drink",
+  "regions": [
+    "kaldvelg"
+  ],
+  "min": 5,
+  "max": 12,
+  "weight": 5,
+  "desc": "Наливка на привозной сушеной бруснике; редкое сладкое угощение портовых трактиров.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "mountain"
+  ]
+},
   {
     "name": "Горячая медовая вода с солью",
     "type": "drink",
@@ -142,5 +144,17 @@ export const KALDVELG_DRINK_TABLE = [
       "road",
       "mountain"
     ]
-  }
+  },
+{
+  "name": "Горячая питьевая вода с сухой мятой",
+  "type": "drink",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 5,
+  "weight": 8,
+  "desc": "Питьевую воду подогревают у общей печи и добавляют щепоть привозной сушеной мяты."
+}
 ];

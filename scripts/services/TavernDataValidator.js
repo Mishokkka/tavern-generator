@@ -32,6 +32,8 @@ export class TavernDataValidator {
     this.#validateRooms(report);
     this.#validateDuplicateNames(report, FOOD_TABLE, "FOOD_TABLE");
     this.#validateDuplicateNames(report, DRINK_TABLE, "DRINK_TABLE");
+    this.#validateDuplicateNames(report, SERVICE_TABLE, "SERVICE_TABLE");
+    this.#validateDuplicateNames(report, ROOM_TABLE, "ROOM_TABLE");
     this.#validateNoBeerRegions(report);
     this.#validateCleanliness(report);
     this.#validateMoodTable(report);
@@ -99,6 +101,10 @@ export class TavernDataValidator {
       if (!String(room.desc ?? "").trim()) report.warnings.push(`${label}: нет desc.`);
       this.#validatePriceRange(report, label, room);
       this.#validateReferenceList(report, label, room.quality, TAVERN_OPTIONS.qualities, "quality");
+      this.#validateReferenceList(report, label, room.regions, TAVERN_OPTIONS.regions, "regions");
+      this.#validateReferenceList(report, label, room.excludeRegions, TAVERN_OPTIONS.regions, "excludeRegions");
+      this.#validateReferenceList(report, label, room.terrains, TAVERN_OPTIONS.terrains, "terrains");
+      this.#validateWeight(report, label, room);
 
       if (!room.unlimited) {
         const totalMin = Number(room.totalMin);
@@ -114,8 +120,13 @@ export class TavernDataValidator {
     const seen = new Map();
 
     for (const item of table) {
-      const regions = Array.isArray(item.regions) && item.regions.length ? item.regions : ["common"];
+      if (!item || typeof item !== "object") continue;
+      // Reference-list validation reports malformed values; this pass must not throw on them.
+      const regions = Array.isArray(item.regions) && item.regions.length && !item.regions.includes("common")
+        ? item.regions
+        : Object.keys(TAVERN_OPTIONS.regions);
       for (const region of regions) {
+        if (Array.isArray(item.excludeRegions) && item.excludeRegions.includes(region)) continue;
         const key = `${item.type}|${region}|${this.#normalize(item.name)}`;
         const previous = seen.get(key);
         if (previous) {
@@ -141,6 +152,7 @@ export class TavernDataValidator {
 
   static #validateCleanliness(report) {
     for (const item of SERVICE_TABLE) {
+      if (!item || typeof item !== "object") continue;
       if (!item.cleanliness) continue;
       const level = Number(item.cleanliness.level);
       const state = item.cleanliness.state;

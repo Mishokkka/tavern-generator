@@ -69,23 +69,24 @@ export const NOVANDIA_DRINK_TABLE = [
     "weight": 7,
     "desc": "Сидр из грушевого сока."
   },
-  {
-    "name": "Грушевый сидр",
-    "type": "drink",
-    "regions": [
-      "novandia"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Сухой сидр из мелких груш.",
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Грушевый компот с корицей",
+  "type": "drink",
+  "regions": [
+    "novandia"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Безалкогольный компот из сушеных груш с щепотью привозной корицы.",
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "road"
+  ]
+},
   {
     "name": "Белое вино на травах",
     "type": "drink",
@@ -154,5 +155,17 @@ export const NOVANDIA_DRINK_TABLE = [
       "town",
       "port"
     ]
-  }
+  },
+{
+  "name": "Виноградный отвар с медом",
+  "type": "drink",
+  "regions": [
+    "novandia"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Сушеный виноград и мед заваривают горячей водой; напиток без брожения."
+}
 ];

@@ -36,76 +36,84 @@ export const ROYU_MIDEKI_DRINK_TABLE = [
     "weight": 10,
     "desc": "Горячий зеленый чай без добавок."
   },
-  {
-    "name": "Саке Ройу Мидеки",
-    "type": "drink",
-    "regions": [
-      "royu_mideki"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Рисовое вино местного разлива."
-  },
-  {
-    "name": "Горячий зеленый чай",
-    "type": "drink",
-    "regions": [
-      "royu_mideki"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 8,
-    "desc": "Горячий настой зеленого чая."
-  },
-  {
-    "name": "Горный зеленый чай",
-    "type": "drink",
-    "regions": [
-      "royu_mideki"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 8,
-    "desc": "Зеленый чай с терпким горным вкусом.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "mountain",
-      "village"
-    ]
-  },
-  {
-    "name": "Теплая рисовая брага",
-    "type": "drink",
-    "regions": [
-      "royu_mideki"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 6,
-    "desc": "Мутный слабый напиток из рисового сусла.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ]
-  },
+
+{
+  "name": "Сакэ Ройу Мидеки",
+  "type": "drink",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Прозрачный процеженный напиток рисового брожения; в прохладную погоду его слегка подогревают."
+},
+
+{
+  "name": "Чай с печеным рисом",
+  "type": "drink",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Зеленый чай с зернами поджаренного риса; недорогой напиток семейных чайных."
+},
+
+{
+  "name": "Чай первого сбора Мидеки",
+  "type": "drink",
+  "regions": [
+    "royu_mideki"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Мягкий чай из молодых листьев, приготовленный маленькими порциями для неторопливого разговора.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "mountain",
+    "village"
+  ],
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
+
+{
+  "name": "Сливовая настойка Мидеки",
+  "type": "drink",
+  "regions": [
+    "royu_mideki"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 6,
+  "desc": "Сладкая настойка кислых слив на крепком зерновом напитке; небольшая порция после еды.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ]
+},
   {
     "name": "Имбирная горячая вода",
     "type": "drink",
@@ -123,5 +131,17 @@ export const ROYU_MIDEKI_DRINK_TABLE = [
       "road",
       "mountain"
     ]
-  }
+  },
+{
+  "name": "Прохладный сливовый взвар",
+  "type": "drink",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Безалкогольный отвар сушеных слив; в каждом доме свой баланс кислоты и сладости."
+}
 ];

@@ -1,23 +1,24 @@
 // Regional food entries for naerder.
 
 export const NAERDER_FOOD_TABLE = [
-  {
-    "name": "Изуаверские нутовые лепешки",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "port",
-      "town"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 9,
-    "desc": "Лепешки из нутовой муки, обжаренные на плоской сковороде."
-  },
+
+{
+  "name": "Наэрдэрские нутовые лепешки",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "port",
+    "town"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 9,
+  "desc": "Лепешки из нутовой муки, обжаренные на плоской сковороде."
+},
   {
     "name": "Баранина с тмином",
     "type": "food",
@@ -123,23 +124,24 @@ export const NAERDER_FOOD_TABLE = [
     "weight": 7,
     "desc": "Рубленая баранина, нут и сухие пряности."
   },
-  {
-    "name": "Рис с финиками и луком",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 5,
-    "max": 12,
-    "weight": 8,
-    "desc": "Рис, финики, лук и масло."
-  },
+
+{
+  "name": "Рис с чечевицей и жареным луком",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 5,
+  "max": 12,
+  "weight": 8,
+  "desc": "Рис и чечевица с хрустящим жареным луком; небольшую миску пряного томатного соуса подают отдельно."
+},
   {
     "name": "Плоский хлеб с сыром",
     "type": "food",
@@ -158,42 +160,44 @@ export const NAERDER_FOOD_TABLE = [
     "weight": 8,
     "desc": "Плоский хлеб с соленым мягким сыром."
   },
-  {
-    "name": "Похлебка из чечевицы с тмином",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road",
-      "village"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Чечевица, тмин, лук и масло."
-  },
-  {
-    "name": "Маисовая каша с фасолью",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Густая каша из маиса с красной фасолью.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Бобовые котлеты с кумином",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road",
+    "village"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Котлетки из растертых бобов, лука и зелени, обжаренные в масле; к ним подают лепешку."
+},
+
+{
+  "name": "Пшенная каша с бобами",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Густая каша из проса и бобов, заправленная маслом; простая еда дворов жаркой саванны.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
   {
     "name": "Рыба с кислым соусом",
     "type": "food",
@@ -211,23 +215,24 @@ export const NAERDER_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Пряная индейка с тыквой",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "min": 14,
-    "max": 30,
-    "weight": 5,
-    "desc": "Темное мясо птицы, тыква и жгучие травы.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ]
-  },
+
+{
+  "name": "Курица с тыквой и кумином",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "min": 14,
+  "max": 30,
+  "weight": 5,
+  "desc": "Курица и тыква, томленные в горшке с кумином и луком; мясо подают небольшими кусками поверх овощей.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ]
+},
   {
     "name": "Лепешки с тыквой",
     "type": "food",
@@ -264,57 +269,84 @@ export const NAERDER_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Тушеные коренья с перцем",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "min": 4,
-    "max": 9,
-    "weight": 7,
-    "desc": "Коренья, тушенные с острым перцем и маслом.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ]
-  },
-  {
-    "name": "Оскольная лесная похлебка",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "min": 6,
-    "max": 14,
-    "weight": 7,
-    "desc": "Грибы, коренья и сушеное мясо из поселений у диких кристаллических лесов.",
-    "terrains": [
-      "town",
-      "village",
-      "wilderness",
-      "mountain"
-    ]
-  },
-  {
-    "name": "Кристаллический сухарь с бульоном",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Сухарь и соленый бульон для тех, кто не задает вопросов о кристаллах в головах соседей.",
-    "terrains": [
-      "city",
-      "town",
-      "road",
-      "port"
-    ]
-  }
+
+{
+  "name": "Бамия в пряном томатном соусе",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "min": 4,
+  "max": 9,
+  "weight": 7,
+  "desc": "Стручки бамии из поливных огородов тушат с томатами, чесноком и перцем; к соусу подают хлеб.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ]
+},
+
+{
+  "name": "Оазисная похлебка с сушеным мясом",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "min": 6,
+  "max": 14,
+  "weight": 7,
+  "desc": "Бобы и сушеные овощи с кусочками вяленого мяса; густую похлебку готовят к вечернему открытию двора.",
+  "terrains": [
+    "town",
+    "village",
+    "wilderness",
+    "mountain"
+  ]
+},
+
+{
+  "name": "Дорожный сухарь с пряным бульоном",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Ломти сухого хлеба размачивают в горячем бульоне с тмином. Порция сытной еды для ночного перехода.",
+  "terrains": [
+    "city",
+    "town",
+    "road",
+    "port"
+  ]
+},
+{
+  "name": "Нут с оазисным луком",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 7,
+  "weight": 8,
+  "desc": "Разваренный нут, печеный лук и сухие пряности; подается с небольшим куском лепешки."
+},
+{
+  "name": "Вечерняя похлебка с козлятиной",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "min": 7,
+  "max": 15,
+  "weight": 8,
+  "desc": "Козлятина, чечевица и сушеные овощи; горячий котел выставляют с наступлением прохлады."
+}
 ];

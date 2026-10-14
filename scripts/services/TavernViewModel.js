@@ -78,6 +78,6 @@ export class TavernViewModel {
     const drinks = (inventory.drinks ?? []).length;
     const beds = (inventory.lodging ?? []).reduce((sum, room) => sum + (room.unlimited ? 0 : Number(room.stock ?? 0)), 0);
     const open = (inventory.lodging ?? []).some((room) => room.unlimited) ? ", есть места без ограничения" : "";
-    return `${tavern.labels?.quality ?? "Таверна"}, ${String(tavern.labels?.size ?? "").toLowerCase()}, ${String(tavern.labels?.terrain ?? "").toLowerCase()}. Еда: ${food}, напитки: ${drinks}, свободных мест: ${beds}${open}.`;
+    return `${tavern.labels?.quality ?? "Таверна"}, ${String(tavern.labels?.size ?? "").toLowerCase()}, ${String(tavern.labels?.terrain ?? "").toLowerCase()}. Еда: ${food}, напитки: ${drinks}, свободных мест/комнат: ${beds}${open}.`;
   }
 }

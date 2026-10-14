@@ -120,14 +120,14 @@ export class TavernInventory {
     const qualityMod = QUALITY_MODIFIERS[quality] ?? QUALITY_MODIFIERS.modest;
     const sizeMod = SIZE_MODIFIERS[size] ?? SIZE_MODIFIERS.medium;
     const target = Math.max(1, Math.min(ROOM_TABLE.length, sizeMod.rooms + qualityMod.rooms));
-    const candidates = ROOM_TABLE.filter((room) => !room.quality || room.quality.includes(quality)).map((room) => ({ ...room, weight: 1 }));
-    const picked = this.#weightedUnique(candidates, target);
+    const candidates = ROOM_TABLE.filter((room) => this.#matches(room, { region, quality, terrain }));
+    const picked = this.#pickWithRegionalFirst(candidates, target);
     return picked.map((room) => this.#roomEntry(room, { region, quality, size, terrain, priceMultiplier })).sort((a, b) => a.price - b.price);
   }
 
   static #generateRoomItem({ region, quality, size, terrain, priceMultiplier, existing }) {
     const existingNames = new Set((existing ?? []).map((entry) => entry.name));
-    const candidates = ROOM_TABLE.filter((room) => !existingNames.has(room.name) && (!room.quality || room.quality.includes(quality))).map((room) => ({ ...room, weight: 1 }));
+    const candidates = ROOM_TABLE.filter((room) => !existingNames.has(room.name) && this.#matches(room, { region, quality, terrain }));
     const room = this.#weightedUnique(candidates, 1)[0];
     return room ? this.#roomEntry(room, { region, quality, size, terrain, priceMultiplier }) : null;
   }
@@ -188,8 +188,15 @@ export class TavernInventory {
   static #generateServiceItem({ region, quality, terrain, priceMultiplier, existing }) {
     const existingNames = new Set((existing ?? []).map((entry) => entry.name));
     const candidates = SERVICE_TABLE.filter((item) => !existingNames.has(item.name) && this.#matches(item, { quality, terrain, region }));
-    const item = this.#weightedUnique(candidates, 1)[0];
+    const item = (existing.length ? this.#weightedUnique(candidates, 1) : this.#pickWithRegionalFirst(candidates, 1))[0];
     return item ? this.#pricedEntry(item, { region, quality, terrain, priceMultiplier, stockBase: this.#int(1, 5) }) : null;
+  }
+
+  static #pickWithRegionalFirst(candidates, target) {
+    const regional = candidates.filter((item) => item.regions?.length && !item.regions.includes("common"));
+    const picked = this.#weightedUnique(regional, Math.min(1, target));
+    const remaining = candidates.filter((item) => !picked.some((chosen) => chosen.name === item.name));
+    return [...picked, ...this.#weightedUnique(remaining, target - picked.length)];
   }
 
   static #pricedEntry(item, { region, quality, terrain, priceMultiplier, stockBase }) {
@@ -241,7 +248,7 @@ export class TavernInventory {
   }
 
   static #weightedUnique(items, count) {
-    const pool = [...items];
+    const pool = this.#uniqueByName(items);
     const picked = [];
 
     while (pool.length && picked.length < count) {

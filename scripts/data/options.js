@@ -15,7 +15,7 @@ export const TAVERN_OPTIONS = {
     "sarroyo": "Сарройо",
     "royu_sageki": "Ройу Сагеки",
     "royu_mideki": "Ройу Мидеки",
-    "naerder": "Наэрдер",
+    "naerder": "Наэрдэр",
     "kaldvelg": "Кальдвельг",
     "izuaver": "Изуавер",
     "boltrask": "Болтраск",

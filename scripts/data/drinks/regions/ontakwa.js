@@ -69,5 +69,17 @@ export const ONTAKWA_DRINK_TABLE = [
       "road",
       "port"
     ]
-  }
+  },
+{
+  "name": "Кофе старой Цошни",
+  "type": "drink",
+  "regions": [
+    "ontakwa"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 7,
+  "weight": 8,
+  "desc": "Небольшая чашка крепкого кофе из привозных зерен, сваренного в медном ковшике."
+}
 ];
