@@ -141,3 +141,22 @@ test("regional beds use the existing finite booking and day-expiry model", () =>
   assert.equal(second.expired.length, 1);
   assert.equal(second.tavern.inventory.lodging.find(e => e.id === room.id).stock, 3);
 });
+
+test("validator reports malformed hospitality entries instead of throwing", () => {
+  const rooms = ROOM_TABLE.length;
+  const services = SERVICE_TABLE.length;
+  try {
+    ROOM_TABLE.push(null, 17, {...ROOM_TABLE[0], regions: {}, excludeRegions: 8});
+    SERVICE_TABLE.push(null, "broken", {...SERVICE_TABLE[0], regions: 9, excludeRegions: {}});
+    const report = TavernDataValidator.validate({log: false});
+    for (const table of ["ROOM_TABLE", "SERVICE_TABLE"]) {
+      assert.ok(report.errors.some(e => e.includes(table) && e.includes("не является объектом")));
+      assert.ok(report.errors.some(e => e.includes(table) && e.includes("regions должен быть массивом")));
+      assert.ok(report.errors.some(e => e.includes(table) && e.includes("excludeRegions должен быть массивом")));
+    }
+  } finally {
+    ROOM_TABLE.length = rooms;
+    SERVICE_TABLE.length = services;
+  }
+  assert.deepEqual(TavernDataValidator.validate({log: false}), {errors: [], warnings: []});
+});

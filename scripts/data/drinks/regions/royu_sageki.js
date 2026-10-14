@@ -68,59 +68,63 @@ export const ROYU_SAGEKI_DRINK_TABLE = [
     "weight": 7,
     "desc": "Слабоочищенный напиток рисового брожения."
   },
-  {
-    "name": "Рисовое вино из старой бочки",
-    "type": "drink",
-    "regions": [
-      "royu_sageki"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Легкое рисовое вино для еды.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "port"
-    ]
-  },
-  {
-    "name": "Жареный чай",
-    "type": "drink",
-    "regions": [
-      "royu_sageki"
-    ],
-    "min": 2,
-    "max": 5,
-    "weight": 7,
-    "desc": "Темный чай с дымным запахом.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
-  {
-    "name": "Сливовый ликер",
-    "type": "drink",
-    "regions": [
-      "royu_sageki"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 5,
-    "desc": "Сладкий крепкий напиток из слив.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ]
-  },
+
 {
-  "name": "Горячий ячменный чай Сагеки",
+  "name": "Выдержанное янтарное рисовое вино",
+  "type": "drink",
+  "regions": [
+    "royu_sageki"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Янтарное вино из зернового брожения, с мягким хлебным ароматом; подается небольшими чашками к еде.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "port"
+  ]
+},
+
+{
+  "name": "Чай с жасмином",
+  "type": "drink",
+  "regions": [
+    "royu_sageki"
+  ],
+  "min": 2,
+  "max": 5,
+  "weight": 7,
+  "desc": "Зеленый чай с ароматом жасмина, свежезаваренный или остывший; без сладких добавок.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
+
+{
+  "name": "Кислый сливовый отвар",
+  "type": "drink",
+  "regions": [
+    "royu_sageki"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 5,
+  "desc": "Безалкогольный отвар сушеной кислой сливы с небольшим количеством сахара; остывший чайник держат в тени.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ]
+},
+
+{
+  "name": "Чай из обжаренного риса Сагеки",
   "type": "drink",
   "regions": [
     "royu_sageki"
@@ -129,6 +133,6 @@ export const ROYU_SAGEKI_DRINK_TABLE = [
   "min": 1,
   "max": 4,
   "weight": 8,
-  "desc": "Простой настой жареного ячменя без алкоголя; одинаково уместен за завтраком и в дороге."
+  "desc": "Простой безалкогольный настой обжаренного риса на кипяченой воде. Подается теплым либо остывшим."
 }
 ];

@@ -71,57 +71,60 @@ export const NAERDER_DRINK_TABLE = [
   "weight": 7,
   "desc": "Небольшая чашка густого кофе, сваренного в ковшике на углях; финик подают отдельно."
 },
-  {
-    "name": "Кукурузная брага",
-    "type": "drink",
-    "regions": [
-      "naerder"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 8,
-    "desc": "Кислый слабый напиток из маисового сусла.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
-  {
-    "name": "Какаовый горький отвар",
-    "type": "drink",
-    "regions": [
-      "naerder"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 6,
-    "desc": "Темный горький напиток с пряностями.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ]
-  },
-  {
-    "name": "Тыквенный сладкий настой",
-    "type": "drink",
-    "regions": [
-      "naerder"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 6,
-    "desc": "Сладковатый настой из тыквы и трав.",
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Сорговая брага саванных дворов",
+  "type": "drink",
+  "regions": [
+    "naerder"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Мутный напиток брожения из соргового сусла, кислый и слабый; подают небольшими кружками.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
+
+{
+  "name": "Кислый настой каркаде",
+  "type": "drink",
+  "regions": [
+    "naerder"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 6,
+  "desc": "Безалкогольный настой сушеных чашечек гибискуса, ярко-красный и кислый; подают теплым или остывшим.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ]
+},
+
+{
+  "name": "Тамариндовая вода",
+  "type": "drink",
+  "regions": [
+    "naerder"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 6,
+  "desc": "Питьевая вода с кислой мякотью тамаринда и небольшим количеством сладкого сиропа; готовится малыми порциями.",
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "road"
+  ]
+},
 {
   "name": "Прохладная вода из глиняного кувшина",
   "type": "drink",

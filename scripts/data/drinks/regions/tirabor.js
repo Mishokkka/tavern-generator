@@ -36,40 +36,44 @@ export const TIRABOR_DRINK_TABLE = [
     "weight": 5,
     "desc": "Горячий солоноватый отвар из подземных грибов."
   },
-  {
-    "name": "Каменное темное пиво",
-    "type": "drink",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "city",
-      "town"
-    ],
-    "min": 4,
-    "max": 9,
-    "weight": 9,
-    "desc": "Плотное темное пиво дварфийской варки."
-  },
-  {
-    "name": "Горная настойка",
-    "type": "drink",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "city",
-      "town"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 5,
-    "desc": "Крепкая настойка на горных травах."
-  },
+
+{
+  "name": "Сухое вино тироборских равнин",
+  "type": "drink",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road",
+    "port"
+  ],
+  "min": 4,
+  "max": 9,
+  "weight": 9,
+  "desc": "Красное вино из теплых долин; в горные дворы его привозят небольшими бочонками."
+},
+
+{
+  "name": "Виноградная настойка с анисом",
+  "type": "drink",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "city",
+    "town"
+  ],
+  "min": 6,
+  "max": 14,
+  "weight": 5,
+  "desc": "Крепкий виноградный напиток с анисом; к небольшой порции подают отдельную кружку воды."
+},
   {
     "name": "Каменный портер",
     "type": "drink",
@@ -89,7 +93,7 @@ export const TIRABOR_DRINK_TABLE = [
   },
 
 {
-  "name": "Отвар сушеной груши",
+  "name": "Горный чай с душицей",
   "type": "drink",
   "regions": [
     "tirabor"
@@ -97,11 +101,14 @@ export const TIRABOR_DRINK_TABLE = [
   "min": 2,
   "max": 6,
   "weight": 5,
-  "desc": "Горячий безалкогольный отвар привозных сушеных груш; сладость самих плодов смягчает вкус.",
+  "desc": "Горячий безалкогольный настой сушеных горных трав с душицей; мед подают отдельно.",
   "local": true,
   "terrains": [
     "mountain",
-    "town"
+    "town",
+    "road",
+    "city",
+    "village"
   ]
 },
 

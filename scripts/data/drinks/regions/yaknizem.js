@@ -72,7 +72,7 @@ export const YAKNIZEM_DRINK_TABLE = [
   },
 
 {
-  "name": "Катык с прохладной водой",
+  "name": "Кислое коровье молоко южных дворов",
   "type": "drink",
   "regions": [
     "yaknizem"
@@ -80,12 +80,13 @@ export const YAKNIZEM_DRINK_TABLE = [
   "min": 2,
   "max": 6,
   "weight": 8,
-  "desc": "Густое кислое молоко разбавляют водой и слегка солят; подают свежим из глиняной посуды.",
+  "desc": "Густое кислое коровье молоко из хозяйств болотного юга; подают свежим к картофельным блюдам.",
   "local": true,
   "terrains": [
-    "road",
     "village",
-    "wilderness"
+    "town",
+    "road",
+    "city"
   ]
 },
   {

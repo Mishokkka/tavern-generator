@@ -124,23 +124,24 @@ export const NAERDER_FOOD_TABLE = [
     "weight": 7,
     "desc": "Рубленая баранина, нут и сухие пряности."
   },
-  {
-    "name": "Рис с финиками и луком",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 5,
-    "max": 12,
-    "weight": 8,
-    "desc": "Рис, финики, лук и масло."
-  },
+
+{
+  "name": "Рис с чечевицей и жареным луком",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 5,
+  "max": 12,
+  "weight": 8,
+  "desc": "Рис и чечевица с хрустящим жареным луком; небольшую миску пряного томатного соуса подают отдельно."
+},
   {
     "name": "Плоский хлеб с сыром",
     "type": "food",
@@ -159,42 +160,44 @@ export const NAERDER_FOOD_TABLE = [
     "weight": 8,
     "desc": "Плоский хлеб с соленым мягким сыром."
   },
-  {
-    "name": "Похлебка из чечевицы с тмином",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road",
-      "village"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Чечевица, тмин, лук и масло."
-  },
-  {
-    "name": "Маисовая каша с фасолью",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Густая каша из маиса с красной фасолью.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Бобовые котлеты с кумином",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road",
+    "village"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Котлетки из растертых бобов, лука и зелени, обжаренные в масле; к ним подают лепешку."
+},
+
+{
+  "name": "Пшенная каша с бобами",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Густая каша из проса и бобов, заправленная маслом; простая еда дворов жаркой саванны.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
   {
     "name": "Рыба с кислым соусом",
     "type": "food",
@@ -212,23 +215,24 @@ export const NAERDER_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Пряная индейка с тыквой",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "min": 14,
-    "max": 30,
-    "weight": 5,
-    "desc": "Темное мясо птицы, тыква и жгучие травы.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ]
-  },
+
+{
+  "name": "Курица с тыквой и кумином",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "min": 14,
+  "max": 30,
+  "weight": 5,
+  "desc": "Курица и тыква, томленные в горшке с кумином и луком; мясо подают небольшими кусками поверх овощей.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ]
+},
   {
     "name": "Лепешки с тыквой",
     "type": "food",
@@ -265,23 +269,24 @@ export const NAERDER_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Тушеные коренья с перцем",
-    "type": "food",
-    "regions": [
-      "naerder"
-    ],
-    "min": 4,
-    "max": 9,
-    "weight": 7,
-    "desc": "Коренья, тушенные с острым перцем и маслом.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ]
-  },
+
+{
+  "name": "Бамия в пряном томатном соусе",
+  "type": "food",
+  "regions": [
+    "naerder"
+  ],
+  "min": 4,
+  "max": 9,
+  "weight": 7,
+  "desc": "Стручки бамии из поливных огородов тушат с томатами, чесноком и перцем; к соусу подают хлеб.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ]
+},
 
 {
   "name": "Оазисная похлебка с сушеным мясом",

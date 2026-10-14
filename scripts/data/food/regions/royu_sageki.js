@@ -68,23 +68,24 @@ export const ROYU_SAGEKI_FOOD_TABLE = [
     "weight": 6,
     "desc": "Рыба, приготовленная с соленым бобовым соусом и луком."
   },
-  {
-    "name": "Тушеная капуста с грибами",
-    "type": "food",
-    "regions": [
-      "royu_sageki"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Капуста, грибы и масло в горячей сковороде."
-  },
+
+{
+  "name": "Капуста с грибами быстрой обжарки",
+  "type": "food",
+  "regions": [
+    "royu_sageki"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Хрустящие стебли капусты и грибы быстро обжаривают с чесноком в глубокой раскаленной сковороде."
+},
 
 {
   "name": "Рис с уткой",
@@ -106,23 +107,24 @@ export const ROYU_SAGEKI_FOOD_TABLE = [
     "fine"
   ]
 },
-  {
-    "name": "Лапша в мясном бульоне",
-    "type": "food",
-    "regions": [
-      "royu_sageki"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 8,
-    "desc": "Пшеничная лапша в мясном бульоне."
-  },
+
+{
+  "name": "Рисовая лапша с имбирным бульоном",
+  "type": "food",
+  "regions": [
+    "royu_sageki"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ],
+  "min": 6,
+  "max": 14,
+  "weight": 8,
+  "desc": "Тонкая рисовая лапша в прозрачном мясном бульоне с имбирем и зеленью; порцию собирают перед подачей."
+},
   {
     "name": "Свинина с рисом и капустой",
     "type": "food",
@@ -159,7 +161,7 @@ export const ROYU_SAGEKI_FOOD_TABLE = [
   },
 
 {
-  "name": "Рисовая похлебка с тыквой",
+  "name": "Рисовая похлебка с таро",
   "type": "food",
   "regions": [
     "royu_sageki"
@@ -173,26 +175,27 @@ export const ROYU_SAGEKI_FOOD_TABLE = [
   "min": 3,
   "max": 8,
   "weight": 8,
-  "desc": "Разваренный рис с кусочками тыквы и солью; дешевая утренняя еда."
+  "desc": "Разваренный рис с мягкими кусочками приготовленного таро и солью; недорогой завтрак влажных низин."
 },
-  {
-    "name": "Рис с солеными сливами",
-    "type": "food",
-    "regions": [
-      "royu_sageki"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Белый рис с кислыми солеными сливами.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Рис с маринованной горчичной зеленью",
+  "type": "food",
+  "regions": [
+    "royu_sageki"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Паровой рис с мелко рубленной кислой горчичной зеленью и кунжутным маслом.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
   {
     "name": "Жареная лапша с луком",
     "type": "food",
@@ -246,7 +249,7 @@ export const ROYU_SAGEKI_FOOD_TABLE = [
   },
 
 {
-  "name": "Утиный бульон с редькой",
+  "name": "Утиный бульон с корнем лотоса",
   "type": "food",
   "regions": [
     "royu_sageki"
@@ -254,31 +257,32 @@ export const ROYU_SAGEKI_FOOD_TABLE = [
   "min": 5,
   "max": 12,
   "weight": 4,
-  "desc": "Насыщенный бульон на утиной тушке с редькой и зеленым луком, подается отдельно от риса.",
+  "desc": "Утиный бульон с ломтиками корня лотоса и имбирем; рис подают отдельно.",
   "local": true,
   "terrains": [
     "city",
     "town"
   ]
 },
-  {
-    "name": "Маринованная редька с лепешками",
-    "type": "food",
-    "regions": [
-      "royu_sageki"
-    ],
-    "min": 3,
-    "max": 7,
-    "weight": 8,
-    "desc": "Острая редька и тонкие рисовые лепешки.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road",
-      "village"
-    ]
-  },
+
+{
+  "name": "Хрустящие луковые лепешки с редькой",
+  "type": "food",
+  "regions": [
+    "royu_sageki"
+  ],
+  "min": 3,
+  "max": 7,
+  "weight": 8,
+  "desc": "Слоистые пшеничные лепешки с зеленым луком, поджаренные на сковороде; рядом кладут кислую редьку.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road",
+    "village"
+  ]
+},
   {
     "name": "Северный военный рис",
     "type": "food",

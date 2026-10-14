@@ -105,40 +105,42 @@ export const ROYU_MIDEKI_FOOD_TABLE = [
     "weight": 6,
     "desc": "Сладкая лепешка с фасолевой начинкой."
   },
-  {
-    "name": "Рыба с рисом и водорослями",
-    "type": "food",
-    "regions": [
-      "royu_mideki"
-    ],
-    "local": true,
-    "terrains": [
-      "port",
-      "city",
-      "town"
-    ],
-    "min": 8,
-    "max": 18,
-    "weight": 7,
-    "desc": "Рыба, рис и сушеные водоросли."
-  },
-  {
-    "name": "Суп с мисо и кореньями",
-    "type": "food",
-    "regions": [
-      "royu_mideki"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Соленый суп с бобовой пастой и кореньями."
-  },
+
+{
+  "name": "Уксусный рис с печеной рыбой",
+  "type": "food",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "terrains": [
+    "port",
+    "city",
+    "town"
+  ],
+  "min": 8,
+  "max": 18,
+  "weight": 7,
+  "desc": "Рис с мягкой уксусной заправкой, кусочки печеной рыбы и полоски сушеных водорослей; порцию собирают при заказе."
+},
+
+{
+  "name": "Коренья с соевым творогом в бульоне",
+  "type": "food",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Редька, морковь и соевый творог, томленные в легком бульоне с соевым соусом; подаются отдельной миской."
+},
   {
     "name": "Лапша с грибами",
     "type": "food",
@@ -245,22 +247,23 @@ export const ROYU_MIDEKI_FOOD_TABLE = [
     "road"
   ]
 },
-  {
-    "name": "Курица с имбирем",
-    "type": "food",
-    "regions": [
-      "royu_mideki"
-    ],
-    "min": 10,
-    "max": 22,
-    "weight": 5,
-    "desc": "Курица, жаренная с имбирем и зеленым луком.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ]
-  },
+
+{
+  "name": "Куриные шашлычки с луком",
+  "type": "food",
+  "regions": [
+    "royu_mideki"
+  ],
+  "min": 10,
+  "max": 22,
+  "weight": 5,
+  "desc": "Небольшие кусочки курицы и лука на шпажках, обжаренные над углями с густым сладко-соленым соусом.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ]
+},
   {
     "name": "Паровые пирожки с фасолью",
     "type": "food",

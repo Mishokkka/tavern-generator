@@ -104,23 +104,24 @@ export const YAKNIZEM_FOOD_TABLE = [
     "weight": 8,
     "desc": "Плоские лепешки, смазанные горячим бараньим жиром."
   },
-  {
-    "name": "Драники с бараньим жиром",
-    "type": "food",
-    "regions": [
-      "yaknizem"
-    ],
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Картофельные лепешки, жаренные на бараньем жире."
-  },
+
+{
+  "name": "Паровые пельмени с бараниной",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "road"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Крупные пельмени с рубленой бараниной и луком; северная степная еда, которую берут руками."
+},
   {
     "name": "Бараньи ребра с гречей",
     "type": "food",
@@ -190,41 +191,43 @@ export const YAKNIZEM_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Степные лепешки с творогом",
-    "type": "food",
-    "regions": [
-      "yaknizem"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Тонкие лепешки с кислым творогом и солью.",
-    "local": true,
-    "terrains": [
-      "road",
-      "village",
-      "wilderness"
-    ]
-  },
-  {
-    "name": "Похлебка из проса",
-    "type": "food",
-    "regions": [
-      "yaknizem"
-    ],
-    "min": 2,
-    "max": 7,
-    "weight": 9,
-    "desc": "Пшенная похлебка с сушеным луком и жиром.",
-    "local": true,
-    "terrains": [
-      "road",
-      "village",
-      "wilderness",
-      "town"
-    ]
-  },
+
+{
+  "name": "Сушеный творог с дорожной лепешкой",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Твердые кусочки кислого сушеного творога, дорожная лепешка и кружка горячей воды; припасы северных кочевий.",
+  "local": true,
+  "terrains": [
+    "road",
+    "village",
+    "wilderness"
+  ]
+},
+
+{
+  "name": "Жареная лапша с бараниной",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "min": 2,
+  "max": 7,
+  "weight": 9,
+  "desc": "Домашняя лапша, баранина и лук, приготовленные вместе в глубоком котле северных степных дворов.",
+  "local": true,
+  "terrains": [
+    "road",
+    "village",
+    "wilderness",
+    "town"
+  ]
+},
   {
     "name": "Сушеное мясо с луком",
     "type": "food",
@@ -313,6 +316,7 @@ export const YAKNIZEM_FOOD_TABLE = [
     "road"
   ]
 },
+
 {
   "name": "Картофельная бабка с грибами",
   "type": "food",
@@ -323,7 +327,7 @@ export const YAKNIZEM_FOOD_TABLE = [
   "min": 4,
   "max": 10,
   "weight": 8,
-  "desc": "Тертый картофель и грибы запекают в горшке до плотной корочки."
+  "desc": "Тертый картофель и лесные грибы запекают в горшке до плотной корочки; привычная еда оседлых дворов юга."
 },
 {
   "name": "Дрыгвянская утка с кислой капустой",

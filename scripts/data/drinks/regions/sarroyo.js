@@ -36,58 +36,61 @@ export const SARROYO_DRINK_TABLE = [
     "weight": 8,
     "desc": "Горячий настой жареного ячменя."
   },
-  {
-    "name": "Сладкий мятный чай",
-    "type": "drink",
-    "regions": [
-      "sarroyo"
-    ],
-    "min": 1,
-    "max": 4,
-    "weight": 8,
-    "desc": "Крепкий чай с мятой и большим количеством сахара.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
-  {
-    "name": "Финиковая брага",
-    "type": "drink",
-    "regions": [
-      "sarroyo"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 6,
-    "desc": "Мутный сладкий напиток из перебродивших фиников.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ]
-  },
-  {
-    "name": "Горький кофейный настой",
-    "type": "drink",
-    "regions": [
-      "sarroyo"
-    ],
-    "min": 2,
-    "max": 7,
-    "weight": 7,
-    "desc": "Темный крепкий настой из обжаренных зерен.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "port"
-    ]
-  },
+
+{
+  "name": "Имбирный чай с медом и корицей",
+  "type": "drink",
+  "regions": [
+    "sarroyo"
+  ],
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Горячий или остывший безалкогольный настой имбиря и корицы, подслащенный медом.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
+
+{
+  "name": "Сладкий рисовый напиток на солоде",
+  "type": "drink",
+  "regions": [
+    "sarroyo"
+  ],
+  "min": 2,
+  "max": 5,
+  "weight": 6,
+  "desc": "Рис и ячменный солод дают сладкий безалкогольный напиток с мягкими зернами на дне; подают свежим, не сбраживая.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ]
+},
+
+{
+  "name": "Чай из сушеной цитрусовой корки",
+  "type": "drink",
+  "regions": [
+    "sarroyo"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 7,
+  "desc": "Душистый безалкогольный настой сушеной цитрусовой корки с медом; к столу приносят небольшим чайником.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "port"
+  ]
+},
 
 {
   "name": "Чай бумажного квартала",

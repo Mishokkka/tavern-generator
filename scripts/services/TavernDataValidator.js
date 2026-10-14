@@ -120,11 +120,13 @@ export class TavernDataValidator {
     const seen = new Map();
 
     for (const item of table) {
-      const regions = !item.regions?.length || item.regions.includes("common")
-        ? Object.keys(TAVERN_OPTIONS.regions)
-        : item.regions;
+      if (!item || typeof item !== "object") continue;
+      // Reference-list validation reports malformed values; this pass must not throw on them.
+      const regions = Array.isArray(item.regions) && item.regions.length && !item.regions.includes("common")
+        ? item.regions
+        : Object.keys(TAVERN_OPTIONS.regions);
       for (const region of regions) {
-        if (item.excludeRegions?.includes(region)) continue;
+        if (Array.isArray(item.excludeRegions) && item.excludeRegions.includes(region)) continue;
         const key = `${item.type}|${region}|${this.#normalize(item.name)}`;
         const previous = seen.get(key);
         if (previous) {
@@ -150,6 +152,7 @@ export class TavernDataValidator {
 
   static #validateCleanliness(report) {
     for (const item of SERVICE_TABLE) {
+      if (!item || typeof item !== "object") continue;
       if (!item.cleanliness) continue;
       const level = Number(item.cleanliness.level);
       const state = item.cleanliness.state;
