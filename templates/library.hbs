@@ -1,0 +1,29 @@
+<section class="tg-wrap">
+  {{#if isGM}}
+  <header class="tg-workshop-header"><div><h2>Библиотека таверн</h2><p class="tg-help">Всего: {{total}}. Открытие и редактирование не переключают активную таверну.</p></div></header>
+  <form class="tg-library-search" data-library-search>
+    <label><span>Поиск по названию, региону, местности или сцене</span><input type="search" name="libraryQuery" value="{{filters.query}}" placeholder="Например: Нованд, трактир…" /></label>
+    <button type="submit"><i class="fa-solid fa-magnifying-glass"></i> Найти</button>
+  </form>
+  <div class="tg-library-filters">
+    <label><span>Регион</span><select data-library-filter="region"><option value="">Все регионы</option>{{selectOptions regions selected=filters.region}}</select></label>
+    <label><span>Статус</span><select data-library-filter="status"><option value="">Все таверны</option><option value="active" {{#if (eq filters.status "active")}}selected{{/if}}>Только активная</option></select></label>
+    <label><span>Порядок</span><select data-library-filter="sort"><option value="recent" {{#if (eq filters.sort "recent")}}selected{{/if}}>Недавно изменённые</option><option value="name" {{#if (eq filters.sort "name")}}selected{{/if}}>По названию</option><option value="region" {{#if (eq filters.sort "region")}}selected{{/if}}>По региону</option></select></label>
+    <button type="button" data-library-action="reset">Сбросить фильтры</button>
+  </div>
+  <div class="tg-library-pagination" aria-live="polite"><span>Показано {{start}}–{{end}} из {{matched}}</span><div><button type="button" data-library-action="previous" {{#if previousDisabled}}disabled{{/if}} aria-label="Предыдущая страница">←</button><span>Страница {{page}} / {{pages}}</span><button type="button" data-library-action="next" {{#if nextDisabled}}disabled{{/if}} aria-label="Следующая страница">→</button></div></div>
+  <div class="tg-library-list">
+    {{#each rows}}
+    <article class="tg-library-row {{#if active}}is-active{{/if}}">
+      <div class="tg-library-description"><h3>{{name}} {{#if active}}<span class="tg-status-badge">Активна</span>{{/if}}</h3><p>{{regionLabel}} · {{terrainLabel}} · {{qualityLabel}} · {{sizeLabel}}</p><small>Еда: {{foodCount}} · Напитки: {{drinkCount}} · Постой: {{roomCount}} · Услуги: {{serviceCount}}{{#if sceneName}}<br>Сцена: {{sceneName}}{{/if}}</small></div>
+      <div class="tg-library-actions"><button type="button" data-library-action="edit" data-tavern-id="{{id}}"><i class="fa-solid fa-pen"></i> Редактировать</button><button type="button" data-library-action="preview" data-tavern-id="{{id}}">Открыть таверну</button><button type="button" data-library-action="activate" data-tavern-id="{{id}}" {{#if active}}disabled{{/if}}>Сделать активной</button><button type="button" class="tg-library-delete" data-library-action="delete" data-tavern-id="{{id}}" aria-label="Удалить {{name}} из библиотеки" data-tooltip="Удалить из библиотеки"><i class="fa-solid fa-trash"></i></button></div>
+    </article>
+    {{else}}
+    <div class="tg-empty-state"><h3>{{#if emptyLibrary}}Здесь будут сохранённые таверны{{else}}Ничего не найдено{{/if}}</h3><p>{{#if emptyLibrary}}Создай таверну в генераторе и нажми «Сохранить в библиотеку».{{else}}Измени запрос или сбрось фильтры.{{/if}}</p></div>
+    {{/each}}
+  </div>
+  {{#if multiplePages}}
+  <div class="tg-library-pagination"><span>Показано {{start}}–{{end}} из {{matched}}</span><div><button type="button" data-library-action="previous" {{#if previousDisabled}}disabled{{/if}} aria-label="Предыдущая страница">←</button><span>Страница {{page}} / {{pages}}</span><button type="button" data-library-action="next" {{#if nextDisabled}}disabled{{/if}} aria-label="Следующая страница">→</button></div></div>
+  {{/if}}
+  {{else}}<p>Менеджер таверн доступен только ГМу.</p>{{/if}}
+</section>

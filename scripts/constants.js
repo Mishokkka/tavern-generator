@@ -2,6 +2,7 @@ export const MODULE_ID = "fbl-tavern-generator";
 export const SOCKET_NAME = `module.${MODULE_ID}`;
 
 export const TEMPLATES = {
+  library: `modules/${MODULE_ID}/templates/library.hbs`,
   gm: `modules/${MODULE_ID}/templates/gm.hbs`,
   player: `modules/${MODULE_ID}/templates/player.hbs`,
   soundSettings: `modules/${MODULE_ID}/templates/sound-settings.hbs`,

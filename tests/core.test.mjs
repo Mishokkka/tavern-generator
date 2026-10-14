@@ -1369,7 +1369,7 @@ async function gmButtons(tavern, { savedTavernId = null } = {}) {
     querySelectorAll: (selector) => selector.startsWith("[data-action=") ? [button(selector)] : [],
     querySelector: (selector) => {
       if (selector === "select[name='savedTavernId']") return { value: savedTavernId };
-      if (selector === "[name='priceMultiplierPercent']") return { value: "200" };
+      if (selector === "[name='draftPricePercent']") return { value: "200" };
       if (!selector.startsWith("[data-action=")) return null;
       return button(selector);
     }
@@ -1418,7 +1418,7 @@ test("GM undo and redo across taverns use each tavern's revision and form parame
     await click("applyPriceModifier");
     const edited = structuredClone(app.draft);
     assert.notEqual(edited.storageRevision, other.storageRevision);
-    await click("loadSaved");
+    await app.loadSavedTavern(other.id);
     assert.equal(app.draft.id, other.id);
     await click("undo");
     assert.equal(app.draft.id, edited.id);
@@ -1439,7 +1439,7 @@ test("GM undo of a tavern switch displays purchases made while the old tavern wa
   const other = await TavernState.saveTavern(TavernGenerator.generate());
   const { app, click } = await gmButtons(tavern, { savedTavernId: other.id });
   try {
-    await click("loadSaved");
+    await app.loadSavedTavern(other.id);
     await TavernPurchaseService.execute(request);
     await click("undo");
     assert.equal(app.draft.id, tavern.id);
@@ -1916,4 +1916,157 @@ test("reconciling a deferred update cannot change the mode of a newly booked roo
     assert.equal(persisted.inventory.lodging[0].stock, 0);
     assert.equal(app.actionPending, false);
   } finally { release?.(null); await pending; TavernEntryEditorDialog.prompt = prompt; await app._onClose(); }
+});
+
+const { prepareTavernLibrary } = await import("../scripts/services/TavernLibraryView.js");
+const { TavernLibraryApp } = await import("../scripts/apps/TavernLibraryApp.js");
+
+test("library finds words across labels, normalizes ё, and bounds large pages without duplicates", () => {
+  const entries = Array.from({ length: 207 }, (_, index) => ({
+    id: `library-${index}`, name: `Трактир ${index}`, region: index % 2 ? "novandia" : "sangren",
+    terrain: "road", updatedAt: index, inventory: {}
+  }));
+  entries[1].name = "Зелёный фонарь";
+  const found = prepareTavernLibrary(entries, { query: "зеленый НОВАНД" });
+  assert.deepEqual(found.rows.map(row => row.id), ["library-1"]);
+  assert.equal(prepareTavernLibrary(entries, { region: "sangren" }).matched, 104);
+  assert.equal(prepareTavernLibrary(entries, { status: "active" }, "library-1").matched, 1);
+  const ids = [];
+  for (let page = 1; page <= 11; page++) {
+    const result = prepareTavernLibrary(entries, { page });
+    assert.ok(result.rows.length <= 20);
+    ids.push(...result.rows.map(row => row.id));
+  }
+  assert.equal(new Set(ids).size, 207);
+  assert.equal(ids[0], "library-206");
+  const empty = prepareTavernLibrary(entries, { query: "нет-такого", page: 999 });
+  assert.equal(empty.page, 1);
+  assert.equal(empty.start, 0);
+  assert.equal(empty.nextDisabled, true);
+  assert.equal(prepareTavernLibrary(entries, { page: 999 }).page, 11);
+});
+
+test("library edit selects the exact latest saved tavern without activating it", async () => {
+  const { tavern: active } = await purchaseFixture();
+  const other = await TavernState.saveTavern(TavernGenerator.generate({ region: "novandia" }));
+  const { app } = await gmButtons(active);
+  const library = new TavernLibraryApp({ onEdit: (id) => app.loadSavedTavern(id) });
+  library.render = () => library;
+  try {
+    const changed = await TavernState.saveTavern({ ...other, name: "Новое имя" });
+    await library.perform("edit", other.id);
+    assert.equal(app.draft.name, changed.name);
+    assert.equal(app.draft.storageRevision, changed.storageRevision);
+    assert.equal(TavernState.getCurrent().id, active.id);
+    assert.equal(app.activeTavernId, null);
+    assert.equal(app.editorTab, "menu");
+  } finally { await app._onClose(); await library._onClose(); }
+});
+
+test("library deletion cancellation preserves data; confirmed deletion preserves active tavern", async () => {
+  const { tavern } = await purchaseFixture();
+  const library = new TavernLibraryApp();
+  library.render = () => library;
+  const confirm = foundry.applications.api.DialogV2.confirm;
+  try {
+    foundry.applications.api.DialogV2.confirm = async () => false;
+    await library.perform("delete", tavern.id);
+    assert.ok(TavernState.getSavedById(tavern.id));
+    foundry.applications.api.DialogV2.confirm = async () => true;
+    await library.perform("delete", tavern.id);
+    assert.equal(TavernState.getSavedById(tavern.id), null);
+    assert.equal(TavernState.getCurrent().id, tavern.id);
+    assert.equal(library.pending, false);
+  } finally { foundry.applications.api.DialogV2.confirm = confirm; await library._onClose(); }
+});
+
+test("library activation is explicit, does not open player windows, and ignores repeated pending actions", async () => {
+  await purchaseFixture();
+  const tavern = await TavernState.saveTavern(TavernGenerator.generate());
+  const library = new TavernLibraryApp(); library.render = () => library;
+  const original = TavernSocket.openForPlayers;
+  let opened = 0; TavernSocket.openForPlayers = () => opened++;
+  try {
+    library.pending = true;
+    await library.perform("activate", tavern.id);
+    assert.notEqual(TavernState.getCurrent().id, tavern.id);
+    library.pending = false;
+    await library.perform("activate", tavern.id);
+    assert.equal(TavernState.getCurrent().id, tavern.id);
+    assert.equal(opened, 0);
+  } finally { TavernSocket.openForPlayers = original; await library._onClose(); }
+});
+
+test("library does not expose saved taverns or actions to a player", async () => {
+  const { tavern, gm, user } = await purchaseFixture();
+  const library = new TavernLibraryApp(); library.render = () => library;
+  try {
+    game.user = user;
+    assert.deepEqual(await library._prepareContext(), { isGM: false });
+    await library.perform("delete", tavern.id);
+    game.user = gm;
+    assert.ok(TavernState.getSavedById(tavern.id));
+  } finally { game.user = gm; await library._onClose(); }
+});
+
+test("GM draft price edits do not consume new-generation parameters", async () => {
+  const { tavern } = await purchaseFixture();
+  const { app, click } = await gmButtons(tavern);
+  try {
+    app.params.region = "novandia";
+    app.params.priceMultiplier = 3;
+    await click("applyPriceModifier");
+    assert.equal(app.draft.priceMultiplier, 2);
+    assert.equal(app.params.priceMultiplier, 3);
+    assert.equal(app.params.region, "novandia");
+    assert.equal(app.draft.region, tavern.region);
+  } finally { await app._onClose(); }
+});
+
+test("GM manual rename auto-saves and undo restores the previous name", async () => {
+  const { tavern } = await purchaseFixture();
+  const { app, click } = await gmButtons(tavern);
+  const query = app.element.querySelector;
+  app.element.querySelector = selector => selector === "[name='tavernName']" ? { value: "  У старого моста  " } : query(selector);
+  try {
+    await click("rename");
+    assert.equal(TavernState.getSavedById(tavern.id).name, "У старого моста");
+    assert.equal(TavernState.getCurrent().name, "У старого моста");
+    await click("undo");
+    assert.equal(TavernState.getCurrent().name, tavern.name);
+  } finally { await app._onClose(); }
+});
+
+test("GM deactivating another tavern retains the editor draft", async () => {
+  const { tavern } = await purchaseFixture();
+  const draft = TavernGenerator.generate({ region: "sangren" });
+  const { app, click } = await gmButtons(draft);
+  try {
+    assert.equal(app.activeTavernId, null);
+    await click("clear");
+    assert.equal(TavernState.getCurrent(), null);
+    assert.equal(app.draft.id, draft.id);
+    assert.ok(TavernState.getSavedById(tavern.id));
+  } finally { await app._onClose(); }
+});
+
+test("manual scene path immediately enables creation and whitespace disables it again", async () => {
+  await purchaseFixture();
+  const app = new TavernGMApp({ tavern: TavernGenerator.generate() });
+  app.render = () => app;
+  app.sceneConfig.mode = "manual";
+  const handlers = {};
+  const path = { dataset: { sceneParam: "manualImagePath" }, type: "text", value: "", addEventListener: (type, callback) => { handlers[type] = callback; } };
+  const create = { disabled: true, addEventListener() {} };
+  app.element = {
+    querySelector: selector => selector === "[data-action='createScene']" ? create : null,
+    querySelectorAll: selector => selector === "select[data-scene-param], input[data-scene-param]" ? [path] : []
+  };
+  try {
+    await app._onRender();
+    path.value = "taverns/background.webp"; handlers.input();
+    assert.equal(create.disabled, false);
+    path.value = "   "; handlers.input();
+    assert.equal(create.disabled, true);
+  } finally { await app._onClose(); }
 });
