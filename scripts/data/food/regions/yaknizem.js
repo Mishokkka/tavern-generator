@@ -276,39 +276,69 @@ export const YAKNIZEM_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Сто блюд из картофеля: первое",
-    "type": "food",
-    "regions": [
-      "yaknizem"
-    ],
-    "local": true,
-    "min": 4,
-    "max": 9,
-    "weight": 9,
-    "desc": "Жареный картофель с луком, мясным жиром и грубой солью.",
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
-  {
-    "name": "Ханская картофельная мясница",
-    "type": "food",
-    "regions": [
-      "yaknizem"
-    ],
-    "local": true,
-    "min": 9,
-    "max": 20,
-    "weight": 8,
-    "desc": "Картофель, рубленое мясо и острый соус для тех, кто завтра может стать ханом. Или завтраком.",
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ]
-  }
+
+{
+  "name": "Картофельная сковорода с луком",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "min": 4,
+  "max": 9,
+  "weight": 9,
+  "desc": "Картофель, поджаренный на мясном жире с луком; подается прямо в небольшой сковороде.",
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
+
+{
+  "name": "Ханская картофельная мясница",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "min": 9,
+  "max": 20,
+  "weight": 8,
+  "desc": "Запеканка из картофеля и рубленого мяса с острым соусом; большая сытная порция для праздничного стола.",
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ]
+},
+{
+  "name": "Картофельная бабка с грибами",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Тертый картофель и грибы запекают в горшке до плотной корочки."
+},
+{
+  "name": "Дрыгвянская утка с кислой капустой",
+  "type": "food",
+  "regions": [
+    "yaknizem"
+  ],
+  "local": true,
+  "min": 12,
+  "max": 25,
+  "weight": 8,
+  "desc": "Утка из болотных угодий, тушенная с кислой капустой и луком.",
+  "quality": [
+    "good",
+    "fine"
+  ]
+}
 ];

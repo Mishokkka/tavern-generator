@@ -70,23 +70,24 @@ export const SANGREN_DRINK_TABLE = [
     "weight": 7,
     "desc": "Разбавленное вино с лимоном."
   },
-  {
-    "name": "Лимонная вода с травами и вином",
-    "type": "drink",
-    "regions": [
-      "sangren"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Разбавленное вино с лимонным соком.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "port"
-    ]
-  },
+
+{
+  "name": "Лимонный настой с розмарином",
+  "type": "drink",
+  "regions": [
+    "sangren"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Остывшая вода с лимоном и розмарином, без вина и брожения.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "port"
+  ]
+},
   {
     "name": "Горький травяной вермут",
     "type": "drink",
@@ -137,5 +138,17 @@ export const SANGREN_DRINK_TABLE = [
       "village",
       "road"
     ]
-  }
+  },
+{
+  "name": "Остывший отвар яблочной кожуры",
+  "type": "drink",
+  "regions": [
+    "sangren"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Безалкогольный отвар сушеной яблочной кожуры с каплей меда."
+}
 ];

@@ -88,22 +88,35 @@ export const SARROYO_DRINK_TABLE = [
       "port"
     ]
   },
-  {
-    "name": "Тсукамиевый настой",
-    "type": "drink",
-    "regions": [
-      "sarroyo"
-    ],
-    "local": true,
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Легкий травяной настой с сухой терпкостью бумажного куста.",
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  }
+
+{
+  "name": "Чай бумажного квартала",
+  "type": "drink",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Терпкий чай с обжаренным рисом, который подают в мастерских бумажников. Тсуками используют для упаковки сухого сбора, а не для заваривания.",
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
+{
+  "name": "Простой рисовый отвар",
+  "type": "drink",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Легкий горячий отвар поджаренного риса без брожения; подается в керамической чашке."
+}
 ];

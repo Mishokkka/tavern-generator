@@ -101,22 +101,27 @@ export const NOVANDIA_FOOD_TABLE = [
     "weight": 8,
     "desc": "Белая фасоль, морковь, лук и свиной жир."
   },
-  {
-    "name": "Телятина в сливочном соусе",
-    "type": "food",
-    "regions": [
-      "novandia"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ],
-    "min": 16,
-    "max": 34,
-    "weight": 4,
-    "desc": "Телятина, сливочный соус, лук и травы."
-  },
+
+{
+  "name": "Телятина в сливочном соусе",
+  "type": "food",
+  "regions": [
+    "novandia"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ],
+  "min": 16,
+  "max": 34,
+  "weight": 4,
+  "desc": "Телятина, сливочный соус, лук и травы.",
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
   {
     "name": "Рыба в белом вине",
     "type": "food",
@@ -233,23 +238,28 @@ export const NOVANDIA_FOOD_TABLE = [
       "village"
     ]
   },
-  {
-    "name": "Рыбный суп с шафраном",
-    "type": "food",
-    "regions": [
-      "novandia"
-    ],
-    "min": 9,
-    "max": 20,
-    "weight": 5,
-    "desc": "Рыбный суп с желтым бульоном, травами и вином.",
-    "local": true,
-    "terrains": [
-      "port",
-      "city",
-      "town"
-    ]
-  },
+
+{
+  "name": "Рыбный суп с шафраном",
+  "type": "food",
+  "regions": [
+    "novandia"
+  ],
+  "min": 9,
+  "max": 20,
+  "weight": 5,
+  "desc": "Рыбный суп с желтым бульоном, травами и вином.",
+  "local": true,
+  "terrains": [
+    "port",
+    "city",
+    "town"
+  ],
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
   {
     "name": "Пирог с луком-пореем",
     "type": "food",
@@ -267,23 +277,24 @@ export const NOVANDIA_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Тушеный виноградный кролик",
-    "type": "food",
-    "regions": [
-      "novandia"
-    ],
-    "local": true,
-    "min": 13,
-    "max": 28,
-    "weight": 6,
-    "desc": "Кролик, томленный в молодом новандском вине с луком и садовыми травами.",
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Печеные яблоки в молодом вине",
+  "type": "food",
+  "regions": [
+    "novandia"
+  ],
+  "local": true,
+  "min": 5,
+  "max": 12,
+  "weight": 6,
+  "desc": "Яблоки с медом, запеченные в молодом красном вине; простое завершение осеннего ужина.",
+  "terrains": [
+    "town",
+    "village",
+    "road"
+  ]
+},
   {
     "name": "Винодельческий завтрак",
     "type": "food",
@@ -301,5 +312,33 @@ export const NOVANDIA_FOOD_TABLE = [
       "road",
       "city"
     ]
-  }
+  },
+{
+  "name": "Чечевичный котел наемного двора",
+  "type": "food",
+  "regions": [
+    "novandia"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 7,
+  "weight": 8,
+  "desc": "Чечевица и морковь с небольшим количеством солонины; недорогой обед, который делят за длинным столом."
+},
+{
+  "name": "Печеный сыр с виноградным соусом",
+  "type": "food",
+  "regions": [
+    "novandia"
+  ],
+  "local": true,
+  "min": 10,
+  "max": 22,
+  "weight": 8,
+  "desc": "Мягкий сыр в хлебной корке и густой соус из винограда; порция к вечернему вину.",
+  "quality": [
+    "good",
+    "fine"
+  ]
+}
 ];

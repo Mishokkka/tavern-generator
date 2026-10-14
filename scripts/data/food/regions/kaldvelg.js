@@ -1,24 +1,25 @@
 // Regional food entries for kaldvelg.
 
 export const KALDVELG_FOOD_TABLE = [
+
 {
-    "name": "Рыбная похлебка Кальдвельга",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "terrains": [
-      "port",
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 5,
-    "max": 13,
-    "weight": 10,
-    "desc": "Густая похлебка из рыбы, молока и кореньев."
-  },
+  "name": "Рыбная похлебка Кальдвельга",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "terrains": [
+    "port",
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 5,
+  "max": 13,
+  "weight": 10,
+  "desc": "Рыба и привозные сушеные коренья в густом бульоне с ложкой молока из портовых запасов."
+},
 {
     "name": "Сушеная рыба с маслом",
     "type": "food",
@@ -123,40 +124,46 @@ export const KALDVELG_FOOD_TABLE = [
     "weight": 8,
     "desc": "Треска, коренья и плотный бульон."
   },
+
 {
-    "name": "Оленина с можжевельником",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "wilderness",
-      "town"
-    ],
-    "min": 12,
-    "max": 28,
-    "weight": 5,
-    "desc": "Оленина, можжевельник и мясная подлива."
-  },
+  "name": "Оленина с можжевельником",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "wilderness",
+    "town"
+  ],
+  "min": 12,
+  "max": 28,
+  "weight": 5,
+  "desc": "Оленина, можжевельник и мясная подлива.",
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
+
 {
-    "name": "Каша с сушеными ягодами",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "terrains": [
-      "village",
-      "road",
-      "mountain"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Каша с кислыми сушеными ягодами."
-  },
+  "name": "Каша с сушеными ягодами",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "terrains": [
+    "village",
+    "road",
+    "mountain"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Каша из привозной крупы с сушеными кислыми ягодами; продукты берут из зимних запасов."
+},
 {
     "name": "Плоский хлеб с копченой рыбой",
     "type": "food",
@@ -246,56 +253,87 @@ export const KALDVELG_FOOD_TABLE = [
       "mountain"
     ]
   },
+
 {
-    "name": "Рагу из северного оленя",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "min": 16,
-    "max": 36,
-    "weight": 4,
-    "desc": "Мясо оленя, тушенное с кореньями и ягодами.",
-    "local": true,
-    "terrains": [
-      "town",
-      "mountain",
-      "wilderness"
-    ]
-  },
+  "name": "Рагу из северного оленя",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "min": 16,
+  "max": 36,
+  "weight": 4,
+  "desc": "Сохраненное холодом оленье мясо тушат с привозными кореньями и сушеными ягодами.",
+  "local": true,
+  "terrains": [
+    "town",
+    "mountain",
+    "wilderness"
+  ]
+},
+
 {
-    "name": "Пиратская доля с верфи",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "min": 6,
-    "max": 14,
-    "weight": 8,
-    "desc": "Соленая рыба, сухарь и то, что удалось снять с последнего торгового клипера.",
-    "terrains": [
-      "port",
-      "city",
-      "road"
-    ]
-  },
+  "name": "Пиратская доля с верфи",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "min": 6,
+  "max": 14,
+  "weight": 8,
+  "desc": "Соленая рыба, сухарь и ломоть привозного сыра из портовых запасов; холодная тарелка для рабочих верфи.",
+  "terrains": [
+    "port",
+    "city",
+    "road"
+  ]
+},
+
 {
-    "name": "Стылый суп Лентахервы",
-    "type": "food",
-    "regions": [
-      "kaldvelg"
-    ],
-    "local": true,
-    "min": 5,
-    "max": 12,
-    "weight": 7,
-    "desc": "Горячий суп из кореньев и вяленого мяса, придуманный для острова, который поднялся слишком высоко.",
-    "terrains": [
-      "city",
-      "town",
-      "mountain",
-      "wilderness"
-    ]
-  }
+  "name": "Стылый суп Лентахервы",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "min": 5,
+  "max": 12,
+  "weight": 7,
+  "desc": "Горячий суп из сушеных привозных кореньев и вяленого мяса; котел держат у очага всю смену.",
+  "terrains": [
+    "city",
+    "town",
+    "mountain",
+    "wilderness"
+  ]
+},
+{
+  "name": "Сухарная похлебка с рыбным жиром",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Привозные сухари размачивают в горячем рыбном бульоне, добавляя немного жира."
+},
+{
+  "name": "Пряное мясо нижних галерей",
+  "type": "food",
+  "regions": [
+    "kaldvelg"
+  ],
+  "local": true,
+  "min": 14,
+  "max": 30,
+  "weight": 8,
+  "desc": "Порция сохраненного холодом мяса с привозными сухофруктами; редкая трапеза богатых подземных дворов.",
+  "quality": [
+    "good",
+    "fine"
+  ]
+}
 ];

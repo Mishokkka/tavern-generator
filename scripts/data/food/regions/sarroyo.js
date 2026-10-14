@@ -103,23 +103,24 @@ export const SARROYO_FOOD_TABLE = [
     "weight": 8,
     "desc": "Пшеничная лапша в горячем мясном бульоне."
   },
-  {
-    "name": "Рисовая каша с кимчи",
-    "type": "food",
-    "regions": [
-      "sarroyo"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 8,
-    "desc": "Рисовая каша с острыми ферментированными овощами."
-  },
+
+{
+  "name": "Рисовые лепешки в остром бульоне",
+  "type": "food",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 8,
+  "desc": "Упругие рисовые лепешки, острые квашеные овощи и лук в густом бульоне."
+},
   {
     "name": "Говядина с чесноком и соей",
     "type": "food",
@@ -136,23 +137,24 @@ export const SARROYO_FOOD_TABLE = [
     "weight": 5,
     "desc": "Тонко нарезанная говядина в соленом соусе."
   },
-  {
-    "name": "Пшеничные лепешки с луком",
-    "type": "food",
-    "regions": [
-      "sarroyo"
-    ],
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "road"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Жареные лепешки с зеленым луком."
-  },
+
+{
+  "name": "Паровые свертки с капустой",
+  "type": "food",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "road"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Тонкое тесто с капустой и кунжутом, приготовленное на пару; подается с кислым соусом."
+},
   {
     "name": "Кус-кус с овощами",
     "type": "food",
@@ -258,23 +260,24 @@ export const SARROYO_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Пирожки тсуками",
-    "type": "food",
-    "regions": [
-      "sarroyo"
-    ],
-    "local": true,
-    "min": 5,
-    "max": 12,
-    "weight": 8,
-    "desc": "Тонкие пирожки, завернутые в съедобную бумагу из тсуками для бедных художников и богатых позеров.",
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ]
-  },
+
+{
+  "name": "Пирожки в бумажном свертке",
+  "type": "food",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "min": 5,
+  "max": 12,
+  "weight": 8,
+  "desc": "Небольшие пирожки с овощами и бобовой пастой. Бумажную обертку из тсуками снимают перед едой.",
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ]
+},
   {
     "name": "Наготарская уличная лапша",
     "type": "food",
@@ -291,5 +294,29 @@ export const SARROYO_FOOD_TABLE = [
       "town",
       "port"
     ]
-  }
+  },
+{
+  "name": "Рис с редькой и кунжутом",
+  "type": "food",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Разваренный рис, соленая редька и растертый кунжут; простая миска из мастерской кухни."
+},
+{
+  "name": "Сладкие бобовые лепешки к чаю",
+  "type": "food",
+  "regions": [
+    "sarroyo"
+  ],
+  "local": true,
+  "min": 5,
+  "max": 11,
+  "weight": 8,
+  "desc": "Небольшие рисовые лепешки с гладкой сладкой бобовой начинкой."
+}
 ];

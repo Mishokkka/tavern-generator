@@ -126,7 +126,7 @@
                   {{#each priceParts}}
                     <span class="tg-money"><span class="tg-money__amount">{{amount}}</span><span class="tg-coin tg-coin--{{code}}">{{label}}</span></span>
                   {{/each}}
-                  <small>за место/день</small>
+                  <small>за место или комнату / день</small>
                 </div>
                 <button type="button" class="tg-add-cart" data-action="add-cart" data-category="lodging" data-entry-id="{{id}}" data-tooltip="Добавить в корзину" aria-label="Добавить в корзину" {{#if ../cart.locked}}disabled{{else}}{{#if disabled}}disabled{{/if}}{{/if}}>
                   <i class="fa-solid fa-basket-shopping"></i>

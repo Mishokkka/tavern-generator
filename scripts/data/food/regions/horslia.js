@@ -1,22 +1,27 @@
 // Regional food entries for horslia.
 
 export const HORSLIA_FOOD_TABLE = [
-  {
-    "name": "Утка с маковой подливой",
-    "type": "food",
-    "regions": [
-      "horslia"
-    ],
-    "min": 16,
-    "max": 36,
-    "weight": 4,
-    "desc": "Жареная утка с густой маковой подливой.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ]
-  },
+
+{
+  "name": "Утка с маковой подливой",
+  "type": "food",
+  "regions": [
+    "horslia"
+  ],
+  "min": 16,
+  "max": 36,
+  "weight": 4,
+  "desc": "Жареная утка с густой маковой подливой.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ],
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
   {
     "name": "Картофельный суп с майораном",
     "type": "food",
@@ -101,21 +106,55 @@ export const HORSLIA_FOOD_TABLE = [
       "village"
     ]
   },
-  {
-    "name": "Хорслийский шахтерский гуляш",
-    "type": "food",
-    "regions": [
-      "horslia"
-    ],
-    "local": true,
-    "min": 8,
-    "max": 18,
-    "weight": 7,
-    "desc": "Мясо, лук и коренья в густой подливе для людей, которым платят самоцветами и синяками.",
-    "terrains": [
-      "city",
-      "town",
-      "mountain"
-    ]
-  }
+
+{
+  "name": "Хорслийский шахтерский гуляш",
+  "type": "food",
+  "regions": [
+    "horslia"
+  ],
+  "local": true,
+  "min": 8,
+  "max": 18,
+  "weight": 7,
+  "desc": "Густой гуляш из мяса, лука и кореньев. Подается с ломтем хлеба после смены в рудниках.",
+  "terrains": [
+    "city",
+    "town",
+    "mountain"
+  ]
+},
+{
+  "name": "Рудничный пирог с гречей",
+  "type": "food",
+  "regions": [
+    "horslia"
+  ],
+  "local": true,
+  "min": 4,
+  "max": 9,
+  "weight": 8,
+  "desc": "Закрытый пирог с гречей, луком и рубленым мясом; плотная начинка не рассыпается в дороге."
+},
+{
+  "name": "Зратогская рыба под ореховой коркой",
+  "type": "food",
+  "regions": [
+    "horslia"
+  ],
+  "local": true,
+  "min": 12,
+  "max": 24,
+  "weight": 8,
+  "desc": "Порция рыбы, запеченная с орехами и хлебной крошкой для зажиточных портовых гостей.",
+  "quality": [
+    "good",
+    "fine"
+  ],
+  "terrains": [
+    "city",
+    "town",
+    "port"
+  ]
+}
 ];

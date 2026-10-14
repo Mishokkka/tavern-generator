@@ -51,5 +51,17 @@ export const HORSLIA_DRINK_TABLE = [
       "town",
       "road"
     ]
-  }
+  },
+{
+  "name": "Грушевый отвар рудничного двора",
+  "type": "drink",
+  "regions": [
+    "horslia"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Горячий безалкогольный отвар сушеных груш, удобный для долгого вечера после смены."
+}
 ];

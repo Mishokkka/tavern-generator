@@ -87,55 +87,70 @@ export const TIRABOR_DRINK_TABLE = [
       "city"
     ]
   },
-  {
-    "name": "Соляной грибной настой",
-    "type": "drink",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 5,
-    "desc": "Горячий солоноватый настой из грибов штолен.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town"
-    ]
-  },
-  {
-    "name": "Медный шнапс",
-    "type": "drink",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 5,
-    "desc": "Крепкий напиток с резким металлическим послевкусием.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "city",
-      "town"
-    ]
-  },
-  {
-    "name": "Рамбаров отдых",
-    "type": "drink",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "min": 5,
-    "max": 12,
-    "weight": 7,
-    "desc": "Крепкий темный напиток, который не пьют во время работы. Никогда. В теории.",
-    "terrains": [
-      "city",
-      "town",
-      "mountain",
-      "road"
-    ]
-  }
+
+{
+  "name": "Отвар сушеной груши",
+  "type": "drink",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 5,
+  "desc": "Горячий безалкогольный отвар привозных сушеных груш; сладость самих плодов смягчает вкус.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "town"
+  ]
+},
+
+{
+  "name": "Медный шнапс",
+  "type": "drink",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 6,
+  "max": 14,
+  "weight": 5,
+  "desc": "Зерновой дистиллят из медного перегонного куба, с сухим хлебным ароматом.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "city",
+    "town"
+  ]
+},
+
+{
+  "name": "Рамбаров отдых",
+  "type": "drink",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "min": 5,
+  "max": 12,
+  "weight": 7,
+  "desc": "Выдержанный темный эль для трапезы после смены. Его подают с уважением к заслуженному отдыху мастера.",
+  "terrains": [
+    "city",
+    "town",
+    "mountain",
+    "road"
+  ]
+},
+{
+  "name": "Ячменный отвар сменного двора",
+  "type": "drink",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Жареный ячмень заваривают в большом чайнике; напиток без брожения."
+}
 ];

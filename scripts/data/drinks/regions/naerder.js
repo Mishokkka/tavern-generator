@@ -53,23 +53,24 @@ export const NAERDER_DRINK_TABLE = [
     "weight": 7,
     "desc": "Сладкий напиток из фиников и воды."
   },
-  {
-    "name": "Крепкий пряный кофе",
-    "type": "drink",
-    "regions": [
-      "naerder"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ],
-    "min": 4,
-    "max": 10,
-    "weight": 7,
-    "desc": "Кофе с сухими пряностями."
-  },
+
+{
+  "name": "Кофе на углях с фиником",
+  "type": "drink",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ],
+  "min": 4,
+  "max": 10,
+  "weight": 7,
+  "desc": "Небольшая чашка густого кофе, сваренного в ковшике на углях; финик подают отдельно."
+},
   {
     "name": "Кукурузная брага",
     "type": "drink",
@@ -120,5 +121,17 @@ export const NAERDER_DRINK_TABLE = [
       "village",
       "road"
     ]
-  }
+  },
+{
+  "name": "Прохладная вода из глиняного кувшина",
+  "type": "drink",
+  "regions": [
+    "naerder"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 5,
+  "weight": 8,
+  "desc": "Питьевая вода из очищенного сбора; кувшин держат в тени и оборачивают влажной тканью."
+}
 ];

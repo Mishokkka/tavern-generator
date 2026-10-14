@@ -226,24 +226,25 @@ export const ROYU_MIDEKI_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Лапша с лесными грибами",
-    "type": "food",
-    "regions": [
-      "royu_mideki"
-    ],
-    "min": 5,
-    "max": 13,
-    "weight": 7,
-    "desc": "Лапша в темном бульоне с грибами.",
-    "local": true,
-    "terrains": [
-      "town",
-      "village",
-      "mountain",
-      "road"
-    ]
-  },
+
+{
+  "name": "Грибные шашлычки с соевым соусом",
+  "type": "food",
+  "regions": [
+    "royu_mideki"
+  ],
+  "min": 5,
+  "max": 13,
+  "weight": 7,
+  "desc": "Крупные грибы жарят на деревянных шпажках и смазывают сладко-соленым соусом.",
+  "local": true,
+  "terrains": [
+    "town",
+    "village",
+    "mountain",
+    "road"
+  ]
+},
   {
     "name": "Курица с имбирем",
     "type": "food",
@@ -294,5 +295,29 @@ export const ROYU_MIDEKI_FOOD_TABLE = [
       "village",
       "road"
     ]
-  }
+  },
+{
+  "name": "Рисовая корочка с бобовым соусом",
+  "type": "food",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Поджаренную корочку со дна рисового котла подают с бобовым соусом и соленьями."
+},
+{
+  "name": "Рыба в кислом сливовом соусе",
+  "type": "food",
+  "regions": [
+    "royu_mideki"
+  ],
+  "local": true,
+  "min": 9,
+  "max": 20,
+  "weight": 8,
+  "desc": "Обжаренная рыба с соусом из кислой сливы; рецепт меняется от семейной чайной к чайной."
+}
 ];

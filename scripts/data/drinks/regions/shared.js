@@ -19,24 +19,25 @@ export const SHARED_DRINK_TABLE = [
     "weight": 10,
     "desc": "Светлое пиво местной варки."
   },
-  {
-    "name": "Сливовая настойка",
-    "type": "drink",
-    "regions": [
-      "horslia",
-      "ontakwa"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 5,
-    "desc": "Крепкий напиток из сливового дистиллята."
-  },
+
+{
+  "name": "Сливовый взвар княжеств",
+  "type": "drink",
+  "regions": [
+    "horslia",
+    "ontakwa"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village"
+  ],
+  "min": 6,
+  "max": 14,
+  "weight": 5,
+  "desc": "Безалкогольный взвар из сушеных слив с медом; подходит к маковой выпечке."
+},
   {
     "name": "Темное пиво Хорслии",
     "type": "drink",

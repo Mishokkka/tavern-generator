@@ -471,5 +471,17 @@ export const COMMON_DRINK_TABLE = [
       "road",
       "port"
     ]
-  }
+  },
+{
+  "name": "Кружка питьевой воды",
+  "type": "drink",
+  "regions": [
+    "common"
+  ],
+  "local": false,
+  "min": 1,
+  "max": 2,
+  "weight": 8,
+  "desc": "Чистая питьевая вода из запасов заведения; в сомнительных источниках воду предварительно кипятят."
+}
 ];

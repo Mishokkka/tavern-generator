@@ -105,22 +105,51 @@ export const ONTAKWA_FOOD_TABLE = [
       "wilderness"
     ]
   },
-  {
-    "name": "Онтаквская рубиновая каша",
-    "type": "food",
-    "regions": [
-      "ontakwa"
-    ],
-    "local": true,
-    "min": 6,
-    "max": 14,
-    "weight": 7,
-    "desc": "Крупа с ягодным соусом и кусками жареного мяса; цвет красивее, чем жизнь в шахте.",
-    "terrains": [
-      "city",
-      "town",
-      "mountain",
-      "village"
-    ]
-  }
+
+{
+  "name": "Онтаквская пшеничная каша со сливой",
+  "type": "food",
+  "regions": [
+    "ontakwa"
+  ],
+  "local": true,
+  "min": 6,
+  "max": 14,
+  "weight": 7,
+  "desc": "Пшеница из хлебных долин, сушеная слива и масло; плотный завтрак перед дорогой.",
+  "terrains": [
+    "city",
+    "town",
+    "mountain",
+    "village"
+  ]
+},
+{
+  "name": "Хлеб долин с печеной сливой",
+  "type": "food",
+  "regions": [
+    "ontakwa"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 7,
+  "weight": 8,
+  "desc": "Толстый ломоть пшеничного хлеба, мягкий сыр и печеная слива."
+},
+{
+  "name": "Томленая говядина в онтаквском вине",
+  "type": "food",
+  "regions": [
+    "ontakwa"
+  ],
+  "local": true,
+  "min": 12,
+  "max": 26,
+  "weight": 8,
+  "desc": "Говядина в винной подливе с маленькими мучными клецками.",
+  "quality": [
+    "good",
+    "fine"
+  ]
+}
 ];

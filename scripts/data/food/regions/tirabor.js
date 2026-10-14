@@ -51,24 +51,25 @@ export const TIRABOR_FOOD_TABLE = [
     "weight": 7,
     "desc": "Пирог с подземными грибами и луком."
   },
-  {
-    "name": "Солонина с горчицей",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "road",
-      "town",
-      "city"
-    ],
-    "min": 7,
-    "max": 16,
-    "weight": 7,
-    "desc": "Соленая говядина с густой горчицей."
-  },
+
+{
+  "name": "Тироборская солонина с хреном",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "road",
+    "town",
+    "city"
+  ],
+  "min": 7,
+  "max": 16,
+  "weight": 7,
+  "desc": "Ломти соленой говядины, тертый хрен и плотный ржаной хлеб."
+},
   {
     "name": "Каменная каша",
     "type": "food",
@@ -154,23 +155,24 @@ export const TIRABOR_FOOD_TABLE = [
     "weight": 7,
     "desc": "Густая похлебка с твердым сыром и крупой."
   },
-  {
-    "name": "Ржаная лепешка с рудничной солью",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "local": true,
-    "terrains": [
-      "mountain",
-      "road",
-      "town"
-    ],
-    "min": 2,
-    "max": 6,
-    "weight": 8,
-    "desc": "Ржаная лепешка с грубой солью."
-  },
+
+{
+  "name": "Ржаная лепешка с пищевой каменной солью",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "terrains": [
+    "mountain",
+    "road",
+    "town"
+  ],
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Плотная ржаная лепешка с очищенной пищевой солью и тмином."
+},
   {
     "name": "Жаркое из горного козла",
     "type": "food",
@@ -188,40 +190,42 @@ export const TIRABOR_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Тираборские грибные лепешки",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 5,
-    "max": 12,
-    "weight": 7,
-    "desc": "Плотные лепешки с рублеными подземными грибами.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town",
-      "city"
-    ]
-  },
-  {
-    "name": "Похлебка из кореньев и сыра",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 5,
-    "max": 13,
-    "weight": 7,
-    "desc": "Коренья, твердый сыр и густой соленый бульон.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "town",
-      "city"
-    ]
-  },
+
+{
+  "name": "Тироборские грибные лепешки",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 5,
+  "max": 12,
+  "weight": 7,
+  "desc": "Плотные лепешки с рублеными подземными грибами.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "town",
+    "city"
+  ]
+},
+
+{
+  "name": "Печеные коренья в сырной корке",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 5,
+  "max": 13,
+  "weight": 7,
+  "desc": "Репа и морковь, запеченные под твердым сыром в небольшой глиняной плошке.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "town",
+    "city"
+  ]
+},
   {
     "name": "Копченая форель из штолен",
     "type": "food",
@@ -255,23 +259,24 @@ export const TIRABOR_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Ячменная каша с рудничной солью",
-    "type": "food",
-    "regions": [
-      "tirabor"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Ячмень с маслом и крупной темной солью.",
-    "local": true,
-    "terrains": [
-      "mountain",
-      "road",
-      "town"
-    ]
-  },
+
+{
+  "name": "Ячменная каша с маслом и солью",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Ячмень, масло и очищенная пищевая каменная соль; простая еда горняцкого двора.",
+  "local": true,
+  "terrains": [
+    "mountain",
+    "road",
+    "town"
+  ]
+},
   {
     "name": "Фильминдова каша отдыха",
     "type": "food",
@@ -306,5 +311,29 @@ export const TIRABOR_FOOD_TABLE = [
       "road",
       "town"
     ]
-  }
+  },
+{
+  "name": "Плотная каша сменного двора",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 8,
+  "desc": "Ячмень с дроблеными бобами и жареным луком; недорогая порция после работы."
+},
+{
+  "name": "Сырный пирог к окончанию смены",
+  "type": "food",
+  "regions": [
+    "tirabor"
+  ],
+  "local": true,
+  "min": 9,
+  "max": 18,
+  "weight": 8,
+  "desc": "Открытый пирог с выдержанным сыром и луком; подают горячим к общей вечерней трапезе."
+}
 ];

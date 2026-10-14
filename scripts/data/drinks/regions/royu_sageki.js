@@ -118,5 +118,17 @@ export const ROYU_SAGEKI_DRINK_TABLE = [
       "city",
       "town"
     ]
-  }
+  },
+{
+  "name": "Горячий ячменный чай Сагеки",
+  "type": "drink",
+  "regions": [
+    "royu_sageki"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Простой настой жареного ячменя без алкоголя; одинаково уместен за завтраком и в дороге."
+}
 ];

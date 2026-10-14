@@ -97,23 +97,24 @@ export const FLECHENRAND_FOOD_TABLE = [
     "weight": 6,
     "desc": "Плотный пирог с кислой капустой и свининой."
   },
-  {
-    "name": "Печеная свинина с яблоками",
-    "type": "food",
-    "regions": [
-      "flechenrand"
-    ],
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ],
-    "min": 10,
-    "max": 22,
-    "weight": 6,
-    "desc": "Свинина, яблоки, лук и темный соус."
-  },
+
+{
+  "name": "Печеная свинина с яблоками",
+  "type": "food",
+  "regions": [
+    "flechenrand"
+  ],
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ],
+  "min": 10,
+  "max": 22,
+  "weight": 6,
+  "desc": "Свинина с привозными яблоками, луком и темным соусом; блюдо появляется после свежей поставки."
+},
   {
     "name": "Суп с клецками и копченостями",
     "type": "food",
@@ -199,24 +200,25 @@ export const FLECHENRAND_FOOD_TABLE = [
       "road"
     ]
   },
-  {
-    "name": "Жаркое из зайца",
-    "type": "food",
-    "regions": [
-      "flechenrand"
-    ],
-    "min": 14,
-    "max": 32,
-    "weight": 4,
-    "desc": "Заяц, тушенный с ягодами можжевельника и кореньями.",
-    "local": true,
-    "terrains": [
-      "town",
-      "road",
-      "mountain",
-      "wilderness"
-    ]
-  },
+
+{
+  "name": "Жаркое из зайца",
+  "type": "food",
+  "regions": [
+    "flechenrand"
+  ],
+  "min": 14,
+  "max": 32,
+  "weight": 4,
+  "desc": "Привозная дичь, тушенная с сушеным можжевельником и кореньями.",
+  "local": true,
+  "terrains": [
+    "town",
+    "road",
+    "mountain",
+    "wilderness"
+  ]
+},
   {
     "name": "Картофельные оладьи",
     "type": "food",
@@ -305,26 +307,51 @@ export const FLECHENRAND_FOOD_TABLE = [
       "mountain"
     ]
   },
-  {
-    "name": "Масляный шрот Флеченранда",
-    "type": "food",
-    "regions": [
-      "flechenrand"
-    ],
-    "local": true,
-    "quality": [
-      "poor",
-      "modest"
-    ],
-    "terrains": [
-      "city",
-      "town",
-      "road",
-      "port"
-    ],
-    "min": 2,
-    "max": 5,
-    "weight": 16,
-    "desc": "Огрызки, обрезки, хлебные корки и вчерашние остатки, зажаренные в темном масле. Любимая пища бедняков и студентов Флеченранда."
-  }
+
+{
+  "name": "Масляный шрот Флеченранда",
+  "type": "food",
+  "regions": [
+    "flechenrand"
+  ],
+  "local": true,
+  "quality": [
+    "poor",
+    "modest"
+  ],
+  "terrains": [
+    "city",
+    "town",
+    "road",
+    "port"
+  ],
+  "min": 2,
+  "max": 5,
+  "weight": 16,
+  "desc": "Картофель, хлебные корки и мясная обрезь, обжаренные с луком. Дешевая сковорода для студентов и рабочих."
+},
+{
+  "name": "Гороховый суп сменной кухни",
+  "type": "food",
+  "regions": [
+    "flechenrand"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 5,
+  "weight": 8,
+  "desc": "Дробленый привозной горох, лук и хлебная крошка; дешевый горячий обед из одного котла."
+},
+{
+  "name": "Рыбная намазка на солодовом хлебе",
+  "type": "food",
+  "regions": [
+    "flechenrand"
+  ],
+  "local": true,
+  "min": 4,
+  "max": 9,
+  "weight": 8,
+  "desc": "Консервированную рыбу растирают с горчицей и подают на плотном хлебе."
+}
 ];

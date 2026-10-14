@@ -1,6 +1,8 @@
 // Service entries. Cleanliness service prices are intentionally preserved as configured.
+import { REGIONAL_SERVICE_TABLE } from './regional-services.js';
 
 export const SERVICE_TABLE = [
+  ...REGIONAL_SERVICE_TABLE,
   {
     "name": "Умывание горячей водой",
     "type": "service",

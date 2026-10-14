@@ -105,5 +105,17 @@ export const LEZHNIZEM_DRINK_TABLE = [
       "road",
       "wilderness"
     ]
-  }
+  },
+{
+  "name": "Лесной взвар с сушеными яблоками",
+  "type": "drink",
+  "regions": [
+    "lezhnizem"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Безалкогольный взвар сушеных яблок и лесных ягод, томленный в печи."
+}
 ];

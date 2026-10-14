@@ -156,24 +156,25 @@ export const SIROST_FOOD_TABLE = [
     "weight": 8,
     "desc": "Лепешка, фасоль и острый соус."
   },
-  {
-    "name": "Фасоль с пряной колбасой",
-    "type": "food",
-    "regions": [
-      "sirost"
-    ],
-    "min": 6,
-    "max": 14,
-    "weight": 8,
-    "desc": "Фасоль, колбаса, чеснок и красный перец.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "village",
-      "road"
-    ]
-  },
+
+{
+  "name": "Печеный перец с белой фасолью",
+  "type": "food",
+  "regions": [
+    "sirost"
+  ],
+  "min": 6,
+  "max": 14,
+  "weight": 8,
+  "desc": "Печеный сладкий перец с фасолью, чесноком и маслом; блюдо без мяса.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "village",
+    "road"
+  ]
+},
   {
     "name": "Морская похлебка с чесноком",
     "type": "food",
@@ -191,22 +192,27 @@ export const SIROST_FOOD_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Кролик с шафрановым рисом",
-    "type": "food",
-    "regions": [
-      "sirost"
-    ],
-    "min": 14,
-    "max": 30,
-    "weight": 5,
-    "desc": "Кролик, рис и тонкий запах шафрана.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town"
-    ]
-  },
+
+{
+  "name": "Кролик с шафрановым рисом",
+  "type": "food",
+  "regions": [
+    "sirost"
+  ],
+  "min": 14,
+  "max": 30,
+  "weight": 5,
+  "desc": "Кролик, рис и тонкий запах шафрана.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town"
+  ],
+  "quality": [
+    "good",
+    "fine"
+  ]
+},
   {
     "name": "Лепешка с сыром и травами",
     "type": "food",
@@ -291,5 +297,29 @@ export const SIROST_FOOD_TABLE = [
       "city",
       "town"
     ]
-  }
+  },
+{
+  "name": "Дорожная миска переселенца",
+  "type": "food",
+  "regions": [
+    "sirost"
+  ],
+  "local": true,
+  "min": 3,
+  "max": 7,
+  "weight": 8,
+  "desc": "Крупа, бобы и печеные овощи; хозяева подают отдельно несколько приправ по обычаям разных семей."
+},
+{
+  "name": "Открытый пирог печатного квартала",
+  "type": "food",
+  "regions": [
+    "sirost"
+  ],
+  "local": true,
+  "min": 5,
+  "max": 12,
+  "weight": 8,
+  "desc": "Плоский пирог с сыром и перцами, нарезанный так, чтобы есть, не пачкая пальцы подливой."
+}
 ];

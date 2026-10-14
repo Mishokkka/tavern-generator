@@ -82,23 +82,24 @@ export const FLECHENRAND_DRINK_TABLE = [
       "mountain"
     ]
   },
-  {
-    "name": "Ячменный эль",
-    "type": "drink",
-    "regions": [
-      "flechenrand"
-    ],
-    "min": 3,
-    "max": 8,
-    "weight": 8,
-    "desc": "Плотный ячменный эль из местной варки.",
-    "local": true,
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ]
-  },
+
+{
+  "name": "Ячменный эль",
+  "type": "drink",
+  "regions": [
+    "flechenrand"
+  ],
+  "min": 3,
+  "max": 8,
+  "weight": 8,
+  "desc": "Плотный ячменный эль местной варки из привозного солода.",
+  "local": true,
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ]
+},
   {
     "name": "Горький травяной биттер",
     "type": "drink",
@@ -115,23 +116,24 @@ export const FLECHENRAND_DRINK_TABLE = [
       "town"
     ]
   },
-  {
-    "name": "Фильтрованная вода промзоны",
-    "type": "drink",
-    "regions": [
-      "flechenrand"
-    ],
-    "local": true,
-    "min": 2,
-    "max": 6,
-    "weight": 10,
-    "desc": "Вода, прошедшая заводской фильтр. Пить можно. Радоваться не обязательно.",
-    "terrains": [
-      "city",
-      "town",
-      "road"
-    ]
-  },
+
+{
+  "name": "Фильтрованная вода промзоны",
+  "type": "drink",
+  "regions": [
+    "flechenrand"
+  ],
+  "local": true,
+  "min": 2,
+  "max": 6,
+  "weight": 10,
+  "desc": "Питьевая вода из очищенной заводской поставки. Ее хранят отдельно от технической и продают кружками.",
+  "terrains": [
+    "city",
+    "town",
+    "road"
+  ]
+},
   {
     "name": "Кислый шахтерский настой",
     "type": "drink",
@@ -148,5 +150,17 @@ export const FLECHENRAND_DRINK_TABLE = [
       "town",
       "mountain"
     ]
-  }
+  },
+{
+  "name": "Отвар жареного зерна",
+  "type": "drink",
+  "regions": [
+    "flechenrand"
+  ],
+  "local": true,
+  "min": 1,
+  "max": 4,
+  "weight": 8,
+  "desc": "Безалкогольный отвар привозного зерна на очищенной воде; дешевый напиток сменной кухни."
+}
 ];
