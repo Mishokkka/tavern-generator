@@ -206,7 +206,7 @@ export class TavernDailyService {
         if (entry.unlimited) continue;
         const rawMax = Number(entry.maxStock ?? entry.stock ?? 1);
         const max = Number.isFinite(rawMax) ? Math.max(0, Math.trunc(rawMax)) : 0;
-        const low = key === "services" ? 0.45 : 0.7;
+        const low = key === "services" && entry.stockModel === 1 && !entry.resource ? 1 : 0.7;
         const high = 1;
         entry.stock = Math.min(max, Math.max(0, Math.round(max * this.#float(low, high))));
         entry.maxStock = max;

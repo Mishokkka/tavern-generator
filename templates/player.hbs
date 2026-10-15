@@ -1,4 +1,4 @@
-<section class="tg-wrap">
+<section class="tg-player-layout">
   {{#if tavern}}
     {{#if isGM}}
       <div class="tg-tavern-navigation">
@@ -9,6 +9,7 @@
         <button type="button" class="tg-new-day" data-gm-action="newDay" {{#if gmActionPending}}disabled{{else}}{{#unless lifeTavern}}disabled{{/unless}}{{/if}} data-tooltip="Начать новый день только в этой таверне" aria-label="Начать новый день только в этой таверне"><i class="fa-solid {{#if gmActionPending}}fa-spinner fa-spin{{else}}fa-sun{{/if}}"></i><span>Новый день</span></button>
       </div>
     {{/if}}
+    <div class="tg-wrap tg-player-scroll">
     <div id="tg-player-panel-menu" class="tg-tab-panel" {{#if isGM}}role="tabpanel" aria-labelledby="tg-player-tab-menu"{{/if}} {{#unless tabs.menu.active}}hidden{{/unless}}>
     <section class="tg-player-toolbar" aria-label="Управление таверной">
       <div class="tg-payment-summary">
@@ -145,7 +146,7 @@
               <article class="tg-row tg-shop-row" data-category="services" data-entry-id="{{id}}" data-unit-price="{{price}}" data-tooltip="{{desc}}" data-search-text="{{desc}}" data-tooltip-direction="UP">
                 <div class="tg-entry-main">
                   <strong class="tg-entry-name">{{name}}</strong>
-                  <small>осталось: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
+                  <small>{{#if resource}}шагов в продаже{{else}}доступно сегодня{{/if}}: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}{{#if seasonalChanged}} · сезонная цена{{/if}}</small>
                 </div>
                 <div class="tg-buy-block">
                   <div class="tg-price">
@@ -258,6 +259,7 @@
         {{/if}}
       </div>
     {{/if}}
+    </div>
   {{else}}
     <section class="tg-empty">
       <i class="fa-solid fa-door-closed"></i>

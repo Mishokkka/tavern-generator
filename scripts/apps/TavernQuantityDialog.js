@@ -60,6 +60,7 @@ export class TavernQuantityDialog extends HandlebarsApplicationMixin(Application
       category: this.category,
       categoryLabel: CATEGORY_LABELS[this.category] ?? "Позиция",
       lodging,
+      resource: Boolean(this.entry.resource),
       quantity: this.quantity,
       days: this.days,
       maxQuantity: this.maxQuantity,
@@ -97,7 +98,8 @@ export class TavernQuantityDialog extends HandlebarsApplicationMixin(Application
     event.preventDefault();
     this.#finish({
       quantity: this.#readQuantity(),
-      days: this.#readDays()
+      days: this.#readDays(),
+      delivery: this.entry.resource ? this.element.querySelector("[name='delivery']")?.value ?? "resource" : undefined
     });
   }
 

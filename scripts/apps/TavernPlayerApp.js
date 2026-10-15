@@ -316,15 +316,16 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     if (!result) return;
     if ((this.tavernOverride ?? TavernState.getCurrent())?.id !== tavernId) return;
-    this.#addCartItem({ category, entry, quantity: result.quantity, days: lodging ? result.days : 1 });
+    this.#addCartItem({ category, entry, quantity: result.quantity, days: lodging ? result.days : 1, delivery: result.delivery });
   }
 
-  #addCartItem({ category, entry, quantity = 1, days = 1 }) {
+  #addCartItem({ category, entry, quantity = 1, days = 1, delivery = "resource" }) {
     if (this.activeRequestId) return;
     const lodging = this.#isLodging(category);
     const safeQuantity = Math.max(1, Math.trunc(Number(quantity) || 1));
     const safeDays = Math.max(1, Math.trunc(Number(days) || 1));
-    const key = this.#cartKey(category, entry.id, lodging ? safeDays : 1);
+    const mode = entry.resource ? (delivery === "inventory" ? "inventory" : "resource") : null;
+    const key = this.#cartKey(category, entry.id, lodging ? safeDays : 1) + (mode ? `:${mode}` : "");
     const max = Math.min(99, Math.max(1, Number(entry.maxPurchaseQuantity ?? 99)));
     const existing = this.cart.find((item) => item.key === key);
 
@@ -343,6 +344,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
         quantity: Math.min(max, safeQuantity),
         days: lodging ? safeDays : 1,
         maxQuantity: max,
+        delivery: mode ?? undefined,
         lodging
       });
     }
@@ -459,6 +461,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
           entryId: item.entryId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          delivery: item.delivery,
           days: item.days
         })),
         tavernId: checkoutRecord.tavernId,
@@ -630,7 +633,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return {
       ...item,
       categoryLabel: CATEGORY_LABELS[item.category] ?? "Позиция",
-      countLabel: item.lodging ? `${item.quantity} мест × ${item.days} дн.` : `× ${item.quantity}`,
+      countLabel: item.lodging ? `${item.quantity} мест × ${item.days} дн.` : item.delivery ? `${item.quantity} шаг(а) · ${item.delivery === "inventory" ? "в инвентарь" : "в ресурс, избыток в инвентарь"}` : `× ${item.quantity}`,
       total,
       totalLabel: TavernGenerator.formatPriceHtml(total)
     };
@@ -763,6 +766,7 @@ export class TavernPlayerApp extends HandlebarsApplicationMixin(ApplicationV2) {
             entryId: item.entryId,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+          delivery: item.delivery,
             days: item.days
           })),
           tavernId: checkoutRecord.tavernId,

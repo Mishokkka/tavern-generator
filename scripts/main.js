@@ -1,4 +1,5 @@
 import { MODULE_ID } from "./constants.js";
+import { TavernLibraryApp } from "./apps/TavernLibraryApp.js";
 import { TavernGMApp } from "./apps/TavernGMApp.js";
 import { TavernPlayerApp } from "./apps/TavernPlayerApp.js";
 import { TavernState } from "./services/TavernState.js";
@@ -17,6 +18,7 @@ import { TavernAtmosphereService } from "./services/TavernAtmosphereService.js";
 let dataValidationReport = null;
 
 const API = {
+  openLibrary: () => TavernLibraryApp.open(),
   openGM: (options = {}) => {
     if (!game.user.isGM) return ui.notifications.warn("Только ГМ может открыть генератор таверны.");
 
@@ -84,6 +86,11 @@ Hooks.once("init", () => {
     type: TavernSoundSettingsApp,
     restricted: true
   });
+  game.settings.registerMenu(MODULE_ID, "tavernLibrary", {
+    name: "Сохранённые таверны", label: "Открыть библиотеку",
+    hint: "Поиск, редактирование и выбор активной таверны.",
+    icon: "fa-solid fa-book-open", type: TavernLibraryApp, restricted: true
+  });
   dataValidationReport = TavernDataValidator.validate();
 
   if (!Handlebars.helpers.eq) {
@@ -130,7 +137,10 @@ Hooks.once("ready", async () => {
   }
   window.setTimeout(() => TavernSceneService.refreshSceneMenuButton(), 250);
   window.setTimeout(() => TavernSceneService.refreshSceneMenuButton(), 1500);
-  Hooks.on(`${MODULE_ID}.refresh`, () => TavernGMApp.renderOpenInstances({ syncCurrent: true }));
+  Hooks.on(`${MODULE_ID}.refresh`, () => {
+    TavernGMApp.renderOpenInstances({ syncCurrent: true });
+    TavernLibraryApp.refresh();
+  });
   Hooks.on(`${MODULE_ID}.tavernDraftUpdated`, (tavern) => TavernGMApp.receiveDraftUpdate(tavern));
 
   game.fblTaverns = API;
