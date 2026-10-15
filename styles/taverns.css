@@ -1223,12 +1223,13 @@ form.fbl-tavern {
 
 .fbl-tavern-quantity-dialog {
   height: auto !important;
-  max-height: 430px !important;
+  max-height: calc(100dvh - 48px) !important;
 }
 
-.fbl-tavern-quantity-dialog .window-content {
-  flex: 0 0 auto !important;
-  overflow: visible !important;
+.application.fbl-tavern.fbl-tavern-quantity-dialog .window-content {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  overflow: auto !important;
 }
 
 .fbl-tavern .tg-quantity-box {
