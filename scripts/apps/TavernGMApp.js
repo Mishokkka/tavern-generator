@@ -1,5 +1,7 @@
 import { TEMPLATES } from "../constants.js";
 import { TAVERN_OPTIONS } from "../data/index.js";
+import { TavernInventory } from "../services/TavernInventory.js";
+import { TavernStockService } from "../services/TavernStockService.js";
 import { TavernGenerator } from "../services/TavernGenerator.js";
 import { TavernSceneService } from "../services/TavernSceneService.js";
 import { TavernState } from "../services/TavernState.js";
@@ -198,6 +200,23 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async _onRender(context, options) {
+    this.element.querySelector("[data-action='renewStockNorms']")?.addEventListener("click", (event) => this.#runAction(async () => {
+      event.preventDefault();
+      if (!this.draft) return;
+      if (!await this.#confirm("Пересчитать и пополнить запасы каталожной еды, напитков и услуг по размеру таверны? Ночлег, цены и свои позиции останутся прежними.", "Обновить нормы запасов")) return;
+      this.#checkpoint();
+      this.draft = TavernStockService.renewCapacities(this.draft);
+      await this.#persistLiveDraft();
+      this.render();
+    }));
+    this.element.querySelector("[data-action='addProvisions']")?.addEventListener("click", (event) => this.#runAction(async () => {
+      event.preventDefault();
+      if (!this.draft) return;
+      this.#checkpoint();
+      this.draft = TavernInventory.addProvisions(this.draft);
+      await this.#persistLiveDraft();
+      this.render();
+    }));
     this.element.querySelector("[data-generation-settings]")?.addEventListener("toggle", (event) => { this.generationExpanded = event.currentTarget.open; });
     for (const button of this.element.querySelectorAll("[data-editor-tab]")) {
       button.addEventListener("click", () => {

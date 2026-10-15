@@ -27,7 +27,7 @@ const { TavernEntryEditorDialog } = await import("../scripts/apps/TavernEntryEdi
 const { CalendariaAdapter } = await import("../scripts/services/CalendariaAdapter.js");
 const { TavernNames } = await import("../scripts/services/TavernNames.js");
 const { TavernSocket } = await import("../scripts/services/TavernSocket.js");
-const { MENU_TABLE } = await import("../scripts/data/index.js");
+const { MENU_TABLE, SERVICE_TABLE } = await import("../scripts/data/index.js");
 
 let privateStoreJournal = null;
 
@@ -141,7 +141,7 @@ test("purchase payload normalization ignores client price and clamps quantities"
     price: 1,
     stock: 9999
   }]);
-  assert.deepEqual(line, { category: "lodging", entryId: "abc", quantity: 99, days: 365, quotedPrice: null });
+  assert.deepEqual(line, { category: "lodging", entryId: "abc", quantity: 99, days: 365, quotedPrice: null, delivery: "resource" });
   assert.equal("price" in line, false);
   assert.equal("stock" in line, false);
 });
@@ -2069,4 +2069,225 @@ test("manual scene path immediately enables creation and whitespace disables it 
     path.value = "   "; handlers.input();
     assert.equal(create.disabled, true);
   } finally { await app._onClose(); }
+});
+
+const { ForbiddenLandsResourceAdapter } = await import("../scripts/services/ForbiddenLandsResourceAdapter.js");
+const { TavernStockService } = await import("../scripts/services/TavernStockService.js");
+const { TavernInventory } = await import("../scripts/services/TavernInventory.js");
+
+async function resourceFixture({ kind = "food", value = 2, delivery = "resource", quantity = 1 } = {}) {
+  const fixture = await purchaseFixture();
+  game.system = { id: "forbidden-lands" };
+  const { actor, tavern, store, request } = fixture;
+  actor.system = { consumable: { food: { value }, water: { value } } };
+  actor.items = [];
+  actor.update = async patch => { for (const [path, value] of Object.entries(patch)) foundry.utils.setProperty(actor, path, value); };
+  actor.createEmbeddedDocuments = async (_type, entries) => {
+    const created = entries.map(entry => ({ ...structuredClone(entry), id: entry._id }));
+    actor.items.push(...created); return created;
+  };
+  actor.deleteEmbeddedDocuments = async (_type, ids) => { actor.items = actor.items.filter(item => !ids.includes(item.id)); };
+  tavern.inventory.services = [{ id: "supplies", name: "Дорожные припасы", type: "service", resource: { kind, steps: 1 }, stock: 80, maxStock: 80, price: 5, basePrice: 5 }];
+  await store.write({ current: tavern, saved: [tavern] });
+  request.items = [{ category: "services", entryId: "supplies", quantity, unitPrice: 5, delivery }];
+  request.expectedTotal = quantity * 5;
+  return fixture;
+}
+
+test("each purchased unit advances exactly one official FBL resource step", async () => {
+  for (const kind of ["food", "water"]) for (let value = 0; value < 4; value++) {
+    const { actor, request } = await resourceFixture({ kind, value });
+    await TavernPurchaseService.execute(request);
+    assert.equal(actor.system.consumable[kind].value, value + 1);
+    assert.equal(actor.items.length, 0);
+    assert.equal(actor.wallet().copper, 95);
+  }
+});
+
+test("overflow becomes gear and retry never grants or charges twice", async () => {
+  const { actor, request, tavern } = await resourceFixture({ value: 2, quantity: 3 });
+  const result = await TavernPurchaseService.execute(request);
+  assert.equal(actor.system.consumable.food.value, 4);
+  assert.equal(actor.items.length, 1);
+  assert.equal(actor.items[0].name, "Пайки [d6]");
+  assert.equal(actor.items[0].type, "gear");
+  assert.equal(actor.items[0].system.weight, "regular");
+  assert.equal(actor.items[0].flags["forbidden-lands"].state, "carried");
+  assert.equal(result.resourceMessages.length, 2);
+  const replay = await TavernPurchaseService.execute(request);
+  assert.equal(replay.replayed, true);
+  assert.equal(actor.items.length, 1);
+  assert.equal(actor.wallet().copper, 85);
+  assert.equal(TavernState.getSavedById(tavern.id).inventory.services[0].stock, 77);
+});
+
+test("inventory delivery packs steps into d12 and remainder without changing the resource", async () => {
+  const { actor, request } = await resourceFixture({ kind: "water", value: 1, delivery: "inventory", quantity: 11 });
+  await TavernPurchaseService.execute(request);
+  assert.equal(actor.system.consumable.water.value, 1);
+  assert.deepEqual(actor.items.map(item => [item.name, item.system.quantity]), [["Вода [d12]", 2], ["Вода [d10]", 1]]);
+  assert.ok(actor.items.every(item => item.system.weight === "regular"));
+});
+
+test("a full resource sends even a single purchased step to inventory", async () => {
+  const { actor, request } = await resourceFixture({ value: 4 });
+  await TavernPurchaseService.execute(request);
+  assert.equal(actor.system.consumable.food.value, 4);
+  assert.equal(actor.items[0].name, "Пайки [d6]");
+});
+
+test("mixed resource and inventory delivery is order independent", async () => {
+  const { actor } = await resourceFixture({ value: 2 });
+  const lines = [{ resource: { kind: "food", steps: 1 }, quantity: 3, delivery: "resource" }, { resource: { kind: "food", steps: 1 }, quantity: 2, delivery: "inventory" }];
+  const a = ForbiddenLandsResourceAdapter.plan(actor, lines, "a");
+  const b = ForbiddenLandsResourceAdapter.plan(actor, [...lines].reverse(), "b");
+  assert.deepEqual(a.after, b.after);
+  assert.deepEqual(a.items.map(item => [item.name, item.system.quantity]), b.items.map(item => [item.name, item.system.quantity]));
+  assert.equal(a.items[0].name, "Пайки [d10]");
+});
+
+test("resource and partially created gear roll back together with wallet and stock", async () => {
+  const { actor, request, tavern } = await resourceFixture({ value: 2, quantity: 7 });
+  actor.items.push({ id: "unrelated", name: "Старое снаряжение" });
+  actor.createEmbeddedDocuments = async (_type, entries) => {
+    actor.items.push({ ...structuredClone(entries[0]), id: entries[0]._id });
+    throw new Error("partial create failure");
+  };
+  await assert.rejects(TavernPurchaseService.execute(request), /partial create failure/);
+  assert.equal(actor.system.consumable.food.value, 2);
+  assert.deepEqual(actor.items.map(item => item.id), ["unrelated"]);
+  assert.equal(actor.wallet().copper, 100);
+  assert.equal(TavernState.getSavedById(tavern.id).inventory.services[0].stock, 80);
+});
+
+test("storage failure after granting supplies rolls all actor changes back", async () => {
+  const { actor, request } = await resourceFixture({ value: 3, quantity: 2 });
+  const original = TavernState.persistPurchaseTavern;
+  TavernState.persistPurchaseTavern = async () => { throw new Error("storage failure"); };
+  try {
+    await assert.rejects(TavernPurchaseService.execute(request), /storage failure/);
+    assert.equal(actor.system.consumable.food.value, 3);
+    assert.equal(actor.items.length, 0);
+    assert.equal(actor.wallet().copper, 100);
+  } finally { TavernState.persistPurchaseTavern = original; }
+});
+
+test("malformed resource fields or delivery reject before payment", async () => {
+  const { actor, request } = await resourceFixture();
+  actor.system.consumable.food.value = 8;
+  await assert.rejects(TavernPurchaseService.execute(request), /Не распознано/);
+  assert.equal(actor.wallet().copper, 100);
+  assert.throws(() => TavernPurchaseService.normalizeLines([{ ...request.items[0], delivery: "other" }]), /способ/);
+});
+
+test("uncertain rollback leaves a receipt with resource plan for GM recovery", async () => {
+  const { actor, request } = await resourceFixture({ value: 4 });
+  actor.createEmbeddedDocuments = async (_type, entries) => { actor.items.push({ ...entries[0], id: entries[0]._id }); throw new Error("creation interrupted"); };
+  actor.deleteEmbeddedDocuments = async () => { throw new Error("delete unavailable"); };
+  await assert.rejects(TavernPurchaseService.execute(request), error => error.code === "PURCHASE_PENDING");
+  const pending = TavernState.pendingPurchases().find(record => record.actorId === actor.id);
+  assert.ok(pending.resourcePlan.items.length);
+  await assert.rejects(TavernPurchaseService.execute(request), error => error.code === "PURCHASE_PENDING");
+  assert.equal(actor.items.length, 1);
+});
+
+test("all stock profiles scale by size and daily services are repeatable", () => {
+  const tables = [...MENU_TABLE, ...SERVICE_TABLE];
+  for (const entry of tables) {
+    const tiny = TavernStockService.range(entry, { size: "tiny" });
+    const large = TavernStockService.range(entry, { size: "large" });
+    assert.ok(tiny.min >= 2 && tiny.max >= tiny.min, entry.name);
+    assert.ok(large.min > tiny.min && large.max > tiny.max, entry.name);
+  }
+  const bath = SERVICE_TABLE.find(entry => entry.name === "Горячая ванна");
+  assert.equal(TavernStockService.profile(bath), "bath");
+  assert.deepEqual(TavernStockService.range(bath, { size: "medium" }), { profile: "bath", min: 10, max: 18 });
+});
+
+test("provisions can be added to old taverns without duplicating or changing rooms", () => {
+  const tavern = TavernGenerator.generate();
+  tavern.inventory.services = [];
+  const next = TavernInventory.addProvisions(tavern);
+  const again = TavernInventory.addProvisions(next);
+  assert.equal(again.inventory.services.length, 2);
+  assert.deepEqual(again.inventory.lodging, tavern.inventory.lodging);
+  assert.equal(tavern.inventory.services.length, 0);
+});
+
+test("renewing stock norms preserves custom entries, prices and lodging", () => {
+  const tavern = TavernGenerator.generate();
+  tavern.inventory.food.push({ id: "custom", name: "Особая авторская позиция", type: "food", stock: 1, maxStock: 1, price: 100 });
+  const next = TavernStockService.renewCapacities(tavern);
+  assert.deepEqual(next.inventory.food.at(-1), tavern.inventory.food.at(-1));
+  assert.deepEqual(next.inventory.lodging, tavern.inventory.lodging);
+  assert.equal(next.inventory.food[0].price, tavern.inventory.food[0].price);
+  assert.ok(next.inventory.food[0].stock >= 2);
+});
+
+test("cart keeps resource and inventory deliveries separate through checkout", async () => {
+  const { tavern } = await resourceFixture();
+  const { TavernQuantityDialog } = await import("../scripts/apps/TavernQuantityDialog.js");
+  const originalPrompt = TavernQuantityDialog.prompt;
+  const originalRequest = TavernSocket.requestCartPurchase;
+  const app = new TavernPlayerApp({ tavern });
+  app.render = () => app;
+  app.renderedTavern = TavernGenerator.decoratePrices(tavern);
+  const handlers = {};
+  const button = { dataset: { category: "services", entryId: "supplies" }, addEventListener: (type, fn) => { handlers[type] = fn; } };
+  app.element = { querySelector: () => null, querySelectorAll: selector => selector === "[data-action='add-cart']" ? [button] : [] };
+  let sent;
+  try {
+    await app._onRender();
+    TavernQuantityDialog.prompt = async () => ({ quantity: 2, days: 1, delivery: "resource" });
+    await handlers.click({ preventDefault() {}, currentTarget: button });
+    TavernQuantityDialog.prompt = async () => ({ quantity: 3, days: 1, delivery: "inventory" });
+    await handlers.click({ preventDefault() {}, currentTarget: button });
+    assert.equal(app.cart.length, 2);
+    assert.notEqual(app.cart[0].key, app.cart[1].key);
+    TavernSocket.requestCartPurchase = async payload => { sent = payload; return null; };
+    await app.checkoutCart();
+    assert.deepEqual(sent.items.map(item => [item.quantity, item.delivery]), [[2, "resource"], [3, "inventory"]]);
+    assert.equal(sent.expectedTotal, 25);
+  } finally { TavernQuantityDialog.prompt = originalPrompt; TavernSocket.requestCartPurchase = originalRequest; }
+});
+
+test("new day restores daily service capacity without changing custom maxima", () => {
+  const tavern = TavernGenerator.generate();
+  tavern.inventory.services = [{ id: "bath", name: "Горячая ванна", type: "service", stockModel: 1, stock: 0, maxStock: 14, price: 8 }];
+  const before = getSetting("dailyInventoryRefreshEnabled");
+  try {
+    setSetting("dailyInventoryRefreshEnabled", true);
+    const next = TavernDailyService.refreshTavernForNewDay(tavern, { dayKey: "world:5" }).tavern;
+    assert.equal(next.inventory.services[0].stock, 14);
+    assert.equal(next.inventory.services[0].maxStock, 14);
+  } finally { setSetting("dailyInventoryRefreshEnabled", before); }
+});
+
+test("takeaway offers have an independent chance and do not displace normal services", () => {
+  const random = Math.random;
+  try {
+    Math.random = () => 0;
+    const present = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "road", priceMultiplier: 1 });
+    assert.equal(present.services.filter(entry => entry.resource).length, 2);
+    assert.equal(present.services.filter(entry => !entry.resource).length, 1);
+    Math.random = () => 0.9999;
+    const absent = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "road", priceMultiplier: 1 });
+    assert.equal(absent.services.filter(entry => entry.resource).length, 0);
+  } finally { Math.random = random; }
+});
+
+ test("stock profiles distinguish rented places, manual labor and consumable salt", () => {
+ for (const [name,profile] of [["Место в стойле","space"],["Укрытие повозки в сарае","space"],["Соль для сохранения припасов","quick"],["Стирка одежды","labor"]]) assert.equal(TavernStockService.profile(SERVICE_TABLE.find(e=>e.name===name)),profile,name);
+});
+
+test("resource precondition failure preserves an external edit even when it matches the planned value", async () => {
+ const {actor,request,tavern}=await resourceFixture({value:2});
+ const spend=CurrencyAdapter.spend;
+ try {
+ CurrencyAdapter.spend=async (...args)=>{await spend.apply(CurrencyAdapter,args);actor.system.consumable.food.value=3;};
+ await assert.rejects(TavernPurchaseService.execute(request), /Запас персонажа изменился/);
+ assert.equal(actor.system.consumable.food.value,3);
+ assert.equal(actor.wallet().copper,100);
+ assert.equal(TavernState.getSavedById(tavern.id).inventory.services[0].stock,80);
+ } finally {CurrencyAdapter.spend=spend;}
 });

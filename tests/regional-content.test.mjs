@@ -39,7 +39,7 @@ test("all regional hospitality pools respect filters, capacity and complete menu
             const pool = table.filter(e => eligible(e, params));
             const requested = key === "lodging" ? Math.max(1, SIZE_MODIFIERS[size].rooms + QUALITY_MODIFIERS[quality].rooms)
               : ({tiny: 1, small: 2, medium: 3, large: 4})[size];
-            assert.equal(inventory[key].length, Math.min(requested, pool.length), `${label}/${key}`);
+            assert.equal(inventory[key].filter(e => !e.resource).length, Math.min(requested, pool.filter(e => !e.resource).length), `${label}/${key}`);
             for (const entry of inventory[key]) {
               assert.ok(pool.some(e => e.name === entry.name), `${label}: unexpected ${entry.name}`);
               if (key === "lodging" && !entry.unlimited) {

@@ -1,3 +1,4 @@
+import { ForbiddenLandsResourceAdapter } from "./ForbiddenLandsResourceAdapter.js";
 import { CleanlinessAdapter } from "./CleanlinessAdapter.js";
 import { CurrencyAdapter } from "./CurrencyAdapter.js";
 import { TavernPricing } from "./TavernPricing.js";
@@ -34,7 +35,9 @@ export class TavernPurchaseService {
       const days = category === "lodging" ? this.#boundedInteger(item?.days, 1, MAX_DAYS) : 1;
       const quotedPrice = item?.unitPrice == null ? null : Number(item.unitPrice);
       if (quotedPrice !== null && (!Number.isSafeInteger(quotedPrice) || quotedPrice < 1)) throw new Error("Некорректная цена в корзине.");
-      return { category, entryId, quantity, days, quotedPrice };
+      const delivery = item?.delivery ?? "resource";
+      if (!["resource", "inventory"].includes(delivery)) throw new Error("Некорректный способ получения припасов.");
+      return { category, entryId, quantity, days, quotedPrice, delivery };
     });
   }
 
@@ -97,6 +100,7 @@ export class TavernPurchaseService {
         entryName: result.entry.name,
         unitPrice,
         total: lineTotal,
+        resource: result.entry.resource ?? null,
         booking: result.booking
       });
 
@@ -106,24 +110,32 @@ export class TavernPurchaseService {
     if (expectedTotal !== null && Number(expectedTotal) !== total) {
       throw new Error("Сумма корзины изменилась. Проверь обновлённые цены и подтверди оплату ещё раз. Деньги не списаны.");
     }
+    const resourcePlan = ForbiddenLandsResourceAdapter.plan(actor, purchaseLines, receiptId);
     CurrencyAdapter.assertCanAfford(actor, total);
     const walletSnapshot = CurrencyAdapter.snapshot(actor);
     const storageSnapshot = TavernState.snapshotTavernStorage(tavern.id);
     const receipt = {
       fingerprint, status: "pending", createdAt: Date.now(), userId: user.id, actorId: actor.id,
       tavernId: tavern.id, total, walletBefore: walletSnapshot,
-      result: { lines: purchaseLines, total, cleanlinessMessages: [] }
+      resourcePlan,
+      result: { lines: purchaseLines, total, cleanlinessMessages: [], resourceMessages: resourcePlan?.messages ?? [] }
     };
     await TavernState.recordPurchase(receiptId, receipt, { transaction });
 
     let updatedTavern;
+    const resourceProgress = { started: false };
     try {
       await CurrencyAdapter.spend(actor, total);
+      await ForbiddenLandsResourceAdapter.apply(actor, resourcePlan, resourceProgress);
       updatedTavern = await TavernState.persistPurchaseTavern(tavern, {
         transaction, receipt: { id: receiptId, record: { ...receipt, status: "completed" } }
       });
     } catch (error) {
       const rollbackErrors = [];
+      if (resourceProgress.started) {
+        try { await ForbiddenLandsResourceAdapter.rollback(actor, resourcePlan); }
+        catch (rollbackError) { rollbackErrors.push(`припасы: ${rollbackError.message ?? rollbackError}`); }
+      }
       try {
         await TavernState.restoreTavernStorageSnapshot(storageSnapshot, { transaction });
       } catch (rollbackError) {
@@ -174,7 +186,8 @@ export class TavernPurchaseService {
       tavern: updatedTavern,
       lines: purchaseLines,
       total,
-      cleanlinessMessages
+      cleanlinessMessages,
+      resourceMessages: resourcePlan?.messages ?? []
     };
   }
 

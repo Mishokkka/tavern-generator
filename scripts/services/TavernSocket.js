@@ -330,8 +330,9 @@ export class TavernSocket {
 
   static async #createPurchaseChat(purchase, { cart }) {
     const actorName = this.#escapeHtml(purchase.actor.name);
-    const cleanlinessMessage = purchase.cleanlinessMessages.length
-      ? `<p>${purchase.cleanlinessMessages.map((message) => this.#escapeHtml(message)).join("<br>")}</p>`
+    const messages = [...(purchase.cleanlinessMessages ?? []), ...(purchase.resourceMessages ?? [])];
+    const cleanlinessMessage = messages.length
+      ? `<p>${messages.map((message) => this.#escapeHtml(message)).join("<br>")}</p>`
       : "";
 
     if (!cart && purchase.lines.length === 1) {

@@ -34,6 +34,12 @@
     </div>
   </div>
 
+  {{#if resource}}
+  <label class="tg-resource-delivery"><span>Как получить припасы</span>
+    <select name="delivery"><option value="resource">В ресурс (избыток — в инвентарь)</option><option value="inventory">Всё в инвентарь предметами Gear</option></select>
+  </label>
+  <p class="tg-cart-note">Цена и количество указаны за один шаг: нет → d6 → d8 → d10 → d12. Запас в инвентаре упаковывается до d12; каждая упаковка весит 1.</p>
+  {{/if}}
   <footer class="tg-dialog-actions">
     <button type="button" data-action="cancel">Отмена</button>
     <button type="submit" aria-label="Добавить в корзину"><i class="fa-solid fa-basket-shopping"></i><span>Добавить</span></button>

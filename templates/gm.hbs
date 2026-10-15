@@ -61,7 +61,7 @@
         </div>
         <p class="tg-help">Процент меняет цены всех позиций этой таверны относительно базовых цен.</p>
       </details>
-      <div class="tg-editor-utilities"><button type="button" data-action="restockAll" data-tooltip="Пополнить еду, напитки и услуги; не освобождает занятые комнаты"><i class="fa-solid fa-boxes-stacked"></i> Пополнить запасы</button><button type="button" data-action="undo" {{#unless canUndo}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i> Отменить правку</button></div>
+      <div class="tg-editor-utilities"><button type="button" data-action="renewStockNorms" data-tooltip="Пересчитать и пополнить каталожные запасы с учётом размера таверны">Обновить нормы запасов</button><button type="button" data-action="restockAll" data-tooltip="Пополнить еду, напитки и услуги; не освобождает занятые комнаты"><i class="fa-solid fa-boxes-stacked"></i> Пополнить запасы</button><button type="button" data-action="undo" {{#unless canUndo}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i> Отменить правку</button></div>
     </div>
     <nav class="tg-editor-tabs" aria-label="Разделы редактора">
       <button type="button" data-editor-tab="menu" class="{{#if (eq editorTab "menu")}}is-active{{/if}}" aria-pressed="{{#if (eq editorTab "menu")}}true{{else}}false{{/if}}">Еда и напитки <span class="tg-count">{{tavern.food.length}} / {{tavern.drinks.length}}</span></button>
@@ -174,7 +174,7 @@
 
       <div class="tg-panel">
         <div class="tg-panel-head">
-          <h3>Услуги</h3>
+          <h3>Услуги</h3><button type="button" data-action="addProvisions">Добавить пайки и воду</button>
           <div class="tg-panel-head-actions">
             <button type="button" data-action="addCustom" data-category="services" data-tooltip="Добавить свою позицию"><i class="fa-solid fa-plus"></i> Своя позиция</button>
             <button type="button" data-action="addRandom" data-category="services" data-tooltip="Добавить случайную позицию"><i class="fa-solid fa-dice"></i> Случайная</button>
@@ -185,7 +185,7 @@
             <article class="tg-row tg-shop-row" data-tooltip="{{desc}}" data-tooltip-direction="UP">
               <div class="tg-entry-main">
                 <strong class="tg-entry-name">{{name}}</strong>
-                <small>осталось: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}</small>
+                <small>{{#if resource}}шагов в продаже{{else}}доступно сегодня{{/if}}: {{stockLabel}}{{#if cleanliness}} · {{cleanliness.label}}{{/if}}</small>
               </div>
               <div class="tg-gm-entry-actions">
                 <div class="tg-price">

@@ -77,6 +77,7 @@ export class TavernDataValidator {
       if (!String(item.name ?? "").trim()) report.errors.push(`${label}: нет name.`);
       if (item.type !== expectedType) report.errors.push(`${label}: type '${item.type}' вместо '${expectedType}'.`);
       if (!String(item.desc ?? "").trim()) report.warnings.push(`${label}: нет desc.`);
+      if (item.resource && (expectedType !== "service" || !["food", "water"].includes(item.resource.kind) || item.resource.steps !== 1)) report.errors.push(`${label}: некорректный ресурс.`);
       this.#validatePriceRange(report, label, item);
       this.#validateReferenceList(report, label, item.terrains, TAVERN_OPTIONS.terrains, "terrains");
       this.#validateReferenceList(report, label, item.quality, TAVERN_OPTIONS.qualities, "quality");

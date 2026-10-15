@@ -7,6 +7,7 @@ import {
   SIZE_MODIFIERS,
   TERRAIN_MODIFIERS
 } from "../data/index.js";
+import { TavernStockService } from "./TavernStockService.js";
 import { TavernMigrations } from "./TavernMigrations.js";
 import { TavernPricing } from "./TavernPricing.js";
 
@@ -23,6 +24,16 @@ export class TavernInventory {
       lodging: this.#generateRooms({ region, quality, size, terrain, priceMultiplier }),
       services: this.#generateServices({ region, quality, size, terrain, priceMultiplier })
     };
+  }
+
+  static addProvisions(tavern) {
+    const clone = TavernMigrations.migrate(tavern);
+    if (!clone) return null;
+    for (const item of SERVICE_TABLE.filter((entry) => entry.resource)) {
+      if (clone.inventory.services.some((entry) => entry.resource?.kind === item.resource.kind)) continue;
+      clone.inventory.services.push(this.#pricedEntry(item, clone));
+    }
+    return clone;
   }
 
   static addRandomEntry(tavern, category) {
@@ -73,7 +84,7 @@ export class TavernInventory {
     const existingNames = new Set((existing ?? []).map((entry) => entry.name));
 
     if (region === IMPORT_MARKET_REGION) {
-      return this.#generateImportedMenuItems({ table, type, region, quality, terrain, priceMultiplier, target, existingNames, sizeMod });
+      return this.#generateImportedMenuItems({ table, type, region, quality, terrain, priceMultiplier, target, existingNames, size });
     }
 
     const localCandidates = table.filter((item) => item.local && !existingNames.has(item.name) && this.#matches(item, { region, quality, terrain }));
@@ -97,10 +108,10 @@ export class TavernInventory {
       picked.push(...this.#weightedUnique(fallback, target - picked.length));
     }
 
-    return picked.map((item) => this.#pricedEntry(item, { region, quality, terrain, priceMultiplier, stockBase: this.#int(1, sizeMod.mealStock) }));
+    return picked.map((item) => this.#pricedEntry(item, { region, quality, terrain, priceMultiplier, size }));
   }
 
-  static #generateImportedMenuItems({ table, type, region, quality, terrain, priceMultiplier, target, existingNames, sizeMod }) {
+  static #generateImportedMenuItems({ table, type, region, quality, terrain, priceMultiplier, target, existingNames, size }) {
     const strictCandidates = this.#uniqueByName(table.filter((item) => !existingNames.has(item.name) && this.#matchesImportedEntry(item, { type, region, quality, terrain, ignoreTerrain: false })));
     const picked = this.#weightedUnique(strictCandidates, target);
 
@@ -109,7 +120,7 @@ export class TavernInventory {
       picked.push(...this.#weightedUnique(fallback, target - picked.length));
     }
 
-    return picked.map((item) => this.#pricedEntry({ ...item, local: false }, { region, quality, terrain, priceMultiplier, stockBase: this.#int(1, sizeMod.mealStock) }));
+    return picked.map((item) => this.#pricedEntry({ ...item, local: false }, { region, quality, terrain, priceMultiplier, size }));
   }
 
   static #generateMenuItem({ region, quality, size, terrain, priceMultiplier, type, existing }) {
@@ -178,18 +189,22 @@ export class TavernInventory {
     const picked = [];
 
     for (let i = 0; i < max; i++) {
-      const entry = this.#generateServiceItem({ region, quality, terrain, priceMultiplier, existing: picked });
+      const entry = this.#generateServiceItem({ region, quality, size, terrain, priceMultiplier, existing: picked });
       if (entry) picked.push(entry);
     }
 
+    const chance = Math.min(0.95, ({ tiny: 0.35, small: 0.55, medium: 0.75, large: 0.9 })[size] + (["road", "port"].includes(terrain) ? 0.1 : 0));
+    for (const item of SERVICE_TABLE.filter((entry) => entry.resource)) {
+      if (Math.random() < chance) picked.push(this.#pricedEntry(item, { region, quality, size, terrain, priceMultiplier }));
+    }
     return picked;
   }
 
-  static #generateServiceItem({ region, quality, terrain, priceMultiplier, existing }) {
+  static #generateServiceItem({ region, quality, size, terrain, priceMultiplier, existing }) {
     const existingNames = new Set((existing ?? []).map((entry) => entry.name));
-    const candidates = SERVICE_TABLE.filter((item) => !existingNames.has(item.name) && this.#matches(item, { quality, terrain, region }));
+    const candidates = SERVICE_TABLE.filter((item) => !item.resource && !existingNames.has(item.name) && this.#matches(item, { quality, terrain, region }));
     const item = (existing.length ? this.#weightedUnique(candidates, 1) : this.#pickWithRegionalFirst(candidates, 1))[0];
-    return item ? this.#pricedEntry(item, { region, quality, terrain, priceMultiplier, stockBase: this.#int(1, 5) }) : null;
+    return item ? this.#pricedEntry(item, { region, quality, terrain, priceMultiplier, size }) : null;
   }
 
   static #pickWithRegionalFirst(candidates, target) {
@@ -199,9 +214,10 @@ export class TavernInventory {
     return [...picked, ...this.#weightedUnique(remaining, target - picked.length)];
   }
 
-  static #pricedEntry(item, { region, quality, terrain, priceMultiplier, stockBase }) {
+  static #pricedEntry(item, { region, quality, size, terrain, priceMultiplier }) {
     const { basePrice, price } = TavernPricing.pricePair(item.min, item.max, quality, terrain, priceMultiplier, { region, type: item.type });
-    const stock = item.unlimited ? null : Math.max(1, Math.round(stockBase * ((QUALITY_MODIFIERS[quality] ?? QUALITY_MODIFIERS.modest).stock ?? 1)));
+    const rolled = TavernStockService.roll(item, { size, quality, region });
+    const stock = item.unlimited ? null : rolled.stock;
 
     return {
       id: foundry.utils.randomID(12),
@@ -215,6 +231,9 @@ export class TavernInventory {
       stock,
       maxStock: item.unlimited ? null : stock,
       unlimited: Boolean(item.unlimited),
+      stockModel: rolled.stockModel,
+      stockProfile: rolled.stockProfile,
+      resource: item.resource ? foundry.utils.deepClone(item.resource) : null,
       cleanliness: item.cleanliness ? foundry.utils.deepClone(item.cleanliness) : null,
       seasonal: item.seasonal ? foundry.utils.deepClone(item.seasonal) : null
     };
