@@ -218,16 +218,28 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.render();
     }));
     this.element.querySelector("[data-generation-settings]")?.addEventListener("toggle", (event) => { this.generationExpanded = event.currentTarget.open; });
-    for (const button of this.element.querySelectorAll("[data-editor-tab]")) {
-      button.addEventListener("click", () => {
+    const editorTabs = [...this.element.querySelectorAll("[data-editor-tab]")];
+    for (const button of editorTabs) {
+      const selectTab = () => {
         if (this.actionPending) return;
         this.editorTab = button.dataset.editorTab;
         for (const panel of this.element.querySelectorAll("[data-editor-panel]")) panel.hidden = panel.dataset.editorPanel !== this.editorTab;
         for (const tab of this.element.querySelectorAll("[data-editor-tab]")) {
           const selected = tab.dataset.editorTab === this.editorTab;
           tab.classList.toggle("is-active", selected);
-          tab.setAttribute("aria-pressed", String(selected));
+          tab.setAttribute("aria-selected", String(selected));
+          tab.tabIndex = selected ? 0 : -1;
         }
+      };
+      button.addEventListener("click", selectTab);
+      button.addEventListener("keydown", (event) => {
+        if (this.actionPending || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const index = editorTabs.indexOf(button);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? editorTabs.length - 1
+          : (index + (event.key === "ArrowRight" ? 1 : -1) + editorTabs.length) % editorTabs.length;
+        editorTabs[next].focus();
+        editorTabs[next].click();
       });
     }
     this.element.querySelector("[data-action='openLibrary']")?.addEventListener("click", () => {

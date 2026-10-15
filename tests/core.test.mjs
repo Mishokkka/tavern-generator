@@ -2291,3 +2291,54 @@ test("resource precondition failure preserves an external edit even when it matc
  assert.equal(TavernState.getSavedById(tavern.id).inventory.services[0].stock,80);
  } finally {CurrencyAdapter.spend=spend;}
 });
+
+
+test("renew stock norms recognizes the legacy ration without renaming or repricing it", () => {
+  const tavern = TavernGenerator.generate({ size: "medium", quality: "modest" });
+  const legacy = { id: "legacy-ration", name: "Путевой паек на день", type: "service", stock: 1, maxStock: 1, price: 13, basePrice: 10 };
+  tavern.inventory.services = [legacy, { ...legacy, id: "unlimited", unlimited: true, stock: null, maxStock: null }];
+  tavern.inventory.food = [{ ...legacy, id: "custom-food", type: "food" }];
+  const next = TavernStockService.renewCapacities(tavern);
+  const entry = next.inventory.services[0];
+  assert.equal(entry.name, legacy.name);
+  assert.equal(entry.id, legacy.id);
+  assert.equal(entry.price, 13);
+  assert.equal(entry.basePrice, 10);
+  assert.equal(entry.stockModel, 1);
+  assert.equal(entry.stockProfile, "meal");
+  assert.ok(entry.stock >= 16 && entry.stock <= 28);
+  assert.equal(entry.maxStock, entry.stock);
+  assert.deepEqual(next.inventory.services[1], tavern.inventory.services[1]);
+  assert.deepEqual(next.inventory.food, tavern.inventory.food);
+  assert.equal(legacy.stock, 1);
+});
+
+test("editor tabs synchronize selected panel, tab stop and keyboard focus", async () => {
+  const app = new TavernGMApp({ tavern: TavernGenerator.generate() });
+  let focused = null;
+  const buttons = ["menu", "stay", "scene"].map(key => ({
+    dataset: { editorTab: key }, handlers: {}, attributes: {}, tabIndex: key === "menu" ? 0 : -1,
+    classList: { toggle() {} },
+    addEventListener(type, handler) { this.handlers[type] = handler; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    focus() { focused = key; }, click() { this.handlers.click(); }
+  }));
+  const panels = buttons.map(button => ({ dataset: { editorPanel: button.dataset.editorTab }, hidden: button.dataset.editorTab !== "menu" }));
+  app.element = { querySelector: () => null, querySelectorAll: selector => selector === "[data-editor-tab]" ? buttons : selector === "[data-editor-panel]" ? panels : [] };
+  try {
+    await app._onRender();
+    const check = key => {
+      assert.equal(app.editorTab, key);
+      assert.deepEqual(panels.filter(panel => !panel.hidden).map(panel => panel.dataset.editorPanel), [key]);
+      assert.deepEqual(buttons.filter(button => button.tabIndex === 0).map(button => button.dataset.editorTab), [key]);
+      assert.deepEqual(buttons.filter(button => button.attributes["aria-selected"] === "true").map(button => button.dataset.editorTab), [key]);
+    };
+    buttons[1].click(); check("stay");
+    const press = (index, key) => buttons[index].handlers.keydown({ key, preventDefault() {} });
+    press(1, "End"); check("scene"); assert.equal(focused, "scene");
+    press(2, "ArrowRight"); check("menu"); assert.equal(focused, "menu");
+    press(0, "ArrowLeft"); check("scene");
+    press(2, "Home"); check("menu");
+    app.actionPending = true; press(0, "ArrowRight"); buttons[1].click(); check("menu");
+  } finally { await app._onClose(); }
+});

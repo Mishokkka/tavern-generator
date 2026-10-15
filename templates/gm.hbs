@@ -63,12 +63,12 @@
       </details>
       <div class="tg-editor-utilities"><button type="button" data-action="renewStockNorms" data-tooltip="Пересчитать и пополнить каталожные запасы с учётом размера таверны">Обновить нормы запасов</button><button type="button" data-action="restockAll" data-tooltip="Пополнить еду, напитки и услуги; не освобождает занятые комнаты"><i class="fa-solid fa-boxes-stacked"></i> Пополнить запасы</button><button type="button" data-action="undo" {{#unless canUndo}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i> Отменить правку</button></div>
     </div>
-    <nav class="tg-editor-tabs" aria-label="Разделы редактора">
-      <button type="button" data-editor-tab="menu" class="{{#if (eq editorTab "menu")}}is-active{{/if}}" aria-pressed="{{#if (eq editorTab "menu")}}true{{else}}false{{/if}}">Еда и напитки <span class="tg-count">{{tavern.food.length}} / {{tavern.drinks.length}}</span></button>
-      <button type="button" data-editor-tab="stay" class="{{#if (eq editorTab "stay")}}is-active{{/if}}" aria-pressed="{{#if (eq editorTab "stay")}}true{{else}}false{{/if}}">Постой и услуги <span class="tg-count">{{tavern.lodging.length}} / {{tavern.services.length}}</span></button>
-      <button type="button" data-editor-tab="scene" class="{{#if (eq editorTab "scene")}}is-active{{/if}}" aria-pressed="{{#if (eq editorTab "scene")}}true{{else}}false{{/if}}">Сцена и тавернщик</button>
+    <nav class="tg-editor-tabs" role="tablist" aria-label="Разделы редактора">
+      <button type="button" data-editor-tab="menu" role="tab" id="tg-editor-tab-menu" aria-controls="tg-editor-panel-menu" tabindex="{{#if (eq editorTab "menu")}}0{{else}}-1{{/if}}" class="{{#if (eq editorTab "menu")}}is-active{{/if}}" aria-selected="{{#if (eq editorTab "menu")}}true{{else}}false{{/if}}">Еда и напитки <span class="tg-count">{{tavern.food.length}} / {{tavern.drinks.length}}</span></button>
+      <button type="button" data-editor-tab="stay" role="tab" id="tg-editor-tab-stay" aria-controls="tg-editor-panel-stay" tabindex="{{#if (eq editorTab "stay")}}0{{else}}-1{{/if}}" class="{{#if (eq editorTab "stay")}}is-active{{/if}}" aria-selected="{{#if (eq editorTab "stay")}}true{{else}}false{{/if}}">Постой и услуги <span class="tg-count">{{tavern.lodging.length}} / {{tavern.services.length}}</span></button>
+      <button type="button" data-editor-tab="scene" role="tab" id="tg-editor-tab-scene" aria-controls="tg-editor-panel-scene" tabindex="{{#if (eq editorTab "scene")}}0{{else}}-1{{/if}}" class="{{#if (eq editorTab "scene")}}is-active{{/if}}" aria-selected="{{#if (eq editorTab "scene")}}true{{else}}false{{/if}}">Сцена и тавернщик</button>
     </nav>
-    <section class="tg-tab-panel tg-menu-stack" data-editor-panel="menu" {{#unless (eq editorTab "menu")}}hidden{{/unless}}>
+    <section class="tg-tab-panel tg-menu-stack" data-editor-panel="menu" role="tabpanel" id="tg-editor-panel-menu" aria-labelledby="tg-editor-tab-menu" {{#unless (eq editorTab "menu")}}hidden{{/unless}}>
       <div class="tg-panel tg-panel-full">
         <div class="tg-panel-head">
           <h3>Еда</h3>
@@ -134,7 +134,7 @@
       </div>
     </section>
 
-    <section class="tg-tab-panel tg-grid tg-grid-2" data-editor-panel="stay" {{#unless (eq editorTab "stay")}}hidden{{/unless}}>
+    <section class="tg-tab-panel tg-grid tg-grid-2" data-editor-panel="stay" role="tabpanel" id="tg-editor-panel-stay" aria-labelledby="tg-editor-tab-stay" {{#unless (eq editorTab "stay")}}hidden{{/unless}}>
       <div class="tg-panel">
         <div class="tg-panel-head">
           <h3>Ночлег</h3>
@@ -205,7 +205,7 @@
       </div>
     </section>
 
-    <section class="tg-tab-panel" data-editor-panel="scene" {{#unless (eq editorTab "scene")}}hidden{{/unless}}>
+    <section class="tg-tab-panel" data-editor-panel="scene" role="tabpanel" id="tg-editor-panel-scene" aria-labelledby="tg-editor-tab-scene" {{#unless (eq editorTab "scene")}}hidden{{/unless}}>
       <div><h3>Сцена таверны</h3><p class="tg-help">Необязательный шаг. Создание сцены или тавернщика также сохраняет заведение в библиотеку.</p></div>
   <section class="tg-scene-controls">
     <label>

@@ -50,7 +50,10 @@ export class TavernStockService {
     const clone = foundry.utils.deepClone(tavern);
     for (const [category, table] of [["food", FOOD_TABLE], ["drinks", DRINK_TABLE], ["services", SERVICE_TABLE]]) {
       for (const entry of clone.inventory?.[category] ?? []) {
-        const source = table.find((item) => item.name === entry.name);
+        const catalogName = category === "services" && entry.name === "Путевой паек на день"
+          ? "Дорожный обед в свёртке" : entry.name;
+        const source = table.find((item) => item.name === entry.name)
+          ?? table.find((item) => item.name === catalogName);
         if (!source || entry.unlimited) continue;
         const stock = this.roll(source, clone);
         Object.assign(entry, stock, { maxStock: stock.stock });
