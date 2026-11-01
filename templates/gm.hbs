@@ -16,8 +16,8 @@
   {{#if tavern}}
   <aside class="tg-draft-status" aria-label="Редактируемая таверна">
     <div><strong>{{tavern.name}}</strong><span>{{tavern.labels.region}}{{#if tavern.city}} · {{tavern.city}}{{/if}} · {{tavern.labels.quality}} · {{tavern.labels.size}} · {{tavern.labels.terrain}}</span></div>
-    <div class="tg-draft-status-end"><span class="tg-status-badge">{{#if isActive}}Активна для игроков{{else}}{{#if isSaved}}В библиотеке{{else}}Не сохранена{{/if}}{{/if}}</span><button type="button" data-action="undo" {{#unless canUndo}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i> Отменить правку</button></div>
-    <p class="tg-help">{{#if autoSave}}Автосохранение{{#if isActive}} · правки сразу видны игрокам{{/if}}.{{#unless isSaved}} Копия ещё не в библиотеке.{{/unless}}{{else}}Черновик не сохранён. Сохранение и запуск — в последнем разделе.{{/if}}</p>
+    <div class="tg-draft-status-end"><span class="tg-status-badge">{{#if isSaved}}В библиотеке{{else}}Не сохранена{{/if}}</span><button type="button" data-action="undo" {{#unless canUndo}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i> Отменить правку</button></div>
+    <p class="tg-help">{{#if autoSave}}Автосохранение · открытые меню этой таверны обновляются вместе с правками.{{else}}Черновик не сохранён. Сохранение и запуск — в последнем разделе.{{/if}}</p>
   </aside>
   {{/if}}
   <div class="tg-workflow-scroll" data-workflow-scroll>
@@ -225,7 +225,7 @@
         </div>
         <details class="tg-scene-options"><summary>После создания сцены</summary><div class="tg-extra-options">
           <label class="tg-check"><input type="checkbox" data-scene-param="openAfterCreate" {{#if sceneConfig.openAfterCreate}}checked{{/if}} /> Открыть сцену у меня</label>
-          <label class="tg-check"><input type="checkbox" data-scene-param="activateScene" {{#if sceneConfig.activateScene}}checked{{/if}} /> Сделать сцену активной в мире</label>
+          <label class="tg-check"><input type="checkbox" data-scene-param="activateScene" {{#if sceneConfig.activateScene}}checked{{/if}} /> Переключить игроков на эту сцену</label>
           <label class="tg-check"><input type="checkbox" data-scene-param="showPlayers" {{#if sceneConfig.showPlayers}}checked{{/if}} /> Переключить игроков на сцену</label>
           <label class="tg-check"><input type="checkbox" data-scene-param="archiveToCompendium" {{#if sceneConfig.archiveToCompendium}}checked{{/if}} /> Сохранить копию сцены в компендиуме</label>
           <label class="tg-check"><input type="checkbox" data-scene-param="createShopNote" {{#if sceneConfig.createShopNote}}checked{{/if}} /> Добавить на сцену кнопку меню таверны</label>
@@ -235,21 +235,18 @@
       </section>
     </section>
     <section id="tg-panel-launch" class="tg-workflow-panel" data-workflow-panel="launch" role="tabpanel" aria-labelledby="tg-step-launch" {{#unless (eq workflowStep 'launch')}}hidden{{/unless}}>
-      <div class="tg-step-heading"><h2 tabindex="-1">Таверна готова к игре</h2><p>Сохрани её на будущее или сразу открой игрокам. Любое действие запуска сначала сохраняет таверну в библиотеку.</p></div>
+      <div class="tg-step-heading"><h2 tabindex="-1">Таверна готова к игре</h2><p>На связанной сцене игроки открывают меню её кнопкой. Можно также показать меню всем подключённым игрокам.</p></div>
       <section class="tg-launch-summary"><h3>{{tavern.name}}</h3><p>{{tavern.labels.region}}{{#if tavern.city}} · {{tavern.city}}{{/if}} · {{tavern.labels.quality}} · {{tavern.labels.size}} · {{tavern.labels.terrain}}</p><div class="tg-launch-counts"><span><strong>{{tavern.food.length}}</strong> блюд</span><span><strong>{{tavern.drinks.length}}</strong> напитков</span><span><strong>{{tavern.lodging.length}}</strong> вариантов ночлега</span><span><strong>{{tavern.services.length}}</strong> услуг</span></div><p class="tg-help">Множитель цен: {{tavern.priceMultiplierPercent}}% · Сцена: {{#if linkedScene}}{{linkedScene.name}}{{else}}без сцены{{/if}} · Тавернщик: {{#if tavernkeeper}}{{tavernkeeper.currentName}}{{else}}без персонажа{{/if}}</p></section>
       <div class="tg-launch-cards">
         <section class="tg-launch-card"><i class="fa-solid fa-floppy-disk"></i><h3>Оставить на потом</h3><p>Сохранить в библиотеку. Можно вернуться к редактированию в любое время.</p><button type="button" data-action="saveDraft" {{#if isSaved}}disabled{{/if}}>{{#if isSaved}}Уже в библиотеке{{else}}Сохранить в библиотеку{{/if}}</button></section>
         <section class="tg-launch-card"><i class="fa-solid fa-eye"></i><h3>Проверить меню</h3><p>Открыть окно этой таверны у себя и проверить, как выглядит ассортимент.</p><button type="button" data-action="openTavern">Предпросмотр меню</button></section>
-        <section class="tg-launch-card tg-launch-primary"><i class="fa-solid fa-users"></i><h3>Начать игру</h3><p>Выбрать эту таверну активной и открыть её меню подключённым игрокам.</p><button type="button" class="tg-primary" data-action="openPlayers"><i class="fa-solid fa-users"></i> Сохранить и открыть игрокам</button></section>
+        <section class="tg-launch-card tg-launch-primary"><i class="fa-solid fa-users"></i><h3>Показать всем игрокам</h3><p>Сохранить эту таверну и открыть её меню подключённым игрокам.</p><button type="button" class="tg-primary" data-action="openPlayers"><i class="fa-solid fa-users"></i> Сохранить и открыть игрокам</button></section>
       </div>
-      <div class="tg-activation-only"><div><strong>{{#if isActive}}Эта таверна уже активна{{else}}Подготовить для самостоятельного входа игроков{{/if}}</strong><p class="tg-help">{{#if isActive}}Игроки могут открыть её меню своим макросом.{{else}}Сохранить и сделать активной. Игроки смогут открыть меню своим макросом, их окна сейчас не откроются.{{/if}}</p></div><button type="button" data-action="confirm" {{#if isActive}}disabled{{/if}}>{{#if isActive}}Активна{{else}}Сделать активной{{/if}}</button></div>
-      {{#if hasCurrent}}{{#unless isActive}}<p class="tg-notice">Сейчас у игроков активна «{{currentName}}». При запуске её заменит «{{tavern.name}}».</p>{{/unless}}{{/if}}
     </section>
     {{/if}}
   </div>
   <footer class="tg-workflow-footer" data-workflow-footer {{#if (eq workflowStep 'setup')}}hidden{{/if}}>
     <div class="tg-workflow-footer-nav"><button type="button" data-workflow-previous data-step-target="assortment" hidden>Назад</button><span class="tg-help">Дополнения можно пропустить.</span><button type="button" class="tg-primary" data-workflow-next data-step-target="extras">Далее →</button></div>
-    {{#if hasCurrent}}<div class="tg-current-footer"><span>Активна для игроков: <strong>{{currentName}}</strong></span><button type="button" data-action="clear">Отключить активную</button></div>{{/if}}
   </footer>
 {{else}}<p>Генератор доступен только ГМу.</p>{{/if}}
 </section>

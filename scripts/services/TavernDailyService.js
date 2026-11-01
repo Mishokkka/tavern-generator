@@ -104,8 +104,13 @@ export class TavernDailyService {
         }
       }
 
-      const tavernData = updatedCurrent ?? null;
-      TavernSocket.refreshAll(tavernData);
+      // Scene menus and their public snapshots each follow their own tavern id.
+      for (const tavern of updatedSaved) {
+        if (changedIds.has(tavern.id)) TavernSocket.refreshAll(tavern);
+      }
+      if (updatedCurrent && changedIds.has(updatedCurrent.id) && !updatedSaved.some((tavern) => tavern.id === updatedCurrent.id)) {
+        TavernSocket.refreshAll(updatedCurrent);
+      }
 
       return {
         changed: changedIds.size,

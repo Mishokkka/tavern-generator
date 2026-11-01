@@ -2,7 +2,6 @@ import { MODULE_ID, TEMPLATES } from "../constants.js";
 import { TAVERN_OPTIONS } from "../data/index.js";
 import { prepareTavernLibrary } from "../services/TavernLibraryView.js";
 import { TavernState } from "../services/TavernState.js";
-import { TavernSocket } from "../services/TavernSocket.js";
 import { TavernPlayerApp } from "./TavernPlayerApp.js";
 
 const instances = new Set();
@@ -22,7 +21,7 @@ export class TavernLibraryApp extends HandlebarsApplicationMixin(ApplicationV2) 
     super(appOptions);
     instances.add(this);
     this.onEdit = onEdit;
-    this.filters = { query: "", region: "", city: "", status: "", sort: "recent", page: 1 };
+    this.filters = { query: "", region: "", city: "", sort: "recent", page: 1 };
     this.collapsedGroups = new Set();
     this.visibleGroupKeys = [];
     this.scrollTop = 0;
@@ -49,7 +48,7 @@ export class TavernLibraryApp extends HandlebarsApplicationMixin(ApplicationV2) 
 
   async _prepareContext() {
     if (!game.user?.isGM) return { isGM: false };
-    const view = prepareTavernLibrary(TavernState.getSaved(), this.filters, TavernState.getCurrent()?.id);
+    const view = prepareTavernLibrary(TavernState.getSaved(), this.filters);
     this.filters.page = view.page;
     this.filters.city = view.cityFilter;
     this.visibleGroupKeys = [];
@@ -135,7 +134,7 @@ export class TavernLibraryApp extends HandlebarsApplicationMixin(ApplicationV2) 
         return;
       }
       if (action === "reset") {
-        Object.assign(this.filters, { query: "", region: "", city: "", status: "", page: 1 });
+        Object.assign(this.filters, { query: "", region: "", city: "", page: 1 });
         this.collapsedGroups.clear();
         this.scrollTop = 0;
         this.focusAfterRender = "[name='libraryQuery']";
@@ -148,14 +147,10 @@ export class TavernLibraryApp extends HandlebarsApplicationMixin(ApplicationV2) 
         else game.fblTaverns.openGM({ tavernId: id });
       } else if (action === "preview") {
         TavernPlayerApp.openSingleton({ tavern, followCurrent: false });
-      } else if (action === "activate") {
-        const active = await TavernState.setCurrent(tavern);
-        TavernSocket.refreshAll(active);
-        ui.notifications.info(`Таверна активна: ${active.name}`);
       } else if (action === "delete") {
         const confirmed = await DialogV2.confirm({
           window: { title: "Удалить сохранённую таверну" }, modal: true, rejectClose: false,
-          content: `<p>Удалить <strong>${foundry.utils.escapeHTML(tavern.name)}</strong> из библиотеки? Это нельзя отменить.</p><p>Активная таверна, сцена и актёр останутся на месте.</p>`
+          content: `<p>Удалить <strong>${foundry.utils.escapeHTML(tavern.name)}</strong> из библиотеки? Это нельзя отменить.</p><p>Связанная сцена и актёр останутся на месте.</p>`
         });
         if (!confirmed || !game.user?.isGM) return;
         await TavernState.deleteSaved(id);

@@ -54,7 +54,7 @@ test("library groups equivalent city names within each region and searches by ci
   assert.equal(novand.cities.at(-1).name, "Без города");
   assert.ok(novand.cities.some(c => c.name === "__proto__"));
   assert.deepEqual(prepareTavernLibrary(entries, { query: "березовка Нованд" }).rows.map(r => r.id), ["two", "one"]);
-  assert.equal(prepareTavernLibrary(entries, { status: "active" }, "one").regionGroups[0].cities[0].total, 1);
+  assert.equal(prepareTavernLibrary(entries, { status: "active" }, "one").matched, entries.length);
 });
 
 test("city filter uses normalized identities, scopes options by region and distinguishes missing cities", () => {

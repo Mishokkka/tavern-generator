@@ -1,7 +1,7 @@
 <section class="tg-wrap tg-library-workspace">
   {{#if isGM}}
   <header class="tg-library-header">
-    <div><h2>Библиотека таверн <span class="tg-count" aria-label="Всего таверн: {{total}}">{{total}}</span></h2><p class="tg-help">Меню открывается у ГМа. «Активировать» выбирает таверну для игроков.</p></div>
+    <div><h2>Библиотека таверн <span class="tg-count" aria-label="Всего таверн: {{total}}">{{total}}</span></h2><p class="tg-help">«Меню» открывает таверну у ГМа. Игроки входят кнопкой на её сцене.</p></div>
     <div class="tg-library-group-actions"><button type="button" data-library-action="collapseGroups" title="Свернуть группы на этой странице">Свернуть</button><button type="button" data-library-action="expandGroups" title="Развернуть группы">Развернуть</button></div>
   </header>
   <div class="tg-library-tools">
@@ -12,7 +12,6 @@
     <div class="tg-library-filters">
       <select data-library-filter="region" aria-label="Регион"><option value="">Все регионы</option>{{selectOptions regions selected=filters.region}}</select>
       <select data-library-filter="city" aria-label="Город"><option value="">Все города</option>{{#each cityChoices}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-      <select data-library-filter="status" aria-label="Статус"><option value="">Все таверны</option><option value="active" {{#if (eq filters.status "active")}}selected{{/if}}>Только активная</option></select>
       <select data-library-filter="sort" aria-label="Порядок таверн внутри города"><option value="recent" {{#if (eq filters.sort "recent")}}selected{{/if}}>Сначала изменённые</option><option value="name" {{#if (eq filters.sort "name")}}selected{{/if}}>По названию</option></select>
     </div>
   </div>
@@ -27,12 +26,11 @@
           {{#each rows}}
           <article class="tg-library-row {{#if active}}is-active{{/if}}">
             <div class="tg-library-description" title="Еда: {{foodCount}} · Напитки: {{drinkCount}} · Постой: {{roomCount}} · Услуги: {{serviceCount}}{{#if sceneName}} · Сцена: {{sceneName}}{{/if}}">
-              <h3>{{name}} {{#if active}}<span class="tg-status-badge">Активна</span>{{/if}}</h3><p>{{qualityLabel}} · {{terrainLabel}} · {{sizeLabel}}{{#if sceneName}} · {{sceneName}}{{/if}}</p>
+              <h3>{{name}}</h3><p>{{qualityLabel}} · {{terrainLabel}} · {{sizeLabel}}{{#if sceneName}} · {{sceneName}}{{/if}}</p>
             </div>
             <div class="tg-library-actions">
               <button type="button" data-library-action="edit" data-tavern-id="{{id}}" aria-label="Редактировать {{name}}">Изменить</button>
               <button type="button" data-library-action="preview" data-tavern-id="{{id}}" aria-label="Предпросмотр меню: {{name}}" title="Предпросмотр меню у ГМа">Меню</button>
-              <button type="button" data-library-action="activate" data-tavern-id="{{id}}" aria-label="Сделать активной: {{name}}" {{#if active}}disabled{{/if}}>Активировать</button>
               <button type="button" class="tg-library-delete" data-library-action="delete" data-tavern-id="{{id}}" aria-label="Удалить {{name}} из библиотеки">Удалить</button>
             </div>
           </article>

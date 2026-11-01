@@ -2,7 +2,7 @@ import { TAVERN_OPTIONS } from "../data/index.js";
 import { TavernLocation } from "./TavernLocation.js";
 
 /** Bounded pages keep large libraries out of the DOM. No changes to stored data. */
-export function prepareTavernLibrary(taverns, filters = {}, currentId = null) {
+export function prepareTavernLibrary(taverns, filters = {}) {
   const normalize = (value) => String(value ?? "").normalize("NFC").toLocaleLowerCase("ru").replace(/ё/g, "е");
   const words = normalize(filters.query).trim().split(/\s+/).filter(Boolean);
   const candidates = taverns.map((tavern) => ({
@@ -15,7 +15,6 @@ export function prepareTavernLibrary(taverns, filters = {}, currentId = null) {
     terrainLabel: tavern.labels?.terrain || TAVERN_OPTIONS.terrains[tavern.terrain] || tavern.terrain,
     qualityLabel: tavern.labels?.quality || TAVERN_OPTIONS.qualities[tavern.quality] || tavern.quality,
     sizeLabel: tavern.labels?.size || TAVERN_OPTIONS.sizes[tavern.size] || tavern.size,
-    active: tavern.id === currentId,
     updated: Number(tavern.updatedAt || tavern.savedAt || 0),
     sceneName: tavern.scene?.name || "",
     foodCount: tavern.inventory?.food?.length ?? 0,
@@ -34,7 +33,6 @@ export function prepareTavernLibrary(taverns, filters = {}, currentId = null) {
     .map(choice => ({ ...choice, selected: choice.value === cityFilter }));
   const rows = candidates.filter((row) => (!filters.region || row.region === filters.region)
     && (!cityFilter || cityValue(row) === cityFilter)
-    && (filters.status !== "active" || row.active)
     && words.every((word) => normalize(`${row.name} ${row.regionLabel} ${row.city} ${row.terrainLabel} ${row.sceneName}`).includes(word)));
   const nameOrder = (a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }) || String(a.id).localeCompare(String(b.id));
   const withinCity = filters.sort === "name" || filters.sort === "region" ? nameOrder

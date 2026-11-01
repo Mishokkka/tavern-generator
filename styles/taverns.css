@@ -2042,8 +2042,6 @@ form.fbl-tavern {
 .fbl-tavern-gm .tg-scene-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fbl-tavern-gm .tg-scene-actions, .fbl-tavern-gm .tg-scene-path { grid-column: 1 / -1; }
 .fbl-tavern-gm .tg-scene-actions, .fbl-tavern-gm .tg-tavernkeeper-actions { flex-wrap: wrap; }
-.fbl-tavern-gm .tg-current-footer { margin-top: auto; border-top: 1px solid var(--tg-border-soft); padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--tg-text-muted); }
-.fbl-tavern-gm .tg-current-footer > span { overflow-wrap: anywhere; min-width: 0; }
 .fbl-tavern-gm .tg-panel-head { flex-wrap: wrap; }
 .fbl-tavern-gm .tg-panel-head-actions button { width: auto; padding: 5px 9px; }
 .fbl-tavern .tg-empty-state { text-align: center; padding: 36px 20px; border: 1px dashed var(--tg-border); border-radius: 10px; color: var(--tg-text-muted); }
@@ -2062,7 +2060,7 @@ form.fbl-tavern {
 .fbl-tavern-library button { background: var(--tg-surface-1) !important; color: var(--tg-text-strong) !important; border: 1px solid var(--tg-border) !important; box-shadow: none !important; }
 .fbl-tavern-library button:hover:not(:disabled) { background: #343d49 !important; border-color: var(--tg-accent) !important; }
 .fbl-tavern-library .tg-library-group-actions button { min-height: 25px; height: 25px; font-size: 11px; }
-.fbl-tavern-library .tg-library-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+.fbl-tavern-library .tg-library-filters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
 .fbl-tavern-library .tg-library-filters select { width: 100%; min-width: 0; height: 28px; margin: 0; padding: 3px 6px; font-size: 12px; }
 .fbl-tavern-library input[type='search'] { width: 100%; height: 30px; padding: 4px 8px; border: 1px solid var(--tg-border); border-radius: var(--tg-radius-sm); background: var(--tg-surface-0); color: var(--tg-text-strong); font-size: 12px; }
 .fbl-tavern-library input[type='search']:focus { outline: 1px solid var(--tg-accent); }
@@ -2218,13 +2216,9 @@ form.fbl-tavern {
 .fbl-tavern-gm .tg-launch-card > p { color: var(--tg-text-muted); font-size: 12px; line-height: 1.6; margin: 0 0 4px; flex: 1; }
 .fbl-tavern-gm .tg-launch-card > button { width: 100%; }
 .fbl-tavern-gm .tg-launch-primary { background: #e2bd7b08; border-color: #e2bd7b75; }
-.fbl-tavern-gm .tg-activation-only { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 14px 0; }
-.fbl-tavern-gm .tg-activation-only > div { flex: 1 1 280px; }
 .fbl-tavern-gm .tg-workflow-footer { flex: 0 0 auto; background: var(--tg-bg-1); border-top: 1px solid var(--tg-border-soft); padding: 8px 14px; }
 .fbl-tavern-gm .tg-workflow-footer-nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .fbl-tavern-gm .tg-workflow-footer-nav .tg-help { flex: 1; margin: 0; }
-.fbl-tavern-gm .tg-workflow-footer .tg-current-footer { margin-top: 10px; padding-top: 8px; }
-.fbl-tavern-gm .tg-current-footer button { min-height: 26px; padding: 4px 8px; font-size: 11px; }
 @container tavern (max-width: 780px) {
   .fbl-tavern-gm .tg-workflow > button { padding: 10px; gap: 7px; }
   .fbl-tavern-gm .tg-setup-layout, .fbl-tavern-gm .tg-editor-basics { grid-template-columns: 1fr; }
@@ -2245,7 +2239,6 @@ form.fbl-tavern {
   .fbl-tavern-gm .tg-setup-fields, .fbl-tavern-gm .tg-scene-fields, .fbl-tavern-gm .tg-stock-actions { grid-template-columns: 1fr; }
   .fbl-tavern-gm .tg-path-picker { flex-wrap: wrap; }
   .fbl-tavern-gm .tg-generation-submit button { width: 100%; }
-  .fbl-tavern-gm .tg-current-footer { flex-wrap: wrap; }
 }
 .fbl-tavern-player .tg-player-layout { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; gap: 0; }
 .fbl-tavern-player .tg-player-layout > .tg-tavern-navigation { position: static; flex: 0 0 auto; margin: 0; padding: 10px var(--tg-pad-lg); background: var(--tg-bg-1); }
