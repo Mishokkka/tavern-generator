@@ -302,6 +302,7 @@ export class CharacterForgeAdapter {
     const actor = await this.resolveTavernkeeperActor(tavern, { importFromCompendium: true });
     if (!actor) throw new Error("Актёр тавернщика не найден.");
     const previous = tavern.tavernkeeper ?? {};
+    const previousPortrait = previous.img ?? previous.portrait;
     const flags = actor.flags?.[FORGE_MODULE_ID] ?? {};
     const result = {
       actor,
@@ -313,7 +314,10 @@ export class CharacterForgeAdapter {
     const randomImg = actor.prototypeToken?.randomImg;
     const flagToken = flags.token;
     await TavernkeeperArt.synchronize(result, this.api() ?? {});
-    const changed = before !== actor.prototypeToken?.texture?.src || randomImg !== actor.prototypeToken?.randomImg || flagToken !== result.art.token;
+    const changed = previousPortrait !== actor.img
+      || before !== actor.prototypeToken?.texture?.src
+      || randomImg !== actor.prototypeToken?.randomImg
+      || flagToken !== result.art.token;
     const compendium = changed && previous.compendium ? await this.archiveActor(actor, tavern) : previous.compendium;
     return {
       ...previous,

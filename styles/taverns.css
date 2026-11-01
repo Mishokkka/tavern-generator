@@ -2199,12 +2199,11 @@ form.fbl-tavern {
 .fbl-tavern-gm .tg-current-footer button { min-height: 26px; padding: 4px 8px; font-size: 11px; }
 @container tavern (max-width: 780px) {
   .fbl-tavern-gm .tg-workflow > button { padding: 10px; gap: 7px; }
-  .fbl-tavern-gm .tg-workflow small { display: none; display: none; }
   .fbl-tavern-gm .tg-setup-layout, .fbl-tavern-gm .tg-editor-basics { grid-template-columns: 1fr; }
   .fbl-tavern-gm .tg-launch-cards { grid-template-columns: 1fr; }
   .fbl-tavern-gm [data-editor-panel='menu'] .tg-card-grid { grid-template-columns: minmax(0, 1fr); }
   .fbl-tavern-gm .tg-generation-plan { padding: 16px; }
-  .fbl-tavern-gm .tg-generation-plan > i { display: none; display: none; }
+  .fbl-tavern-gm .tg-generation-plan > i { display: none; }
   .fbl-tavern-gm .tg-workflow-footer-nav .tg-help { display: none; }
   .fbl-tavern-gm .tg-workflow-footer-nav { justify-content: flex-end; }
   .fbl-tavern-gm .tg-workflow-footer-nav > [data-workflow-previous] { margin-right: auto; }

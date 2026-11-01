@@ -124,6 +124,53 @@ test("explicit refresh repairs an existing keeper and its archive without changi
   assert.equal(archived, pairedToken);
 });
 
+for (const portraitField of ["img", "portrait"]) {
+  test(`portrait-only refresh rearchives changed ${portraitField} metadata with the same token`, async (t) => {
+    const { actor, api } = fixture(t, { set: { pairByName: false } });
+    const oldActors = game.actors; const oldApi = game.fblCharacterForge;
+    const archive = CharacterForgeAdapter.archiveActor;
+    t.after(() => { game.actors = oldActors; game.fblCharacterForge = oldApi; CharacterForgeAdapter.archiveActor = archive; });
+    actor.prototypeToken.texture.src = pairedToken;
+    actor.flags["fbl-character-forge"] = { artSet: "humans", token: pairedToken };
+    actor.img = `${folder}/new-portrait.webp`;
+    game.actors = new Map([[actor.id, actor]]); game.fblCharacterForge = api;
+    const previousArchive = { id: "archive", pack: "world.keepers" };
+    const tavern = { id: "tavern", name: "У моста", tavernkeeper: {
+      actorId: actor.id, [portraitField]: portrait, tokenImg: pairedToken, createdAt: 123, compendium: previousArchive
+    } };
+    const archived = [];
+    CharacterForgeAdapter.archiveActor = async (current) => {
+      archived.push({ portrait: current.img, token: current.prototypeToken.texture.src });
+      return { ...previousArchive, updatedAt: 456 };
+    };
+    const meta = await CharacterForgeAdapter.refreshTavernkeeperArt(tavern);
+    assert.deepEqual(archived, [{ portrait: actor.img, token: pairedToken }]);
+    assert.equal(meta.img, actor.img);
+    assert.equal(meta.portrait, actor.img);
+    assert.equal(meta.tokenImg, pairedToken);
+    assert.equal(meta.actorId, actor.id);
+    assert.equal(meta.createdAt, 123);
+    assert.equal(meta.compendium.updatedAt, 456);
+  });
+}
+
+test("refresh skips archiving when portrait and token state are unchanged", async (t) => {
+  const { actor, api } = fixture(t);
+  const oldActors = game.actors; const oldApi = game.fblCharacterForge;
+  const archive = CharacterForgeAdapter.archiveActor;
+  t.after(() => { game.actors = oldActors; game.fblCharacterForge = oldApi; CharacterForgeAdapter.archiveActor = archive; });
+  actor.prototypeToken.texture.src = pairedToken;
+  actor.flags["fbl-character-forge"] = { artSet: "humans", token: pairedToken };
+  game.actors = new Map([[actor.id, actor]]); game.fblCharacterForge = api;
+  CharacterForgeAdapter.archiveActor = async () => { assert.fail("Unchanged art must not be rearchived"); };
+  const compendium = { id: "archive", pack: "world.keepers" };
+  const tavern = { id: "tavern", tavernkeeper: { actorId: actor.id, img: portrait, tokenImg: pairedToken, compendium } };
+  const meta = await CharacterForgeAdapter.refreshTavernkeeperArt(tavern);
+  assert.deepEqual(meta.compendium, compendium);
+  assert.equal(meta.img, portrait);
+  assert.equal(meta.tokenImg, pairedToken);
+});
+
 test("tavernkeeper art is corrected before archiving and persisted in both metadata fields", async (t) => {
   const { actor, result, api } = fixture(t);
   const oldApi = game.fblCharacterForge;

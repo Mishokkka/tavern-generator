@@ -550,8 +550,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     this.#readSceneConfig();
     this.#readKeeperConfig();
-    if (this.draft.scene && !await this.#confirm("Создать другую сцену для этой таверны? Связь переключится на новую сцену, предыдущая сцена останется в мире.", "Создать другую сцену")) return;
     const button = event.currentTarget;
+    if (this.draft.scene && !await this.#confirm("Создать другую сцену для этой таверны? Связь переключится на новую сцену, предыдущая сцена останется в мире.", "Создать другую сцену")) return;
     button.disabled = true;
 
     try {
@@ -604,8 +604,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     event.preventDefault();
     if (!game.user.isGM) return ui.notifications.warn("Только ГМ может создавать тавернщиков.");
     if (!this.draft) return ui.notifications.warn("Сначала сгенерируй таверну.");
-    if (this.draft.tavernkeeper && !await this.#confirm("Создать нового тавернщика? Таверна и её токен будут связаны с новым актёром. Прежний актёр останется в мире.", "Заменить тавернщика")) return;
     const button = event.currentTarget;
+    if (this.draft.tavernkeeper && !await this.#confirm("Создать нового тавернщика? Таверна и её токен будут связаны с новым актёром. Прежний актёр останется в мире.", "Заменить тавернщика")) return;
     button.disabled = true;
 
     try {

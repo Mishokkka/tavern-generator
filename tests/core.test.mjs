@@ -21,6 +21,7 @@ const { FoundryDocumentUtils } = await import("../scripts/services/FoundryDocume
 const { TavernSocketIdentity } = await import("../scripts/services/TavernSocketIdentity.js");
 const { TavernSocketRelay } = await import("../scripts/services/TavernSocketRelay.js");
 const { TavernSceneService } = await import("../scripts/services/TavernSceneService.js");
+const { CharacterForgeAdapter } = await import("../scripts/services/CharacterForgeAdapter.js");
 const { TavernPlayerApp } = await import("../scripts/apps/TavernPlayerApp.js");
 const { TavernGMApp } = await import("../scripts/apps/TavernGMApp.js");
 const { TavernEntryEditorDialog } = await import("../scripts/apps/TavernEntryEditorDialog.js");
@@ -1361,7 +1362,7 @@ async function gmButtons(tavern, { savedTavernId = null } = {}) {
   const listeners = new Map();
   const buttons = new Map();
   const button = (selector) => {
-    if (!buttons.has(selector)) buttons.set(selector, { dataset: {}, addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } });
+    if (!buttons.has(selector)) buttons.set(selector, { dataset: {}, disabled: false, isConnected: true, addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } });
     return buttons.get(selector);
   };
   app.render = () => app;
@@ -1379,7 +1380,9 @@ async function gmButtons(tavern, { savedTavernId = null } = {}) {
     const selector = `[data-action='${action}']`;
     const currentTarget = button(selector);
     Object.assign(currentTarget.dataset, dataset);
-    return listeners.get(`${selector}:click`)({ preventDefault() {}, currentTarget });
+    const event = { preventDefault() {}, currentTarget };
+    try { return listeners.get(`${selector}:click`)(event); }
+    finally { event.currentTarget = null; } // DOM dispatch ends before async handlers resume.
   } };
 }
 
@@ -2493,6 +2496,59 @@ test("scene creation receives the automatic keeper placement choice", async () =
     assert.deepEqual(choices, [false, true]);
   } finally { TavernSceneService.createSceneForTavern = original; await app._onClose(); }
 });
+
+for (const action of ["createScene", "createTavernkeeper"]) {
+  test(`GM ${action} replacement survives an expired DOM event and cancellation`, async () => {
+    await purchaseFixture();
+    const draft = TavernGenerator.generate();
+    if (action === "createScene") draft.scene = { id: "previous-scene" };
+    else draft.tavernkeeper = { actorId: "previous-keeper" };
+    const { app, click } = await gmButtons(draft);
+    app.keeperConfig.placeTokenOnScene = false;
+    const button = app.element.querySelector(`[data-action='${action}']`);
+    const service = action === "createScene" ? TavernSceneService : CharacterForgeAdapter;
+    const method = action === "createScene" ? "createSceneForTavern" : "createTavernkeeper";
+    const create = service[method];
+    const confirm = foundry.applications.api.DialogV2.confirm;
+    let release, pending, calls = 0;
+    service[method] = async () => {
+      calls += 1;
+      assert.equal(button.disabled, true);
+      return action === "createScene"
+        ? { scene: { id: "replacement-scene", name: "Новая сцена" }, meta: { id: "replacement-scene" } }
+        : { actorId: "replacement-keeper", name: "Новый тавернщик" };
+    };
+    foundry.applications.api.DialogV2.confirm = () => new Promise(resolve => { release = resolve; });
+    try {
+      const before = structuredClone(app.draft);
+      pending = click(action);
+      assert.equal(app.actionPending, true);
+      assert.equal(calls, 0);
+      release(false);
+      await pending;
+      assert.deepEqual(app.draft, before);
+      assert.equal(button.disabled, false);
+      assert.equal(app.actionPending, false);
+
+      pending = click(action);
+      assert.equal(calls, 0);
+      release(true);
+      await pending;
+      assert.equal(calls, 1);
+      const saved = TavernState.getSavedById(app.draft.id);
+      if (action === "createScene") assert.equal(saved.scene.id, "replacement-scene");
+      else assert.equal(saved.tavernkeeper.actorId, "replacement-keeper");
+      assert.equal(button.disabled, false);
+      assert.equal(app.actionPending, false);
+    } finally {
+      release?.(false);
+      await pending;
+      service[method] = create;
+      foundry.applications.api.DialogV2.confirm = confirm;
+      await app._onClose();
+    }
+  });
+}
 
 test("GM generates a custom name, saves and reloads it without using it for random renaming", async () => {
   const { tavern } = await purchaseFixture();
