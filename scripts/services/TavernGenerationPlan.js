@@ -10,12 +10,14 @@ export class TavernGenerationPlan {
     const target = Math.max(4, size.menu + quality.menu);
     const food = Math.max(2, Math.round(target * 0.68));
     const multiplier = TavernPricing.normalizeMultiplier(params.priceMultiplier ?? 1);
+    const waterMultiplier = TavernPricing.resourceMultiplier(params.region, { kind: "water" });
     const percent = Math.round(multiplier * 100);
     const factor = (value) => Number(value.toFixed(2)).toLocaleString("ru-RU");
     return {
       menu: `До ${food} блюд и ${Math.max(1, target - food)} напитков`,
       lodging: `До ${Math.max(1, size.rooms + quality.rooms)} вариантов ночлега`,
-      prices: `Качество ×${factor(quality.price)} · местность ×${factor(terrain.price)} · наценка ×${factor(multiplier)}`,
+      prices: `Качество ×${factor(quality.price)} · местность ×${factor(terrain.price)} · наценка ×${factor(multiplier)}`
+        + (waterMultiplier > 1 ? ` · шаг воды в дорогу ×${factor(waterMultiplier)}` : ""),
       markup: percent === 100 ? "100% — без дополнительной наценки." : `${percent}% — цены ×${factor(multiplier)} после поправок качества и местности.`,
       stock: "Размер и качество задают объём запасов; местность — начальную занятость ночлега."
     };

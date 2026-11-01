@@ -216,7 +216,7 @@ export class TavernInventory {
   }
 
   static #pricedEntry(item, { region, quality, size, terrain, priceMultiplier }) {
-    const { basePrice, price } = TavernPricing.pricePair(item.min, item.max, quality, terrain, priceMultiplier, { region, type: item.type });
+    const { basePrice, price } = TavernPricing.pricePair(item.min, item.max, quality, terrain, priceMultiplier, { region, type: item.type, resource: item.resource });
     const rolled = TavernStockService.roll(item, { size, quality, region });
     const stock = item.unlimited ? null : rolled.stock;
 

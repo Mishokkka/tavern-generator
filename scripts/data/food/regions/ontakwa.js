@@ -113,8 +113,8 @@ export const ONTAKWA_FOOD_TABLE = [
     "ontakwa"
   ],
   "local": true,
-  "min": 6,
-  "max": 14,
+  "min": 4,
+  "max": 9,
   "weight": 7,
   "desc": "Пшеница из хлебных долин, сушеная слива и масло; плотный завтрак перед дорогой.",
   "terrains": [

@@ -76,8 +76,8 @@ export const SIROST_DRINK_TABLE = [
   "regions": [
     "sirost"
   ],
-  "min": 5,
-  "max": 12,
+  "min": 3,
+  "max": 7,
   "weight": 6,
   "desc": "Безалкогольный напиток из изюма и апельсиновой цедры; подается теплым.",
   "local": true,
@@ -94,8 +94,8 @@ export const SIROST_DRINK_TABLE = [
   "regions": [
     "sirost"
   ],
-  "min": 6,
-  "max": 14,
+  "min": 2,
+  "max": 5,
   "weight": 5,
   "desc": "Горький безалкогольный настой обжаренного корня, который любят в дешевых читальнях.",
   "local": true,
@@ -103,7 +103,8 @@ export const SIROST_DRINK_TABLE = [
     "city",
     "town",
     "road"
-  ]
+  ],
+  "menuTier": "basic"
 },
   {
     "name": "Республиканская горькая",

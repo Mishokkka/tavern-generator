@@ -3,6 +3,7 @@ import { TAVERN_SCHEMA_VERSION } from "./TavernMigrations.js";
 import { MoneyFormatter } from "./MoneyFormatter.js";
 import { TavernPricing } from "./TavernPricing.js";
 import { TavernNames } from "./TavernNames.js";
+import { TavernLocation } from "./TavernLocation.js";
 import { TavernInventory } from "./TavernInventory.js";
 import { TavernViewModel } from "./TavernViewModel.js";
 import { TavernEditor } from "./TavernEditor.js";
@@ -23,6 +24,7 @@ export class TavernGenerator {
       schemaVersion: TAVERN_SCHEMA_VERSION,
       id: foundry.utils.randomID(16),
       name: TavernNames.normalizeCustomName(params.name) || TavernNames.generate(region, terrain),
+      city: TavernLocation.normalizeCity(params.city),
       region,
       quality,
       size,

@@ -5,6 +5,7 @@ import { TavernStockService } from "../services/TavernStockService.js";
 import { TavernGenerator } from "../services/TavernGenerator.js";
 import { TavernGenerationPlan } from "../services/TavernGenerationPlan.js";
 import { TavernNames } from "../services/TavernNames.js";
+import { TavernLocation } from "../services/TavernLocation.js";
 import { TavernSceneService } from "../services/TavernSceneService.js";
 import { TavernState } from "../services/TavernState.js";
 import { TavernSocket } from "../services/TavernSocket.js";
@@ -215,6 +216,16 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       event.preventDefault();
       this.#runAction(() => this.#onGenerate(event));
     });
+    this.element.querySelector("[name='generationCity']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onGenerate(event));
+    });
+    this.element.querySelector("[name='tavernCity']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onSetCity(event));
+    });
     this.element.querySelector("[name='tavernName']")?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -270,6 +281,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       TavernLibraryApp.open({ onEdit: (id) => this.rendered ? this.loadSavedTavern(id) : game.fblTaverns.openGM({ tavernId: id }) });
     });
     this.element.querySelector("[data-action='rename']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRename(event)));
+    this.element.querySelector("[data-action='setCity']")?.addEventListener("click", (event) => this.#runAction(() => this.#onSetCity(event)));
     this.element.querySelector("[data-action='openTavern']")?.addEventListener("click", (event) => {
       event.preventDefault();
       if (game.user.isGM && this.draft) TavernPlayerApp.openSingleton({ tavern: this.draft, followCurrent: false });
@@ -526,6 +538,17 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (name === this.draft.name) return;
     this.#checkpoint();
     this.draft.name = name;
+    await this.#persistLiveDraft();
+    this.render();
+  }
+
+  async #onSetCity(event) {
+    event.preventDefault();
+    if (!this.draft) return;
+    const city = TavernLocation.normalizeCity(this.element.querySelector("[name='tavernCity']")?.value);
+    if (city === this.draft.city) return;
+    this.#checkpoint();
+    this.draft.city = city;
     await this.#persistLiveDraft();
     this.render();
   }
@@ -807,6 +830,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #readParams() {
     const form = this.element;
     this.params.name = form.querySelector("[name='generationName']")?.value ?? this.params.name ?? "";
+    this.params.city = form.querySelector("[name='generationCity']")?.value ?? this.params.city ?? "";
     for (const key of ["region", "quality", "size", "terrain"]) {
       this.params[key] = form.querySelector(`[name='${key}']`)?.value ?? this.params[key];
     }
@@ -918,6 +942,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #paramsFromTavern(tavern) {
     return {
       name: "",
+      city: TavernLocation.normalizeCity(tavern?.city),
       region: tavern?.region ?? "common",
       quality: tavern?.quality ?? "modest",
       size: tavern?.size ?? "medium",

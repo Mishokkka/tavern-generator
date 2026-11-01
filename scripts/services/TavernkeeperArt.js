@@ -35,18 +35,25 @@ export class TavernkeeperArt {
     if (!actor || !portrait) return;
     const setKey = result.artSetKey ?? actor.getFlag?.(FORGE_ID, "artSet");
     const set = this.#contextSet(api.getArtSets?.()?.[setKey] ?? {}, result);
+    const portraitFolder = set.portraitFolder || set.folder;
+    const tokenFolder = set.tokenFolder || set.folder;
     let token = result.art.token || portrait;
     const rules = {
       suffixes: list(set.tokenSuffixes),
       patterns: [...new Set([...DEFAULT_PATTERNS, ...list(set.tokenNamePatterns), ...list(this.#setting("tokenNamePatterns"))])],
-      sameFolder: Boolean(set.sameFolderTokenSuffix || set.folder || (set.portraitFolder && set.portraitFolder === set.tokenFolder))
+      sameFolder: Boolean(set.sameFolderTokenSuffix || (portraitFolder && tokenFolder && normalize(portraitFolder) === normalize(tokenFolder)))
+    };
+    const matchesToken = (path) => {
+      const folder = normalize(String(set.tokenFolder ?? "").replace(/\/+$/, ""));
+      const parent = normalize(directory(path));
+      return this.matches(portrait, path, rules) && (!folder || parent === folder || parent.startsWith(`${folder}/`));
     };
 
     // Unpaired sets intentionally allow independent artwork; older APIs may not
     // expose their pairing configuration. Still synchronize the returned token.
-    if (set.pairByName && !this.matches(portrait, token, rules)) {
+    if (set.pairByName && !matchesToken(token)) {
       const candidates = new Set(list(set.tokenFiles ?? set.tokens));
-      const folders = new Set([directory(portrait), directory(token)]);
+      const folders = new Set([directory(portrait), directory(token), set.tokenFolder]);
       const FilePickerClass = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
       for (const folder of folders) {
         if (!folder || !FilePickerClass?.browse) continue;
@@ -59,7 +66,7 @@ export class TavernkeeperArt {
       }
       const registry = api.exportAssetRegistry?.()?.[setKey]?.assets ?? {};
       token = [...candidates].find((path) => /\.(?:avif|gif|jpe?g|png|svg|webp|webm|mp4)(?:[?#].*)?$/i.test(path)
-        && normalize(path) !== normalize(portrait) && this.matches(portrait, path, rules)
+        && normalize(path) !== normalize(portrait) && matchesToken(path)
         && (!registry[path] || registry[path].actorId === actor.id)) || portrait;
       if (token === portrait) ui.notifications.warn("Для портрета тавернщика не найдена свободная пара токена. Для токена использован его портрет.");
     }

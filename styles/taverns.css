@@ -2059,7 +2059,11 @@ form.fbl-tavern {
 .fbl-tavern-library .tg-library-row { display: flex; justify-content: space-between; gap: 16px; padding: 14px; background: var(--tg-surface-0); border: 1px solid var(--tg-border-soft); border-radius: var(--tg-radius); }
 .fbl-tavern-library .tg-library-row.is-active { border-left: 3px solid var(--tg-accent); }
 .fbl-tavern-library .tg-library-description { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.fbl-tavern-library .tg-library-description h3 { font-size: 17px; line-height: 1.5; }
+.fbl-tavern-library .tg-library-description h5 { margin: 0; color: var(--tg-text-strong) !important; font-size: 17px; line-height: 1.5; }
+.fbl-tavern-library .tg-library-region > h3 { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0 8px; color: var(--tg-accent); }
+.fbl-tavern-library .tg-library-city > h4 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin: 10px 0 7px; color: var(--tg-text-strong) !important; font-size: 15px; overflow-wrap: anywhere; }
+.fbl-tavern-library .tg-library-region h3 > small, .fbl-tavern-library .tg-library-city h4 > small { font-size: 11px; font-weight: normal; color: var(--tg-text-muted); }
+.fbl-tavern-library .tg-library-city { display: flex; flex-direction: column; gap: 8px; }
 .fbl-tavern-library .tg-library-description p { margin: 5px 0; font-size: 12px; color: var(--tg-text-muted); }
 .fbl-tavern-library .tg-library-description small { color: var(--tg-text-faint); font-size: 11px; }
 .fbl-tavern-library .tg-library-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 34px; gap: 6px; align-content: center; flex: 0 0 320px; }
@@ -2147,7 +2151,7 @@ form.fbl-tavern {
 .fbl-tavern-gm .tg-generation-submit { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; padding-top: 10px; border-top: 1px solid var(--tg-border-soft); }
 .fbl-tavern-gm .tg-generation-submit p { flex: 1 1 260px; color: var(--tg-text-muted); font-size: 12px; line-height: 1.6; margin: 0; }
 .fbl-tavern-gm .tg-generation-submit button { min-height: 36px; padding: 8px 12px; }
-.fbl-tavern-gm .tg-editor-basics { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; padding: 12px; border: 1px solid var(--tg-border-soft); border-radius: 8px; background: var(--tg-surface-0); }
+.fbl-tavern-gm .tg-editor-basics { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; padding: 12px; border: 1px solid var(--tg-border-soft); border-radius: 8px; background: var(--tg-surface-0); }
 .fbl-tavern-gm .tg-name-editor, .fbl-tavern-gm .tg-price-editor { display: flex; flex-wrap: wrap; align-content: start; gap: 8px; }
 .fbl-tavern-gm .tg-name-editor > label { flex: 1 1 100%; }
 .fbl-tavern-gm .tg-price-editor > label { flex: 1 1 170px; }

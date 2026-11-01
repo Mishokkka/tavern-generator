@@ -46,7 +46,7 @@ export class TavernPricing {
     const raw = this.#int(min, max);
     const qualityPrice = QUALITY_MODIFIERS[quality]?.price ?? 1;
     const terrainPrice = TERRAIN_MODIFIERS[terrain]?.price ?? 1;
-    const regionPrice = this.regionCategoryMultiplier(context.region, context.type);
+    const regionPrice = this.regionCategoryMultiplier(context.region, context.type) * this.resourceMultiplier(context.region, context.resource);
     const basePrice = Math.max(1, Math.round(raw * qualityPrice * terrainPrice * regionPrice));
     const price = Math.max(1, Math.round(basePrice * this.normalizeMultiplier(priceMultiplier)));
     return { basePrice, price };
@@ -92,6 +92,11 @@ export class TavernPricing {
     const table = REGION_CATEGORY_PRICE_MODIFIERS[region];
     if (!table) return 1;
     return table[type] ?? 1;
+  }
+
+  /** A step of travel water is scarce in Naerder; other services keep their own prices. */
+  static resourceMultiplier(region, resource) {
+    return region === "naerder" && resource?.kind === "water" ? 4 : 1;
   }
 
   static applyMultiplier(tavern, multiplier) {

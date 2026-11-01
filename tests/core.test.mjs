@@ -1941,7 +1941,7 @@ test("library finds words across labels, normalizes ё, and bounds large pages w
     ids.push(...result.rows.map(row => row.id));
   }
   assert.equal(new Set(ids).size, 207);
-  assert.equal(ids[0], "library-206");
+  assert.equal(ids[0], "library-205"); // Regions are grouped alphabetically; recent order applies within a city.
   const empty = prepareTavernLibrary(entries, { query: "нет-такого", page: 999 });
   assert.equal(empty.page, 1);
   assert.equal(empty.start, 0);
@@ -2549,6 +2549,33 @@ for (const action of ["createScene", "createTavernkeeper"]) {
     }
   });
 }
+
+test("GM saves, reloads, edits, undoes and clears a custom city", async () => {
+  await purchaseFixture();
+  const { app, click } = await gmButtons(TavernGenerator.generate());
+  const query = app.element.querySelector;
+  const generationCity = { value: "  Белый   Берег  " };
+  const currentCity = { value: "Нижний город" };
+  app.element.querySelector = selector => selector === "[name='generationCity']" ? generationCity
+    : selector === "[name='tavernCity']" ? currentCity : query(selector);
+  try {
+    await click("generate");
+    assert.equal(app.draft.city, "Белый Берег");
+    await click("saveDraft");
+    const id = app.draft.id;
+    await app.loadSavedTavern(id);
+    assert.equal(app.params.city, "Белый Берег");
+    await click("setCity");
+    assert.equal(TavernState.getSavedById(id).city, "Нижний город");
+    await click("undo");
+    assert.equal(TavernState.getSavedById(id).city, "Белый Берег");
+    currentCity.value = " \t ";
+    await click("setCity");
+    assert.equal(TavernState.getSavedById(id).city, "");
+    await click("confirm");
+    assert.equal(TavernState.getCurrent().city, "");
+  } finally { await app._onClose(); }
+});
 
 test("GM generates a custom name, saves and reloads it without using it for random renaming", async () => {
   const { tavern } = await purchaseFixture();

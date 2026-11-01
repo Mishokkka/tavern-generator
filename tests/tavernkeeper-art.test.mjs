@@ -51,6 +51,37 @@ test("Forge's unrelated random token is replaced with the portrait's actual pair
   assert.equal(actor.getFlag("fbl-character-forge", "token"), pairedToken);
 });
 
+test("paired art supports a separately configured token folder", async (t) => {
+  const tokenFolder = "art/tokens/Novand";
+  const token = `${tokenFolder}/1T.webp`;
+  const { actor, result, api } = fixture(t, { set: { folder, portraitFolder: folder, tokenFolder, sameFolderTokenSuffix: false } });
+  result.art.token = token;
+  await TavernkeeperArt.synchronize(result, api);
+  assert.equal(actor.prototypeToken.texture.src, token);
+});
+
+test("pair repair browses the configured token folder instead of a random fallback's folder", async (t) => {
+  const tokenFolder = "art/tokens/Novand";
+  const token = `${tokenFolder}/1T.webp`;
+  const { actor, result, api } = fixture(t, { set: { folder, tokenFolder, sameFolderTokenSuffix: false } });
+  const browsed = [];
+  globalThis.FilePicker.browse = async (_source, path) => {
+    browsed.push(path);
+    return { files: path === tokenFolder ? [token] : [] };
+  };
+  await TavernkeeperArt.synchronize(result, api);
+  assert.ok(browsed.includes(tokenFolder));
+  assert.equal(actor.prototypeToken.texture.src, token);
+});
+
+test("separate folders still reject an identically named token from a different culture", async (t) => {
+  const wrong = "art/tokens/Sangren/1T.webp";
+  const { actor, result, api } = fixture(t, { files: [portrait, wrong], set: { folder, tokenFolder: "art/tokens/Novand", sameFolderTokenSuffix: false } });
+  result.art.token = wrong;
+  await TavernkeeperArt.synchronize(result, api);
+  assert.equal(actor.prototypeToken.texture.src, portrait);
+});
+
 test("a valid custom pairing and independent art sets remain valid", async (t) => {
   const { actor, result, api } = fixture(t, { set: { pairByName: false } });
   actor.prototypeToken.texture.src = "stale.webp";

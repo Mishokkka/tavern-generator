@@ -1,3 +1,5 @@
+import { TavernLocation } from "./TavernLocation.js";
+
 export const TAVERN_SCHEMA_VERSION = 4;
 
 const INVENTORY_KEYS = ["food", "drinks", "lodging", "services"];
@@ -20,6 +22,7 @@ export class TavernMigrations {
 
     clone.schemaVersion = TAVERN_SCHEMA_VERSION;
     clone.publicSummary ??= "Доступные позиции указаны ниже.";
+    clone.city = TavernLocation.normalizeCity(clone.city);
 
     // The current schema stores inventory only under tavern.inventory.
     // Decorated view models may still expose top-level food/drinks/lodging/services for templates.
