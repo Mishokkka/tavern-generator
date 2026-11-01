@@ -457,7 +457,9 @@ export class TavernSceneService {
 
     let tavernkeeperToken = null;
     try {
-      tavernkeeperToken = await this.placeTavernkeeperToken(scene, tavern, { replaceExisting: true, importActor: false });
+      if (config.placeTavernkeeper !== false) {
+        tavernkeeperToken = await this.placeTavernkeeperToken(scene, tavern, { replaceExisting: true, importActor: false });
+      }
     } catch (error) {
       console.warn(`${MODULE_ID} | Could not place tavernkeeper token on created scene`, error);
     }
@@ -586,13 +588,14 @@ export class TavernSceneService {
   static async placeTavernkeeperOnLinkedScene(tavern, { replaceExisting = true, archiveScene = true, importActor = true } = {}) {
     if (!game.user?.isGM) throw new Error("Только ГМ может ставить токен тавернщика на сцену.");
     if (!tavern?.tavernkeeper) return null;
-    if (!tavern?.scene?.id) return null;
+    if (!tavern?.scene) return null;
 
-    const scene = game.scenes?.get(tavern.scene.id);
+    const scene = await this.#resolveSceneForTavern(tavern, { allowImport: true });
     if (!scene) return null;
 
     const token = await this.placeTavernkeeperToken(scene, tavern, { replaceExisting, importActor });
     if (!token) return null;
+    tavern.scene = { ...tavern.scene, id: scene.id, uuid: scene.uuid, name: scene.name };
 
     if (archiveScene && tavern.scene?.compendium) {
       const archive = await this.archiveScene(scene, tavern);
@@ -609,6 +612,7 @@ export class TavernSceneService {
 
     const actor = await CharacterForgeAdapter.resolveTavernkeeperActor(tavern, { importFromCompendium: importActor });
     if (!actor) return null;
+    tavern.tavernkeeper = { ...tavern.tavernkeeper, actorId: actor.id, uuid: actor.uuid };
 
     const existing = this.#findTavernkeeperTokens(scene, tavern);
     if (replaceExisting && existing.length) {

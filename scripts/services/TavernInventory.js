@@ -10,6 +10,7 @@ import {
 import { TavernStockService } from "./TavernStockService.js";
 import { TavernMigrations } from "./TavernMigrations.js";
 import { TavernPricing } from "./TavernPricing.js";
+import { TavernMenuProfile } from "./TavernMenuProfile.js";
 
 const NO_BEER_REGIONS = new Set(["novandia", "sangren"]);
 const IMPORT_MARKET_REGION = "izuaver";
@@ -97,15 +98,15 @@ export class TavernInventory {
       localCount = this.#int(1, maxLocal);
     }
 
-    const pickedLocal = this.#weightedUnique(localCandidates, localCount);
+    const pickedLocal = this.#weightedUnique(localCandidates, localCount, quality);
     for (const item of pickedLocal) existingNames.add(item.name);
 
-    const pickedCommon = this.#weightedUnique(commonCandidates.filter((item) => !existingNames.has(item.name)), target - pickedLocal.length);
+    const pickedCommon = this.#weightedUnique(commonCandidates.filter((item) => !existingNames.has(item.name)), target - pickedLocal.length, quality);
     const picked = [...pickedLocal, ...pickedCommon];
 
     if (picked.length < target) {
       const fallback = table.filter((item) => !picked.some((chosen) => chosen.name === item.name) && !existingNames.has(item.name) && this.#matches(item, { region, quality, terrain }));
-      picked.push(...this.#weightedUnique(fallback, target - picked.length));
+      picked.push(...this.#weightedUnique(fallback, target - picked.length, quality));
     }
 
     return picked.map((item) => this.#pricedEntry(item, { region, quality, terrain, priceMultiplier, size }));
@@ -113,11 +114,11 @@ export class TavernInventory {
 
   static #generateImportedMenuItems({ table, type, region, quality, terrain, priceMultiplier, target, existingNames, size }) {
     const strictCandidates = this.#uniqueByName(table.filter((item) => !existingNames.has(item.name) && this.#matchesImportedEntry(item, { type, region, quality, terrain, ignoreTerrain: false })));
-    const picked = this.#weightedUnique(strictCandidates, target);
+    const picked = this.#weightedUnique(strictCandidates, target, quality);
 
     if (picked.length < target) {
       const fallback = this.#uniqueByName(table.filter((item) => !picked.some((chosen) => chosen.name === item.name) && !existingNames.has(item.name) && this.#matchesImportedEntry(item, { type, region, quality, terrain, ignoreTerrain: true })));
-      picked.push(...this.#weightedUnique(fallback, target - picked.length));
+      picked.push(...this.#weightedUnique(fallback, target - picked.length, quality));
     }
 
     return picked.map((item) => this.#pricedEntry({ ...item, local: false }, { region, quality, terrain, priceMultiplier, size }));
@@ -266,15 +267,16 @@ export class TavernInventory {
     return text.includes("пиво") || text.includes("пивн");
   }
 
-  static #weightedUnique(items, count) {
+  static #weightedUnique(items, count, menuQuality = null) {
     const pool = this.#uniqueByName(items);
     const picked = [];
+    const weight = (item) => menuQuality ? TavernMenuProfile.weight(item, menuQuality) : (item.weight ?? 1);
 
     while (pool.length && picked.length < count) {
-      const total = pool.reduce((sum, item) => sum + (item.weight ?? 1), 0);
+      const total = pool.reduce((sum, item) => sum + weight(item), 0);
       let roll = Math.random() * total;
       const index = pool.findIndex((item) => {
-        roll -= item.weight ?? 1;
+        roll -= weight(item);
         return roll <= 0;
       });
       picked.push(...pool.splice(Math.max(0, index), 1));

@@ -22,7 +22,7 @@ export class TavernGenerator {
     const tavern = {
       schemaVersion: TAVERN_SCHEMA_VERSION,
       id: foundry.utils.randomID(16),
-      name: TavernNames.generate(region, terrain),
+      name: TavernNames.normalizeCustomName(params.name) || TavernNames.generate(region, terrain),
       region,
       quality,
       size,

@@ -1,6 +1,10 @@
 import { NAME_TABLE } from "../data/index.js";
 
 export class TavernNames {
+  static normalizeCustomName(value) {
+    return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, 120) : "";
+  }
+
   static generate(region, terrain) {
     const table = NAME_TABLE[region] ?? NAME_TABLE.common;
     const fixedNames = table.fixedNames ?? [];
