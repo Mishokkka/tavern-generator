@@ -57,6 +57,36 @@ test("library groups equivalent city names within each region and searches by ci
   assert.equal(prepareTavernLibrary(entries, { status: "active" }, "one").regionGroups[0].cities[0].total, 1);
 });
 
+test("city filter uses normalized identities, scopes options by region and distinguishes missing cities", () => {
+  const entries = [
+    { id: "one", name: "Первый", region: "novandia", city: "Берёзовка" },
+    { id: "two", name: "Второй", region: "novandia", city: "березовка" },
+    { id: "foreign", name: "Третий", region: "sangren", city: "Берёзовка" },
+    { id: "empty", name: "Без города", region: "novandia" },
+    { id: "literal", name: "Скобки", region: "novandia", city: '[""]' },
+    { id: "south", name: "Южный", region: "sangren", city: "Южный" }
+  ];
+  const city = JSON.stringify(["березовка"]);
+  const view = prepareTavernLibrary(entries, { city });
+  assert.equal(view.matched, 3);
+  assert.equal(view.regionGroups.length, 2);
+  assert.equal(view.cityChoices.filter(c => c.selected).length, 1);
+  const narrowed = prepareTavernLibrary(entries, { region: "novandia", city, query: "Второй" });
+  assert.deepEqual(narrowed.rows.map(r => r.id), ["two"]);
+  assert.equal(narrowed.cityChoices.length, 3); // Search does not discard other city choices.
+  assert.ok(!narrowed.cityChoices.some(c => c.label === "Южный"));
+  assert.deepEqual(prepareTavernLibrary(entries, { city: JSON.stringify([""]) }).rows.map(r => r.id), ["empty"]);
+  assert.deepEqual(prepareTavernLibrary(entries, { city: JSON.stringify(['[""]']) }).rows.map(r => r.id), ["literal"]);
+});
+
+test("a city filter removed by deletion or a region change resets to the available list", () => {
+  const entries = [{ id: "one", name: "Первый", region: "novandia", city: "Берёзовка" }];
+  const result = prepareTavernLibrary(entries, { city: JSON.stringify(["Удалённый город"]), page: 999 });
+  assert.equal(result.cityFilter, "");
+  assert.equal(result.matched, 1);
+  assert.equal(result.page, 1);
+});
+
 test("large city groups continue across bounded pages without duplication or interleaving", () => {
   const entries = Array.from({ length: 47 }, (_, i) => ({ id: `a-${i}`, name: `Таверна ${i}`, region: "novandia", city: "Белый Берег", updatedAt: i }));
   entries.push({ id: "b", name: "Заведение", region: "novandia", city: "Другой город" });

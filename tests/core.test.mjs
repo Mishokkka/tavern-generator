@@ -1949,6 +1949,61 @@ test("library finds words across labels, normalizes ё, and bounds large pages w
   assert.equal(prepareTavernLibrary(entries, { page: 999 }).page, 11);
 });
 
+test("compact library remembers group folds and scroll, and expands fresh filter results", async () => {
+  const { tavern } = await purchaseFixture();
+  const library = new TavernLibraryApp({ onEdit: async () => {} });
+  library.render = () => library;
+  const search = {}, scroller = { scrollTop: 0, isConnected: true }, filters = {};
+  const region = { dataset: { libraryFilter: "region" }, value: "novandia", addEventListener: (type, fn) => { filters[type] = fn; } };
+  let groups = [];
+  library.element = {
+    setAttribute() {},
+    querySelector: selector => selector === "[data-library-scroll]" ? scroller
+      : selector === "[data-library-search]" ? { addEventListener: (type, fn) => { search[type] = fn; } }
+      : selector === "[name='libraryQuery']" ? { value: "Запрос" } : null,
+    querySelectorAll: selector => selector === "[data-library-filter]" ? [region]
+      : selector === "[data-library-group]" ? groups : []
+  };
+  scroller.addEventListener = (type, fn) => { scroller[type] = fn; };
+  try {
+    const first = await library._prepareContext();
+    groups = [first.regionGroups[0], first.regionGroups[0].cities[0]].map(g => ({
+      dataset: { libraryGroup: g.key }, open: true, isConnected: true,
+      addEventListener(type, fn) { this[type] = fn; }
+    }));
+    library.scrollTop = 120;
+    await library._onRender();
+    assert.equal(scroller.scrollTop, 120);
+    scroller.scrollTop = 75; scroller.scroll();
+    scroller.isConnected = false; scroller.scrollTop = 0; scroller.scroll();
+    assert.equal(library.scrollTop, 75);
+    scroller.isConnected = true;
+    groups[1].open = false; groups[1].toggle();
+    assert.equal((await library._prepareContext()).regionGroups[0].cities[0].closed, true);
+    await library.perform("edit", tavern.id);
+    assert.equal(library.scrollTop, 75);
+    await library.perform("collapseGroups");
+    assert.ok((await library._prepareContext()).regionGroups.every(g => g.closed && g.cities.every(c => c.closed)));
+    await library.perform("expandGroups");
+    assert.equal(library.collapsedGroups.size, 0);
+    groups[1].open = false; groups[1].toggle();
+    library.filters.page = 5; library.scrollTop = 100;
+    library.filters.city = '["старый"]';
+    filters.change();
+    assert.equal(library.filters.city, "");
+    assert.equal(library.filters.page, 1);
+    assert.equal(library.scrollTop, 0);
+    assert.equal(library.collapsedGroups.size, 0);
+    assert.equal(library.filters.query, "Запрос");
+    groups[1].toggle();
+    search.submit({ preventDefault() {} });
+    assert.equal(library.collapsedGroups.size, 0);
+    await library.perform("reset");
+    assert.equal(library.filters.city, "");
+    assert.equal(library.filters.query, "");
+  } finally { await library._onClose(); }
+});
+
 test("library edit selects the exact latest saved tavern without activating it", async () => {
   const { tavern: active } = await purchaseFixture();
   const other = await TavernState.saveTavern(TavernGenerator.generate({ region: "novandia" }));

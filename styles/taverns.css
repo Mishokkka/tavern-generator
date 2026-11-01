@@ -2049,42 +2049,66 @@ form.fbl-tavern {
 .fbl-tavern .tg-empty-state { text-align: center; padding: 36px 20px; border: 1px dashed var(--tg-border); border-radius: 10px; color: var(--tg-text-muted); }
 .fbl-tavern .tg-empty-state > i { font-size: 28px; margin-bottom: 16px; }
 .fbl-tavern .tg-empty-state p { line-height: 1.6; margin-bottom: 0; }
-.fbl-tavern-library .tg-library-search { display: flex; align-items: end; gap: 8px; }
-.fbl-tavern-library .tg-library-search label { flex: 1; min-width: 0; }
-.fbl-tavern-library .tg-library-filters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) auto; align-items: end; gap: 10px; }
-.fbl-tavern-library .tg-library-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--tg-text-muted); font-size: 12px; }
-.fbl-tavern-library .tg-library-pagination > div { display: flex; align-items: center; gap: 10px; }
-.fbl-tavern-library .tg-library-pagination button { min-width: 34px; }
-.fbl-tavern-library .tg-library-list { display: flex; flex-direction: column; gap: 9px; }
-.fbl-tavern-library .tg-library-row { display: flex; justify-content: space-between; gap: 16px; padding: 14px; background: var(--tg-surface-0); border: 1px solid var(--tg-border-soft); border-radius: var(--tg-radius); }
+/* Compact library: fixed tools and footer around an independently scrolling list. */
+.fbl-tavern-library .tg-library-workspace { gap: 8px; padding: 10px 12px; overflow: hidden; }
+.fbl-tavern-library .tg-library-header { display: flex; justify-content: space-between; align-items: start; gap: 12px; flex: 0 0 auto; }
+.fbl-tavern-library .tg-library-header h2 { margin: 0; font-family: inherit; font-size: 18px; line-height: 1.3; }
+.fbl-tavern-library .tg-library-header .tg-help { margin: 3px 0 0; font-size: 11px; line-height: 1.35; }
+.fbl-tavern-library .tg-library-group-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+.fbl-tavern-library .tg-library-tools { display: flex; flex-direction: column; gap: 6px; flex: 0 0 auto; }
+.fbl-tavern-library .tg-library-search { display: flex; gap: 6px; margin: 0; }
+.fbl-tavern-library .tg-library-search input { flex: 1; min-width: 0; }
+.fbl-tavern-library button { width: auto; min-height: 28px; height: 28px; margin: 0; padding: 4px 8px; font-size: 12px; line-height: 1.2; white-space: nowrap; }
+.fbl-tavern-library button { background: var(--tg-surface-1) !important; color: var(--tg-text-strong) !important; border: 1px solid var(--tg-border) !important; box-shadow: none !important; }
+.fbl-tavern-library button:hover:not(:disabled) { background: #343d49 !important; border-color: var(--tg-accent) !important; }
+.fbl-tavern-library .tg-library-group-actions button { min-height: 25px; height: 25px; font-size: 11px; }
+.fbl-tavern-library .tg-library-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+.fbl-tavern-library .tg-library-filters select { width: 100%; min-width: 0; height: 28px; margin: 0; padding: 3px 6px; font-size: 12px; }
+.fbl-tavern-library input[type='search'] { width: 100%; height: 30px; padding: 4px 8px; border: 1px solid var(--tg-border); border-radius: var(--tg-radius-sm); background: var(--tg-surface-0); color: var(--tg-text-strong); font-size: 12px; }
+.fbl-tavern-library input[type='search']:focus { outline: 1px solid var(--tg-accent); }
+.fbl-tavern-library .tg-library-list { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 3px; }
+.fbl-tavern-library .tg-library-region + .tg-library-region { margin-top: 8px; border-top: 1px solid var(--tg-border-soft); }
+.fbl-tavern-library .tg-library-region > summary, .fbl-tavern-library .tg-library-city > summary { display: flex; align-items: center; gap: 6px; min-height: 26px; list-style: none; cursor: pointer; color: var(--tg-text-strong); }
+.fbl-tavern-library summary::-webkit-details-marker { display: none; }
+.fbl-tavern-library summary:focus-visible { outline: 2px solid var(--tg-accent-strong); outline-offset: 1px; }
+.fbl-tavern-library summary::before { content: '▾'; color: var(--tg-text-muted); font-size: 11px; }
+.fbl-tavern-library details:not([open]) > summary::before { transform: rotate(-90deg); }
+.fbl-tavern-library .tg-library-region > summary { padding: 4px 2px; font-size: 13px; font-weight: 650; }
+.fbl-tavern-library .tg-library-city { margin: 0 0 4px 10px; }
+.fbl-tavern-library .tg-library-city > summary { padding: 3px 4px; font-size: 12px; font-weight: 550; }
+.fbl-tavern-library .tg-library-group-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.fbl-tavern-library .tg-library-group-count { flex: 0 0 auto; font-size: 11px; font-weight: normal; color: var(--tg-text-muted); }
+.fbl-tavern-library .tg-library-rows { display: flex; flex-direction: column; gap: 3px; }
+.fbl-tavern-library .tg-library-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: var(--tg-surface-0); border: 1px solid var(--tg-border-soft); border-radius: var(--tg-radius-sm); }
 .fbl-tavern-library .tg-library-row.is-active { border-left: 3px solid var(--tg-accent); }
-.fbl-tavern-library .tg-library-description { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.fbl-tavern-library .tg-library-description h5 { margin: 0; color: var(--tg-text-strong) !important; font-size: 17px; line-height: 1.5; }
-.fbl-tavern-library .tg-library-region > h3 { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0 8px; color: var(--tg-accent); }
-.fbl-tavern-library .tg-library-city > h4 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; margin: 10px 0 7px; color: var(--tg-text-strong) !important; font-size: 15px; overflow-wrap: anywhere; }
-.fbl-tavern-library .tg-library-region h3 > small, .fbl-tavern-library .tg-library-city h4 > small { font-size: 11px; font-weight: normal; color: var(--tg-text-muted); }
-.fbl-tavern-library .tg-library-city { display: flex; flex-direction: column; gap: 8px; }
-.fbl-tavern-library .tg-library-description p { margin: 5px 0; font-size: 12px; color: var(--tg-text-muted); }
-.fbl-tavern-library .tg-library-description small { color: var(--tg-text-faint); font-size: 11px; }
-.fbl-tavern-library .tg-library-actions { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 34px; gap: 6px; align-content: center; flex: 0 0 320px; }
-.fbl-tavern-library .tg-library-actions > button:nth-child(2) { grid-column: 2 / -1; }
-.fbl-tavern-library .tg-library-actions > button:nth-child(3) { grid-column: 1 / 3; }
-.fbl-tavern-library .tg-library-delete { color: #d3a494; }
+.fbl-tavern-library .tg-library-description { flex: 1; min-width: 0; }
+.fbl-tavern-library .tg-library-description h3 { margin: 0; font-family: inherit; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.fbl-tavern-library .tg-library-description p { margin: 3px 0 0; color: var(--tg-text-muted); font-size: 11px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fbl-tavern-library .tg-library-actions { display: flex; flex: 0 0 auto; gap: 4px; }
+.fbl-tavern-library .tg-library-delete { color: #e6aaa1 !important; }
+.fbl-tavern-library .tg-library-pagination { display: flex; flex: 0 0 auto; justify-content: space-between; align-items: center; gap: 12px; padding-top: 6px; border-top: 1px solid var(--tg-border-soft); color: var(--tg-text-muted); font-size: 12px; }
+.fbl-tavern-library .tg-library-pagination > div { display: flex; align-items: center; gap: 10px; }
+.fbl-tavern-library .tg-library-pagination button { min-width: 30px; }
+.fbl-tavern-library[aria-busy='true'] { cursor: progress; }
+.fbl-tavern-library[aria-busy='true'] .tg-library-actions, .fbl-tavern-library[aria-busy='true'] .tg-library-tools { opacity: 0.65; pointer-events: none; }
 @container tavern (max-width: 720px) {
   .fbl-tavern-gm [data-editor-panel='stay'] { grid-template-columns: 1fr; }
   .fbl-tavern-gm .tg-tavernkeeper-card { flex-direction: column; align-items: stretch; }
   .fbl-tavern-library .tg-library-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .fbl-tavern-library .tg-library-row { flex-direction: column; }
-  .fbl-tavern-library .tg-library-actions { flex: none; display: flex; flex-wrap: wrap; }
-  .fbl-tavern-library .tg-library-pagination { flex-wrap: wrap; }
+  .fbl-tavern-library .tg-library-row { align-items: stretch; flex-direction: column; gap: 6px; }
+  .fbl-tavern-library .tg-library-actions { flex-wrap: wrap; }
 }
-.fbl-tavern-library label { display: flex; flex-direction: column; gap: 5px; }
-.fbl-tavern-library label > span { font-size: 12px; color: var(--tg-text-muted); }
-.fbl-tavern-library input[type='search'] { width: 100%; min-width: 0; height: 34px; padding: 6px 10px; border: 1px solid var(--tg-border); border-radius: var(--tg-radius-sm); background: var(--tg-surface-0); color: var(--tg-text-strong); }
-.fbl-tavern-library input[type='search']:focus { outline: 1px solid var(--tg-accent); }
+@container tavern (max-width: 480px) {
+  .fbl-tavern-library .tg-library-header { flex-wrap: wrap; gap: 5px; }
+  .fbl-tavern-library .tg-library-city { margin-left: 4px; }
+  .fbl-tavern-library .tg-library-search { flex-wrap: wrap; }
+  .fbl-tavern-library .tg-library-search input { flex-basis: 100%; }
+  .fbl-tavern-library .tg-library-workspace { padding: 8px; }
+}
 .fbl-tavern-gm .tg-scene-actions button, .fbl-tavern-gm .tg-tavernkeeper-actions button { width: auto; height: auto; min-height: 34px; padding: 6px 10px; white-space: normal; }
 /* The tavern navigation is a fixed sibling of the scrolling content. */
-.fbl-tavern-gm {
+.fbl-tavern-gm,
+.fbl-tavern-library {
   --tg-bg-0: #171a1f;
   --tg-bg-1: #1d2127;
   --tg-bg-2: #252a32;
