@@ -593,10 +593,20 @@ export class TavernSceneService {
     const { scene, imported } = await this.#resolveSceneForTavern(tavern, { allowImport: true });
     if (!scene) return null;
 
+    const previousScene = tavern.scene;
     let token;
     try {
       token = await this.placeTavernkeeperToken(scene, tavern, { replaceExisting, importActor });
+      if (token) {
+        tavern.scene = { ...previousScene, id: scene.id, uuid: scene.uuid, name: scene.name };
+        if (archiveScene && tavern.scene.compendium) {
+          const archive = await this.archiveScene(scene, tavern);
+          await scene.setFlag(MODULE_ID, "compendium", archive);
+          tavern.scene.compendium = archive;
+        }
+      }
     } catch (error) {
+      tavern.scene = previousScene;
       if (imported) await this.#rollbackSceneImport(scene, error);
       throw error;
     }
@@ -604,14 +614,6 @@ export class TavernSceneService {
       if (imported) await this.#rollbackSceneImport(scene);
       return null;
     }
-    tavern.scene = { ...tavern.scene, id: scene.id, uuid: scene.uuid, name: scene.name };
-
-    if (archiveScene && tavern.scene?.compendium) {
-      const archive = await this.archiveScene(scene, tavern);
-      await scene.setFlag(MODULE_ID, "compendium", archive);
-      tavern.scene.compendium = archive;
-    }
-
     return { scene, token };
   }
 

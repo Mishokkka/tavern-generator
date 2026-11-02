@@ -5,10 +5,11 @@ import { TavernSceneService } from "../scripts/services/TavernSceneService.js";
 
 function sceneFixture(t, { existing = false, fallback = false } = {}) {
   const previous = { user: game.user, scenes: game.scenes, packs: game.packs, folders: game.folders, Scene: globalThis.Scene,
-    place: TavernSceneService.placeTavernkeeperToken };
+    place: TavernSceneService.placeTavernkeeperToken, archive: TavernSceneService.archiveScene };
   t.after(() => {
     game.user = previous.user; game.scenes = previous.scenes; game.packs = previous.packs; game.folders = previous.folders;
     globalThis.Scene = previous.Scene; TavernSceneService.placeTavernkeeperToken = previous.place;
+    TavernSceneService.archiveScene = previous.archive;
   });
   game.user = { isGM: true };
   game.folders = null;
@@ -46,6 +47,22 @@ test("PR review: a missing token discards only the scene imported for that attem
     assert.equal(f.world.size, 1);
     assert.equal(f.world.get(f.unrelated.id), f.unrelated);
     assert.deepEqual(f.tavern.scene, before);
+  }
+});
+
+for (const existing of [false, true]) for (const stage of ["archive", "flag"]) test(`archive rollback: ${stage} failure preserves metadata and ${existing ? "existing" : "imported"} scene ownership`, async t => {
+  const f = sceneFixture(t, { existing }), before = structuredClone(f.tavern.scene), error = new Error(`${stage}-failed`);
+  TavernSceneService.placeTavernkeeperToken = async scene => {
+    scene.setFlag = async () => { if (stage === "flag") throw error; };
+    return { id: "placed-token" };
+  };
+  TavernSceneService.archiveScene = async () => { if (stage === "archive") throw error; return { pack: "world.scene-rollback", id: "updated-archive" }; };
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await assert.rejects(TavernSceneService.placeTavernkeeperOnLinkedScene(f.tavern), actual => actual === error);
+    assert.deepEqual(f.tavern.scene, before);
+    assert.equal(f.world.get(f.unrelated.id), f.unrelated);
+    if (existing) { assert.equal(f.world.get(f.live.id), f.live); assert.deepEqual(f.deleted, []); }
+    else { assert.equal(f.world.size, 1); assert.equal(f.deleted.length, attempt); }
   }
 });
 
