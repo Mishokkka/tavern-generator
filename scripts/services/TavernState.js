@@ -155,7 +155,10 @@ export class TavernState {
       if (!game.user.isGM) throw new Error("Only a GM can delete saved taverns.");
       const state = TavernPrivateStore.state;
       state.saved = state.saved.filter((entry) => entry.id !== id);
+      const clearedCurrent = state.current?.id === id;
+      if (clearedCurrent) state.current = null;
       await this.#writePrivateState(state);
+      if (clearedCurrent) await this.#mirrorPublicState(null);
     }, transaction);
   }
 

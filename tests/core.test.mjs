@@ -2025,7 +2025,7 @@ test("library edit selects the exact latest saved tavern without activating it",
   } finally { await app._onClose(); await library._onClose(); }
 });
 
-test("library deletion cancellation preserves data; confirmed deletion preserves active tavern", async () => {
+test("PR review: library deletion cancellation preserves data; confirmed deletion clears the matching legacy current tavern", async () => {
   const { tavern } = await purchaseFixture();
   const library = new TavernLibraryApp();
   library.render = () => library;
@@ -2034,12 +2034,38 @@ test("library deletion cancellation preserves data; confirmed deletion preserves
     foundry.applications.api.DialogV2.confirm = async () => false;
     await library.perform("delete", tavern.id);
     assert.ok(TavernState.getSavedById(tavern.id));
+    assert.equal(TavernState.getCurrent().id, tavern.id);
+    assert.equal(getSetting("currentTavern").id, tavern.id);
     foundry.applications.api.DialogV2.confirm = async () => true;
     await library.perform("delete", tavern.id);
     assert.equal(TavernState.getSavedById(tavern.id), null);
-    assert.equal(TavernState.getCurrent().id, tavern.id);
+    assert.equal(TavernState.getCurrent(), null);
+    assert.equal(getSetting("currentTavern"), null);
     assert.equal(library.pending, false);
   } finally { foundry.applications.api.DialogV2.confirm = confirm; await library._onClose(); }
+});
+
+test("PR review: a deleted legacy current tavern stays deleted after repeated initialization", async () => {
+  const { tavern } = await purchaseFixture();
+  setSetting("savedTaverns", []);
+  await TavernState.deleteSaved(tavern.id);
+  for (let reload = 0; reload < 2; reload++) {
+    await TavernState.initialize();
+    assert.equal(TavernState.getSavedById(tavern.id), null);
+    assert.equal(TavernState.getCurrent(), null);
+    assert.equal(getSetting("currentTavern"), null);
+  }
+});
+
+test("PR review: deleting another saved tavern preserves the legacy current tavern and its public mirror", async () => {
+  const { tavern } = await purchaseFixture();
+  const other = await TavernState.saveTavern(TavernGenerator.generate());
+  const current = TavernState.getCurrent(), mirror = structuredClone(getSetting("currentTavern"));
+  await TavernState.deleteSaved(other.id);
+  assert.equal(TavernState.getSavedById(other.id), null);
+  assert.deepEqual(TavernState.getCurrent(), current);
+  assert.deepEqual(getSetting("currentTavern"), mirror);
+  assert.ok(TavernState.getSavedById(tavern.id));
 });
 
 test("library preview uses the exact tavern, preserves legacy state and ignores repeated pending actions", async () => {

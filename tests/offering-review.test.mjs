@@ -1,7 +1,7 @@
 import "./test-env.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FOOD_TABLE, ROOM_TABLE } from "../scripts/data/index.js";
+import { FOOD_TABLE, ROOM_TABLE, SERVICE_TABLE } from "../scripts/data/index.js";
 import { TavernGenerator } from "../scripts/services/TavernGenerator.js";
 import { TavernInventory } from "../scripts/services/TavernInventory.js";
 import { TavernEditor } from "../scripts/services/TavernEditor.js";
@@ -135,4 +135,66 @@ test("the manual editor can represent every catalogue family, including a hot ch
   }
   const context = await new TavernEntryEditorDialog({ category: "food", entry: food("Жареный сыр с хлебом") })._prepareContext();
   assert.equal(context.family, "dairy");
+});
+
+function withoutAnimalOffers() {
+  let tavern = seeded(17, () => TavernGenerator.generate({ region: "common", quality: "poor", size: "tiny", terrain: "road" }));
+  for (const entry of tavern.inventory.services) {
+    if (Model.has(entry, "animalBoarding") || Model.has(entry, "animalFeed")) tavern = TavernEditor.removeEntry(tavern, "services", entry.id);
+  }
+  tavern.inventory.lodging = [];
+  return tavern;
+}
+
+test("PR review: unrelated random lodging preserves deliberately removed animal offers", () => {
+  const before = withoutAnimalOffers();
+  const random = Math.random;
+  Math.random = () => 0;
+  try {
+    const next = TavernInventory.addRandomEntry(before, "lodging");
+    assert.equal(next.inventory.lodging.length, 1);
+    assert.equal(Model.profile(next.inventory.lodging[0], "room").animals, undefined);
+    assert.deepEqual(next.inventory.services, before.inventory.services);
+    assert.ok(Model.status(next).missing.some(item => item.role === "animalBoarding"));
+  } finally { Math.random = random; }
+});
+
+test("PR review: random service selection does not prioritize or restore removed animal offers", () => {
+  const before = withoutAnimalOffers();
+  const random = Math.random;
+  Math.random = () => 1 - Number.EPSILON;
+  try {
+    const next = TavernInventory.addRandomEntry(before, "services");
+    const added = next.inventory.services.filter(entry => !before.inventory.services.some(old => old.id === entry.id));
+    assert.equal(added.length, 1);
+    assert.equal(Model.profile(added[0], "service").animals, undefined);
+    assert.ok(!Model.has(added[0], "animalBoarding") && !Model.has(added[0], "animalFeed"));
+    for (const old of before.inventory.services) assert.deepEqual(next.inventory.services.find(entry => entry.id === old.id), old);
+    assert.ok(Model.status(next).missing.some(item => item.role === "animalFeed"));
+  } finally { Math.random = random; }
+});
+
+test("PR review: a random room that actually promises a stable still receives its animal services", () => {
+  const before = withoutAnimalOffers(), rooms = [...ROOM_TABLE];
+  const stable = rooms.find(entry => entry.name === "Место в конюшне");
+  try {
+    ROOM_TABLE.splice(0, ROOM_TABLE.length, stable);
+    const next = TavernInventory.addRandomEntry(before, "lodging");
+    assert.equal(next.inventory.lodging[0].name, stable.name);
+    assert.ok(Model.coverage(next).animalBoarding && Model.coverage(next).animalFeed);
+    assert.equal(new Set(next.inventory.services.map(entry => entry.name)).size, next.inventory.services.length);
+  } finally { ROOM_TABLE.splice(0, ROOM_TABLE.length, ...rooms); }
+});
+
+test("PR review: selecting an animal service still adds its missing counterpart", () => {
+  const before = withoutAnimalOffers(), services = [...SERVICE_TABLE];
+  const feed = services.find(entry => entry.name === "Корм для верхового животного");
+  const stall = services.find(entry => entry.name === "Место в стойле");
+  try {
+    SERVICE_TABLE.splice(0, SERVICE_TABLE.length, feed, stall);
+    const next = TavernInventory.addRandomEntry(before, "services");
+    assert.ok(Model.coverage(next).animalBoarding && Model.coverage(next).animalFeed);
+    assert.equal(next.inventory.services.filter(entry => Model.has(entry, "animalBoarding")).length, 1);
+    assert.equal(next.inventory.services.filter(entry => Model.has(entry, "animalFeed")).length, 1);
+  } finally { SERVICE_TABLE.splice(0, SERVICE_TABLE.length, ...services); }
 });

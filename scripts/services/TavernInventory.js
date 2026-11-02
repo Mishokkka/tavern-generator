@@ -142,14 +142,18 @@ export class TavernInventory {
     else if (key === "drinks") entry = this.#generateMenuItem({ ...params, type: "drink", existing: clone.inventory.drinks ?? [] });
     else if (key === "services") {
       const covered = TavernOfferingModel.coverage(clone);
-      const wantedRole = TavernOfferingModel.required(clone).find(role => !covered[role] && ["wash", "animalBoarding", "animalFeed", "foodSupply", "waterSupply"].includes(role));
+      const wantedRole = TavernOfferingModel.required(clone).find(role => !covered[role] && ["wash", "foodSupply", "waterSupply"].includes(role));
       entry = this.#generateServiceItem({ ...params, existing: clone.inventory.services ?? [], wantedRole });
     }
     else if (key === "lodging") entry = this.#generateRoomItem({ ...params, existing: clone.inventory.lodging ?? [] });
 
     if (!entry || !key) return clone;
     clone.inventory[key] = [...(clone.inventory[key] ?? []), entry];
-    return ["lodging", "services"].includes(key) ? this.completeAnimalOffers(clone) : clone;
+    if (["lodging", "services"].includes(key)) {
+      const profile = TavernOfferingModel.profile(entry);
+      if (profile.animals || profile.roles.some(role => ["animalBoarding", "animalFeed"].includes(role))) return this.completeAnimalOffers(clone);
+    }
+    return clone;
   }
 
   static #generateMenu({ region, quality, size, terrain, priceMultiplier }) {

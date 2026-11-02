@@ -590,11 +590,20 @@ export class TavernSceneService {
     if (!tavern?.tavernkeeper) return null;
     if (!tavern?.scene) return null;
 
-    const scene = await this.#resolveSceneForTavern(tavern, { allowImport: true });
+    const { scene, imported } = await this.#resolveSceneForTavern(tavern, { allowImport: true });
     if (!scene) return null;
 
-    const token = await this.placeTavernkeeperToken(scene, tavern, { replaceExisting, importActor });
-    if (!token) return null;
+    let token;
+    try {
+      token = await this.placeTavernkeeperToken(scene, tavern, { replaceExisting, importActor });
+    } catch (error) {
+      if (imported) await this.#rollbackSceneImport(scene, error);
+      throw error;
+    }
+    if (!token) {
+      if (imported) await this.#rollbackSceneImport(scene);
+      return null;
+    }
     tavern.scene = { ...tavern.scene, id: scene.id, uuid: scene.uuid, name: scene.name };
 
     if (archiveScene && tavern.scene?.compendium) {
@@ -743,7 +752,7 @@ export class TavernSceneService {
     }
 
     const tavern = tavernOrSceneId;
-    const scene = await this.#resolveSceneForTavern(tavern, { allowImport: true });
+    const { scene } = await this.#resolveSceneForTavern(tavern, { allowImport: true });
     if (!scene) throw new Error("Связанная сцена не найдена.");
     await scene.view();
     return { scene, tavern };
@@ -935,12 +944,21 @@ export class TavernSceneService {
     ).trim();
   }
 
+  /** Include import ownership so placement can discard its own temporary scene. */
   static async #resolveSceneForTavern(tavern, { allowImport = true } = {}) {
-    if (!tavern?.scene) return null;
+    if (!tavern?.scene) return { scene: null, imported: false };
     const scene = tavern.scene.id ? game.scenes?.get(tavern.scene.id) : null;
-    if (scene) return scene;
-    if (!allowImport) return null;
-    return this.#importSceneFromCompendium(tavern.scene.compendium, tavern.id);
+    if (scene || !allowImport) return { scene, imported: false };
+    const imported = await this.#importSceneFromCompendium(tavern.scene.compendium, tavern.id);
+    return { scene: imported, imported: Boolean(imported) };
+  }
+
+  static async #rollbackSceneImport(scene, placementError = null) {
+    try { await scene.delete(); }
+    catch (cleanupError) {
+      throw new AggregateError(placementError ? [placementError, cleanupError] : [cleanupError],
+        `Не удалось отменить импорт сцены «${scene.name}» (${scene.id}) после сбоя установки токена. Проверь эту сцену перед повтором.`);
+    }
   }
 
   static async #resolveSceneForLink(link, tavern, { allowImport = true } = {}) {
@@ -965,7 +983,7 @@ export class TavernSceneService {
     const imported = await this.#importSceneFromCompendium(compendium, tavern.id);
     if (imported) return imported;
 
-    return this.#resolveSceneForTavern(tavern, { allowImport });
+    return (await this.#resolveSceneForTavern(tavern, { allowImport })).scene;
   }
 
   static async #importSceneFromCompendium(compendium, tavernId) {
