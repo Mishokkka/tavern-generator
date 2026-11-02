@@ -86,7 +86,7 @@ function inspect(tavern) {
   const wash = entry => entry.cleanliness;
   const eligibleLocal = FOOD_TABLE.some(entry => entry.local && matches(entry, tavern));
   const eligibleWash = SERVICE_TABLE.some(entry => wash(entry) && matches(entry, tavern));
-  const roomNeedsStable = lodging.some(entry => /конюшн|конн|лошад/.test(entry.name + " " + entry.desc));
+  const roomNeedsStable = lodging.some(entry => /конюшн|конн|лошад/i.test(entry.name + " " + entry.desc));
   return {
     missingRequired: !TavernOfferingModel.status(tavern).complete,
     food: food.length, drinks: drinks.length, lodging: lodging.length, regularServices: services.filter(entry => !entry.resource).length,

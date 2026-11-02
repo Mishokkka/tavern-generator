@@ -78,7 +78,8 @@ export class TavernInventory {
     if (!clone || !TavernOfferingModel.context(clone).animals) return clone;
     for (const role of ["animalBoarding", "animalFeed"]) {
       if (TavernOfferingModel.coverage(clone)[role]) continue;
-      const candidates = SERVICE_TABLE.filter(item => this.#matches(item, clone) && TavernOfferingModel.has(item, role));
+      const candidates = SERVICE_TABLE.filter(item => this.#matches(item, clone) && TavernOfferingModel.has(item, role)
+        && !clone.inventory.services.some(entry => entry.name === item.name));
       const basic = candidates.filter(item => TavernOfferingModel.profile(item, "service").basic);
       const item = this.#weightedUnique(basic.length ? basic : candidates, 1)[0];
       if (item) clone.inventory.services.push({ ...this.#pricedEntry(item, clone), offeringCore: true });

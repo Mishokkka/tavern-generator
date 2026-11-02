@@ -53,7 +53,7 @@ export class TavernEntryEditorDialog extends HandlebarsApplicationMixin(Applicat
       lodging,
       roleChoices: choices,
       food: type === "food",
-      familyChoices: { house: "Авторское / другое", soup: "Суп или похлёбка", grain: "Крупа или рис", pasta: "Лапша или изделия из теста", baked: "Пирог или выпечка", fish: "Рыбное блюдо", meat: "Мясное блюдо", eggs: "Яйца", vegetable: "Овощи или бобовые", cold: "Холодная тарелка", sweet: "Сладости" },
+      familyChoices: { house: "Авторское / другое", soup: "Суп или похлёбка", grain: "Крупа или рис", pasta: "Лапша или изделия из теста", baked: "Пирог или выпечка", fish: "Рыбное блюдо", meat: "Мясное блюдо", eggs: "Яйца", vegetable: "Овощи или бобовые", dairy: "Горячее сырное блюдо", cold: "Холодная тарелка", sweet: "Сладости" },
       family: offering.family ?? "house",
       role: offering.roles[0] ?? (type === "service" ? "extra" : ""),
       showRole: !lodging && !this.entry.resource,
