@@ -1,4 +1,5 @@
 import { TEMPLATES } from "../constants.js";
+import { TavernOfferingModel } from "../services/TavernOfferingModel.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -20,7 +21,7 @@ export class TavernEntryEditorDialog extends HandlebarsApplicationMixin(Applicat
       icon: "fa-solid fa-pen-to-square",
       resizable: true
     },
-    position: { width: 520, height: 590 }
+    position: { width: 520, height: 640 }
   };
 
   static PARTS = { main: { template: TEMPLATES.entryEditor } };
@@ -40,11 +41,23 @@ export class TavernEntryEditorDialog extends HandlebarsApplicationMixin(Applicat
   async _prepareContext() {
     const lodging = this.category === "lodging" || this.category === "rooms";
     const unlimited = Boolean(this.entry.unlimited);
+    const type = lodging ? "room" : this.category === "drinks" ? "drink" : this.category === "services" ? "service" : "food";
+    const offering = TavernOfferingModel.profile(this.entry, type);
+    const choices = type === "food" ? { "": "Не указано", meal: "Основное блюдо", side: "Закуска или гарнир", dessert: "Десерт" }
+      : type === "drink" ? { "": "Не указано", tableDrink: "Повседневное питьё", fermentedDrink: "Квас или напиток брожения", alcohol: "Алкогольный напиток" }
+      : { extra: "Дополнительная услуга", wash: "Мытьё", animalBoarding: "Место для животного", animalFeed: "Корм или уход за животным" };
     return {
       category: this.category,
       categoryLabel: CATEGORY_LABELS[this.category] ?? "Позиция",
       editing: Boolean(this.entry.id),
       lodging,
+      roleChoices: choices,
+      food: type === "food",
+      familyChoices: { house: "Авторское / другое", soup: "Суп или похлёбка", grain: "Крупа или рис", pasta: "Лапша или изделия из теста", baked: "Пирог или выпечка", fish: "Рыбное блюдо", meat: "Мясное блюдо", eggs: "Яйца", vegetable: "Овощи или бобовые", cold: "Холодная тарелка", sweet: "Сладости" },
+      family: offering.family ?? "house",
+      role: offering.roles[0] ?? (type === "service" ? "extra" : ""),
+      showRole: !lodging && !this.entry.resource,
+      animals: Boolean(offering.animals),
       entry: {
         name: this.entry.name ?? "",
         desc: this.entry.desc ?? "",
@@ -54,7 +67,7 @@ export class TavernEntryEditorDialog extends HandlebarsApplicationMixin(Applicat
         total: unlimited ? 0 : Math.max(0, Math.trunc(Number(this.entry.total ?? this.entry.maxStock ?? this.entry.stock ?? 1) || 0)),
         unlimited,
         local: Boolean(this.entry.local),
-        pinned: Boolean(this.entry.pinned)
+        pinned: Boolean(this.entry.pinned ?? !this.entry.id)
       }
     };
   }
@@ -86,6 +99,10 @@ export class TavernEntryEditorDialog extends HandlebarsApplicationMixin(Applicat
     const unlimited = form.get("unlimited") === "on";
     const stock = Math.max(0, Math.trunc(Number(form.get("stock")) || 0));
     const total = lodging ? Math.max(stock, Math.trunc(Number(form.get("total")) || 0)) : null;
+    const type = lodging ? "room" : this.category === "drinks" ? "drink" : this.category === "services" ? "service" : "food";
+    const previous = TavernOfferingModel.profile(this.entry, type);
+    const offering = this.entry.resource ? previous : lodging ? { ...previous, animals: form.get("animals") === "on" }
+      : { ...previous, roles: [String(form.get("offeringRole") ?? "")], ...(type === "food" ? { family: String(form.get("offeringFamily") || previous.family || "house") } : {}) };
 
     this.#finish({
       name,
@@ -96,7 +113,8 @@ export class TavernEntryEditorDialog extends HandlebarsApplicationMixin(Applicat
       total,
       unlimited,
       local: form.get("local") === "on",
-      pinned: form.get("pinned") === "on"
+      pinned: form.get("pinned") === "on",
+      offering
     });
   }
 

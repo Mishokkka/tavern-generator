@@ -1,6 +1,7 @@
 import { TEMPLATES } from "../constants.js";
 import { TAVERN_OPTIONS } from "../data/index.js";
 import { TavernInventory } from "../services/TavernInventory.js";
+import { TavernOfferingModel } from "../services/TavernOfferingModel.js";
 import { TavernStockService } from "../services/TavernStockService.js";
 import { TavernGenerator } from "../services/TavernGenerator.js";
 import { TavernGenerationPlan } from "../services/TavernGenerationPlan.js";
@@ -55,6 +56,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.keeperConfig = CharacterForgeAdapter.defaultConfig();
     this.undoDraft = null;
     this.pendingDraftUpdate = null;
+    this.offeringExpanded = false;
     gmInstances.add(this);
   }
 
@@ -159,6 +161,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       editorTab: this.editorTab,
       workflowStep: this.workflowStep,
       generationPlan: TavernGenerationPlan.describe(this.params),
+      offeringStatus: this.draft ? TavernOfferingModel.status({ ...this.draft, offeringPlan: TavernInventory.planFor(this.draft) }) : null,
+      offeringExpanded: this.offeringExpanded,
       savedCount: saved.length,
       isSaved: saved.some((entry) => entry.id === this.draft?.id),
       autoSave: Boolean(this.draft && (saved.some((entry) => entry.id === this.draft.id) || TavernState.getCurrent()?.id === this.draft.id)),
@@ -205,6 +209,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _onRender(context, options) {
     this.element.onsubmit = (event) => event.preventDefault();
+    const offeringStatus = this.element.querySelector(".tg-offering-status");
+    offeringStatus?.addEventListener("toggle", () => { if (offeringStatus.isConnected) this.offeringExpanded = offeringStatus.open; });
     this.#bindWorkflow();
     this.element.querySelector("[name='generationName']")?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
@@ -231,6 +237,21 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       event.preventDefault();
       this.#runAction(() => this.#onApplyPriceModifier(event));
     });
+    this.element.querySelector("[data-action='ensureOfferings']")?.addEventListener("click", (event) => this.#runAction(async () => {
+      event.preventDefault();
+      if (!this.draft) return;
+      const tavernId = this.draft.id;
+      if (!await this.#confirm("Добавить недостающие основные блюда, питьё и бытовые предложения? Существующие позиции, цены, остатки, брони и свои правки сохранятся. Распроданные позиции не пополняются.", "Дополнить основу таверны")) return;
+      if (this.draft?.id !== tavernId) throw new Error("В редакторе уже другая таверна. Повтори действие для неё.");
+      this.#reconcileDraftUpdate();
+      this.#checkpoint();
+      this.draft = TavernInventory.ensureOfferings(this.draft);
+      await this.#persistLiveDraft();
+      const status = TavernOfferingModel.status(this.draft);
+      if (status.complete) ui.notifications.info(status.summary);
+      else ui.notifications.warn(`${status.summary}. Проверь назначение существующих позиций и доступность подходящих вариантов в каталоге.`);
+      this.render();
+    }));
     this.element.querySelector("[data-action='renewStockNorms']")?.addEventListener("click", (event) => this.#runAction(async () => {
       event.preventDefault();
       if (!this.draft) return;

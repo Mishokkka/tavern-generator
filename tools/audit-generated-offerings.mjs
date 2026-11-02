@@ -4,6 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { TAVERN_OPTIONS, FOOD_TABLE, DRINK_TABLE, SERVICE_TABLE } from "../scripts/data/index.js";
 import { TavernGenerator } from "../scripts/services/TavernGenerator.js";
 import { TavernAvailabilityService } from "../scripts/services/TavernAvailabilityService.js";
+import { TavernOfferingModel } from "../scripts/services/TavernOfferingModel.js";
 
 if (process.argv.includes("--help")) {
   process.stdout.write("Usage: node tools/audit-generated-offerings.mjs [--samples=128] [--profile=region/quality/size/terrain,...] [--out=result.json]\nReplay: --replay=region/quality/size/terrain/sample\n");
@@ -87,6 +88,7 @@ function inspect(tavern) {
   const eligibleWash = SERVICE_TABLE.some(entry => wash(entry) && matches(entry, tavern));
   const roomNeedsStable = lodging.some(entry => /конюшн|конн|лошад/.test(entry.name + " " + entry.desc));
   return {
+    missingRequired: !TavernOfferingModel.status(tavern).complete,
     food: food.length, drinks: drinks.length, lodging: lodging.length, regularServices: services.filter(entry => !entry.resource).length,
     allServices: services.length, freeBeds, totalBeds, crowd: tavern.atmosphere.crowd,
     noMainMeal: !food.some(main), noAvailableMainMeal: !aFood.some(main), noHotMainMeal: !food.some(entry => main(entry) && !cold(entry)),

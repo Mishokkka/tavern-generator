@@ -121,7 +121,7 @@ test("size changes capacity and quantity without adding a price multiplier", () 
     assert.deepEqual(rooms.map(room => room.price), [90, 90, 90, 90]);
     const menus = Object.keys(TAVERN_OPTIONS.sizes).map(size => seeded(456, () => TavernInventory.generate({ ...params, size })));
     assert.deepEqual(menus.map(menu => menu.food.length + menu.drinks.length), [5, 7, 9, 13]);
-    assert.deepEqual(menus.map(menu => menu.services.filter(entry => !entry.resource).length), [1, 2, 3, 4]);
+    assert.deepEqual(menus.map(menu => menu.services.filter(entry => !entry.resource && !entry.offeringCore).length), [1, 2, 3, 4]);
   } finally { ROOM_TABLE.splice(0, ROOM_TABLE.length, ...original); }
 });
 

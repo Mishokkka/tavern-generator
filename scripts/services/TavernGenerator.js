@@ -41,6 +41,7 @@ export class TavernGenerator {
       inventory,
       publicSummary: "Доступные позиции указаны ниже."
     };
+    tavern.offeringPlan = TavernInventory.planFor(tavern);
 
     const livingTavern = TavernAtmosphereService.ensure(tavern);
     livingTavern.summary = TavernViewModel.summary(livingTavern);

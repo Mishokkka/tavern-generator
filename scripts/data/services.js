@@ -18,7 +18,8 @@ export const SERVICE_TABLE = [
       "village",
       "road",
       "port",
-      "mountain"
+      "mountain",
+      "wilderness"
     ],
     "quality": [
       "poor",
@@ -213,7 +214,8 @@ export const SERVICE_TABLE = [
       "town",
       "city",
       "wilderness",
-      "mountain"
+      "mountain",
+      "port"
     ],
     "quality": [
       "poor",
@@ -234,7 +236,9 @@ export const SERVICE_TABLE = [
       "village",
       "town",
       "city",
-      "mountain"
+      "mountain",
+      "port",
+      "wilderness"
     ],
     "quality": [
       "poor",

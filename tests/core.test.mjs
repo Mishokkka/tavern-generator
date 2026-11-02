@@ -27,6 +27,7 @@ const { TavernGMApp } = await import("../scripts/apps/TavernGMApp.js");
 const { TavernEntryEditorDialog } = await import("../scripts/apps/TavernEntryEditorDialog.js");
 const { CalendariaAdapter } = await import("../scripts/services/CalendariaAdapter.js");
 const { TavernNames } = await import("../scripts/services/TavernNames.js");
+const { TavernOfferingModel } = await import("../scripts/services/TavernOfferingModel.js");
 const { TavernSocket } = await import("../scripts/services/TavernSocket.js");
 const { MENU_TABLE, SERVICE_TABLE } = await import("../scripts/data/index.js");
 
@@ -2331,11 +2332,11 @@ test("takeaway offers have an independent chance and do not displace normal serv
   const random = Math.random;
   try {
     Math.random = () => 0;
-    const present = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "road", priceMultiplier: 1 });
+    const present = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "city", priceMultiplier: 1 });
     assert.equal(present.services.filter(entry => entry.resource).length, 2);
-    assert.equal(present.services.filter(entry => !entry.resource).length, 1);
+    assert.equal(present.services.filter(entry => !entry.resource && !entry.offeringCore).length, 1);
     Math.random = () => 0.9999;
-    const absent = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "road", priceMultiplier: 1 });
+    const absent = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "city", priceMultiplier: 1 });
     assert.equal(absent.services.filter(entry => entry.resource).length, 0);
   } finally { Math.random = random; }
 });
@@ -2796,4 +2797,79 @@ test("show-to-players sends an explicit public tavern and binds the receiver to 
     game.user = gm; TavernSocketRelay.register = originalRegister;
     TavernSocketRelay.emit = originalEmit; TavernPlayerApp.openSingleton = originalOpen;
   }
+});
+
+test("generated basics support a mixed purchase, cleanliness, both resources, a booking and a safe retry without activation", async () => {
+  const {store,actor,user,request}=await resourceFixture({value:1});
+  const t=TavernGenerator.generate({region:"naerder",quality:"modest",size:"medium",terrain:"road"});
+  t.atmosphere.crowd=t.atmosphere.mood.crowd=0;
+  const selected=[
+    ["food",t.inventory.food.find(e=>TavernOfferingModel.has(e,"meal"))],
+    ["drinks",t.inventory.drinks.find(e=>TavernOfferingModel.has(e,"tableDrink"))],
+    ...["wash","animalBoarding","animalFeed","foodSupply","waterSupply"].map(role=>["services",t.inventory.services.find(e=>TavernOfferingModel.has(e,role))]),
+    ["lodging",t.inventory.lodging.find(e=>e.stock>0)]
+  ];
+  for(const [,entry]of selected)entry.pinned=true;
+  await store.write({current:null,saved:[t]});setSetting("currentTavern",null);
+  const getFlag=actor.getFlag,setFlag=actor.setFlag,flags=new Map();
+  actor.getFlag=(module,key)=>key==="wallet"?getFlag(module,key):flags.get(key);
+  actor.setFlag=async(module,key,value)=>key==="wallet"?setFlag(module,key,value):flags.set(key,structuredClone(value));
+  await actor.setFlag("fbl-tavern-generator","wallet",{gold:0,silver:0,copper:1000});
+  const handler=CleanlinessAdapter.customHandler;let washed=0;
+  CleanlinessAdapter.setHandler(async()=>{washed++;});
+  const items=selected.map(([category,e])=>({category,entryId:e.id,quantity:1,unitPrice:e.price,days:category==="lodging"?2:1,...(e.resource?{delivery:"resource"}:{})}));
+  const total=selected.reduce((sum,[category,e])=>sum+e.price*(category==="lodging"?2:1),0);
+  const purchase={...request,requestId:"generated-mixed",userId:user.id,tavernId:t.id,items,expectedTotal:total};
+  try {
+    const result=await TavernPurchaseService.execute(purchase);
+    assert.equal(result.total,total);assert.equal(CurrencyAdapter.getTotal(actor),1000-total);
+    assert.equal(actor.system.consumable.food.value,2);assert.equal(actor.system.consumable.water.value,2);assert.equal(washed,1);
+    const saved=TavernState.getSavedById(t.id);
+    for(const [category,e]of selected)assert.equal(saved.inventory[category].find(row=>row.id===e.id).stock,e.stock-1,e.name);
+    assert.equal(saved.lodgingBookings[0].remainingDays,2);assert.equal(TavernState.getCurrent(),null);
+    assert.deepEqual(saved.offeringPlan,t.offeringPlan);
+    const replay=await TavernPurchaseService.execute(purchase);assert.equal(replay.replayed,true);
+    assert.equal(CurrencyAdapter.getTotal(actor),1000-total);assert.equal(washed,1);
+    const day=await TavernDailyService.advanceTavern(saved);
+    assert.equal(day.tavern.lodgingBookings[0].remainingDays,1);assert.equal(TavernOfferingModel.status(day.tavern).complete,true);
+  } finally {CleanlinessAdapter.setHandler(handler);}
+});
+
+test("a failed generated mixed purchase rolls back money, resources, Gear and stocks before cleanliness", async () => {
+  const {store,actor,request}=await resourceFixture({value:1});
+  const t=TavernGenerator.generate({region:"naerder",size:"medium",terrain:"road"});t.atmosphere.crowd=t.atmosphere.mood.crowd=0;
+  await actor.setFlag("fbl-tavern-generator","wallet",{gold:0,silver:0,copper:1000});
+  await store.write({current:null,saved:[t]});setSetting("currentTavern",null);
+  const selected=["foodSupply","waterSupply","wash"].map(role=>t.inventory.services.find(e=>TavernOfferingModel.has(e,role)));
+  const items=selected.map(e=>({category:"services",entryId:e.id,quantity:1,unitPrice:e.price,...(e.resource?{delivery:e.resource.kind==="food"?"resource":"inventory"}:{})}));
+  const persist=TavernState.persistPurchaseTavern,handler=CleanlinessAdapter.customHandler;let washed=0;
+  TavernState.persistPurchaseTavern=async()=>{throw new Error("generated-storage-failure");};CleanlinessAdapter.setHandler(async()=>{washed++;});
+  try {
+    await assert.rejects(TavernPurchaseService.execute({...request,requestId:"generated-rollback",tavernId:t.id,items,expectedTotal:selected.reduce((s,e)=>s+e.price,0)}),/generated-storage-failure/);
+    assert.equal(CurrencyAdapter.getTotal(actor),1000);assert.equal(actor.system.consumable.food.value,1);assert.equal(actor.system.consumable.water.value,1);
+    assert.equal(actor.items.length,0);assert.equal(washed,0);assert.deepEqual(TavernState.getSavedById(t.id),TavernMigrations.migrate(t));
+    assert.equal(TavernState.getCurrent(),null);
+  } finally {TavernState.persistPurchaseTavern=persist;CleanlinessAdapter.setHandler(handler);}
+});
+
+test("GM foundation update can cancel, retains a purchase made during confirmation, and can undo only its additions", async () => {
+  const {store,tavern,request,actor}=await purchaseFixture();
+  tavern.inventory.services=[];delete tavern.offeringPlan;
+  await store.write({current:null,saved:[tavern]});setSetting("currentTavern",null);
+  const {app,click}=await gmButtons(tavern);
+  const confirm=foundry.applications.api.DialogV2.confirm;let release,pending;
+  try {
+    foundry.applications.api.DialogV2.confirm=async()=>false;
+    await click("ensureOfferings");assert.deepEqual(TavernState.getSavedById(tavern.id).inventory.services,[]);
+    foundry.applications.api.DialogV2.confirm=()=>new Promise(resolve=>{release=resolve;});
+    pending=click("ensureOfferings");assert.equal(app.actionPending,true);
+    const purchase=await TavernPurchaseService.execute(request);
+    TavernGMApp.receiveDraftUpdate(purchase.tavern);
+    release(true);await pending;
+    let saved=TavernState.getSavedById(tavern.id);
+    assert.equal(saved.inventory.food[0].stock,9);assert.equal(actor.wallet().copper,95);
+    assert.equal(TavernOfferingModel.status(saved).complete,true);assert.equal(TavernState.getCurrent(),null);
+    await click("undo");saved=TavernState.getSavedById(tavern.id);
+    assert.deepEqual(saved.inventory.services,[]);assert.equal(saved.inventory.food[0].stock,9);assert.equal(actor.wallet().copper,95);
+  } finally {release?.(false);await pending;foundry.applications.api.DialogV2.confirm=confirm;await app._onClose();}
 });

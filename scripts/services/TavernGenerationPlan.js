@@ -16,6 +16,8 @@ export class TavernGenerationPlan {
     return {
       menu: `До ${food} блюд и ${Math.max(1, target - food)} напитков`,
       lodging: `До ${Math.max(1, size.rooms + quality.rooms)} вариантов ночлега`,
+      services: `Бытовая основа и до ${{ tiny: 1, small: 2, medium: 3, large: 4 }[params.size] ?? 3} дополнительных услуг`
+        + (["road", "port", "mountain", "wilderness"].includes(params.terrain ?? "road") ? " · пайки и вода в дорогу" : ""),
       prices: `Качество ×${factor(quality.price)} · местность ×${factor(terrain.price)} · наценка ×${factor(multiplier)}`
         + (waterMultiplier > 1 ? ` · шаг воды в дорогу ×${factor(waterMultiplier)}` : ""),
       markup: percent === 100 ? "100% — без дополнительной наценки." : `${percent}% — цены ×${factor(multiplier)} после поправок качества и местности.`,

@@ -36,7 +36,7 @@
         </div>
         <aside class="tg-generation-plan" aria-label="Результат генерации">
           <i class="fa-solid fa-wand-magic-sparkles"></i><h3>Что получится</h3>
-          <ul><li data-generation-preview="menu">{{generationPlan.menu}}</li><li data-generation-preview="lodging">{{generationPlan.lodging}}</li><li>Услуги, подходящие региону и уровню заведения</li></ul>
+          <ul><li data-generation-preview="menu">{{generationPlan.menu}}</li><li data-generation-preview="lodging">{{generationPlan.lodging}}</li><li data-generation-preview="services">{{generationPlan.services}}</li></ul>
           <p class="tg-help">Точное число зависит от доступных позиций каталога.</p>
           <div class="tg-plan-prices"><strong>Как складывается цена</strong><p data-generation-preview="prices">{{generationPlan.prices}}</p><small>Дополнительно учитываются регион и сезон, если включены сезонные цены.</small></div>
           <p class="tg-help" data-generation-preview="stock">{{generationPlan.stock}}</p>
@@ -52,6 +52,7 @@
         <div class="tg-name-editor"><label class="tg-field"><span>Город</span><input type="text" name="tavernCity" value="{{tavern.city}}" maxlength="120" placeholder="Без города" /></label><button type="button" data-action="setCity">Применить город</button><p class="tg-help">Группировка в библиотеке внутри региона. Пустое поле убирает город.</p></div>
         <div class="tg-price-editor"><label class="tg-field"><span>Множитель цен этой таверны, %</span><input type="number" name="draftPricePercent" min="10" max="500" step="5" value="{{tavern.priceMultiplierPercent}}" /></label><button type="button" data-action="applyPriceModifier">Применить к меню</button><p class="tg-help">100% — без наценки; 150% — базовые цены ×1,5. Пересчёт не накапливается.</p></div>
       </div>
+      <details class="tg-offering-status" {{#if offeringExpanded}}open{{/if}}><summary>{{#if offeringStatus.complete}}Основа обеспечена{{else}}Есть пробелы в основе{{/if}}</summary><p class="tg-help">{{offeringStatus.summary}}</p><p class="tg-help">Проверка учитывает назначение позиций. Распроданное предложение остаётся частью таверны; запасы пополняются отдельно.</p><button type="button" data-action="ensureOfferings" {{#if offeringStatus.complete}}disabled{{/if}}>Добавить недостающее</button></details>
       <nav class="tg-editor-tabs" role="tablist" aria-label="Разделы ассортимента">
         <button type="button" data-editor-tab="menu" role="tab" id="tg-editor-tab-menu" aria-controls="tg-editor-panel-menu" tabindex="{{#if (eq editorTab 'menu')}}0{{else}}-1{{/if}}" class="{{#if (eq editorTab 'menu')}}is-active{{/if}}" aria-selected="{{#if (eq editorTab 'menu')}}true{{else}}false{{/if}}">Еда <span class="tg-count">{{tavern.food.length}}</span> и напитки <span class="tg-count">{{tavern.drinks.length}}</span></button>
         <button type="button" data-editor-tab="stay" role="tab" id="tg-editor-tab-stay" aria-controls="tg-editor-panel-stay" tabindex="{{#if (eq editorTab 'stay')}}0{{else}}-1{{/if}}" class="{{#if (eq editorTab 'stay')}}is-active{{/if}}" aria-selected="{{#if (eq editorTab 'stay')}}true{{else}}false{{/if}}">Ночлег <span class="tg-count">{{tavern.lodging.length}}</span> и услуги <span class="tg-count">{{tavern.services.length}}</span></button>
