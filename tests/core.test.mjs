@@ -21,11 +21,13 @@ const { FoundryDocumentUtils } = await import("../scripts/services/FoundryDocume
 const { TavernSocketIdentity } = await import("../scripts/services/TavernSocketIdentity.js");
 const { TavernSocketRelay } = await import("../scripts/services/TavernSocketRelay.js");
 const { TavernSceneService } = await import("../scripts/services/TavernSceneService.js");
+const { CharacterForgeAdapter } = await import("../scripts/services/CharacterForgeAdapter.js");
 const { TavernPlayerApp } = await import("../scripts/apps/TavernPlayerApp.js");
 const { TavernGMApp } = await import("../scripts/apps/TavernGMApp.js");
 const { TavernEntryEditorDialog } = await import("../scripts/apps/TavernEntryEditorDialog.js");
 const { CalendariaAdapter } = await import("../scripts/services/CalendariaAdapter.js");
 const { TavernNames } = await import("../scripts/services/TavernNames.js");
+const { TavernOfferingModel } = await import("../scripts/services/TavernOfferingModel.js");
 const { TavernSocket } = await import("../scripts/services/TavernSocket.js");
 const { MENU_TABLE, SERVICE_TABLE } = await import("../scripts/data/index.js");
 
@@ -612,6 +614,7 @@ test("GM can restore a linked tavern from the trusted Scene snapshot", async () 
     assert.equal(openedTavern.name, tavern.name);
     assert.equal(viewed, 1);
     const restored = TavernState.getSavedById(tavern.id);
+    assert.equal(TavernState.getCurrent(), null);
     assert.equal(restored?.name, tavern.name);
     assert.ok(restored?.atmosphere?.mood);
     assert.ok(restored.inventory.food.every((entry) => !("crowdAvailability" in entry)));
@@ -1361,7 +1364,7 @@ async function gmButtons(tavern, { savedTavernId = null } = {}) {
   const listeners = new Map();
   const buttons = new Map();
   const button = (selector) => {
-    if (!buttons.has(selector)) buttons.set(selector, { dataset: {}, addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } });
+    if (!buttons.has(selector)) buttons.set(selector, { dataset: {}, disabled: false, isConnected: true, addEventListener: (type, callback) => { listeners.set(`${selector}:${type}`, callback); } });
     return buttons.get(selector);
   };
   app.render = () => app;
@@ -1369,7 +1372,7 @@ async function gmButtons(tavern, { savedTavernId = null } = {}) {
     querySelectorAll: (selector) => selector.startsWith("[data-action=") ? [button(selector)] : [],
     querySelector: (selector) => {
       if (selector === "select[name='savedTavernId']") return { value: savedTavernId };
-      if (selector === "[name='draftPricePercent']") return { value: "200" };
+      if (selector === "[name='draftPricePercent']") return { value: "200", addEventListener() {} };
       if (!selector.startsWith("[data-action=")) return null;
       return button(selector);
     }
@@ -1379,7 +1382,9 @@ async function gmButtons(tavern, { savedTavernId = null } = {}) {
     const selector = `[data-action='${action}']`;
     const currentTarget = button(selector);
     Object.assign(currentTarget.dataset, dataset);
-    return listeners.get(`${selector}:click`)({ preventDefault() {}, currentTarget });
+    const event = { preventDefault() {}, currentTarget };
+    try { return listeners.get(`${selector}:click`)(event); }
+    finally { event.currentTarget = null; } // DOM dispatch ends before async handlers resume.
   } };
 }
 
@@ -1423,12 +1428,12 @@ test("GM undo and redo across taverns use each tavern's revision and form parame
     await click("undo");
     assert.equal(app.draft.id, edited.id);
     assert.equal(app.draft.storageRevision, edited.storageRevision);
-    assert.equal(app.activeTavernId, edited.id);
+    assert.equal(TavernState.getCurrent().id, edited.id);
     assert.equal(app.params.priceMultiplier, edited.priceMultiplier);
     assert.equal(TavernState.getCurrent().storageRevision, edited.storageRevision);
     await click("undo");
     assert.equal(app.draft.id, other.id);
-    assert.equal(app.activeTavernId, null);
+    assert.notEqual(TavernState.getCurrent().id, other.id);
     assert.equal(app.params.region, other.region);
     assert.equal(app.params.priceMultiplier, other.priceMultiplier);
   } finally { await app._onClose(); }
@@ -1459,8 +1464,9 @@ test("GM synchronizes a purchase refresh deferred by a cancelled dialog", async 
   let pending;
   try {
     app.rendered = true;
+    app.draft.scene = { id: "existing-scene" };
     foundry.applications.api.DialogV2.confirm = () => gate;
-    pending = click("clear");
+    pending = click("createScene");
     assert.equal(app.actionPending, true);
     await TavernPurchaseService.execute(request);
     TavernGMApp.renderOpenInstances({ syncCurrent: true });
@@ -1487,8 +1493,9 @@ test("GM deferred refresh does not overwrite an intentionally changed local draf
   let pending;
   try {
     app.rendered = true;
+    app.draft.scene = { id: "existing-scene" };
     foundry.applications.api.DialogV2.confirm = () => gate;
-    pending = click("clear");
+    pending = click("createScene");
     app.draft.name = "Несохранённый черновик";
     await TavernPurchaseService.execute(request);
     TavernGMApp.renderOpenInstances({ syncCurrent: true });
@@ -1930,7 +1937,7 @@ test("library finds words across labels, normalizes ё, and bounds large pages w
   const found = prepareTavernLibrary(entries, { query: "зеленый НОВАНД" });
   assert.deepEqual(found.rows.map(row => row.id), ["library-1"]);
   assert.equal(prepareTavernLibrary(entries, { region: "sangren" }).matched, 104);
-  assert.equal(prepareTavernLibrary(entries, { status: "active" }, "library-1").matched, 1);
+  assert.equal(prepareTavernLibrary(entries, { status: "active" }, "library-1").matched, entries.length);
   const ids = [];
   for (let page = 1; page <= 11; page++) {
     const result = prepareTavernLibrary(entries, { page });
@@ -1938,12 +1945,67 @@ test("library finds words across labels, normalizes ё, and bounds large pages w
     ids.push(...result.rows.map(row => row.id));
   }
   assert.equal(new Set(ids).size, 207);
-  assert.equal(ids[0], "library-206");
+  assert.equal(ids[0], "library-205"); // Regions are grouped alphabetically; recent order applies within a city.
   const empty = prepareTavernLibrary(entries, { query: "нет-такого", page: 999 });
   assert.equal(empty.page, 1);
   assert.equal(empty.start, 0);
   assert.equal(empty.nextDisabled, true);
   assert.equal(prepareTavernLibrary(entries, { page: 999 }).page, 11);
+});
+
+test("compact library remembers group folds and scroll, and expands fresh filter results", async () => {
+  const { tavern } = await purchaseFixture();
+  const library = new TavernLibraryApp({ onEdit: async () => {} });
+  library.render = () => library;
+  const search = {}, scroller = { scrollTop: 0, isConnected: true }, filters = {};
+  const region = { dataset: { libraryFilter: "region" }, value: "novandia", addEventListener: (type, fn) => { filters[type] = fn; } };
+  let groups = [];
+  library.element = {
+    setAttribute() {},
+    querySelector: selector => selector === "[data-library-scroll]" ? scroller
+      : selector === "[data-library-search]" ? { addEventListener: (type, fn) => { search[type] = fn; } }
+      : selector === "[name='libraryQuery']" ? { value: "Запрос" } : null,
+    querySelectorAll: selector => selector === "[data-library-filter]" ? [region]
+      : selector === "[data-library-group]" ? groups : []
+  };
+  scroller.addEventListener = (type, fn) => { scroller[type] = fn; };
+  try {
+    const first = await library._prepareContext();
+    groups = [first.regionGroups[0], first.regionGroups[0].cities[0]].map(g => ({
+      dataset: { libraryGroup: g.key }, open: true, isConnected: true,
+      addEventListener(type, fn) { this[type] = fn; }
+    }));
+    library.scrollTop = 120;
+    await library._onRender();
+    assert.equal(scroller.scrollTop, 120);
+    scroller.scrollTop = 75; scroller.scroll();
+    scroller.isConnected = false; scroller.scrollTop = 0; scroller.scroll();
+    assert.equal(library.scrollTop, 75);
+    scroller.isConnected = true;
+    groups[1].open = false; groups[1].toggle();
+    assert.equal((await library._prepareContext()).regionGroups[0].cities[0].closed, true);
+    await library.perform("edit", tavern.id);
+    assert.equal(library.scrollTop, 75);
+    await library.perform("collapseGroups");
+    assert.ok((await library._prepareContext()).regionGroups.every(g => g.closed && g.cities.every(c => c.closed)));
+    await library.perform("expandGroups");
+    assert.equal(library.collapsedGroups.size, 0);
+    groups[1].open = false; groups[1].toggle();
+    library.filters.page = 5; library.scrollTop = 100;
+    library.filters.city = '["старый"]';
+    filters.change();
+    assert.equal(library.filters.city, "");
+    assert.equal(library.filters.page, 1);
+    assert.equal(library.scrollTop, 0);
+    assert.equal(library.collapsedGroups.size, 0);
+    assert.equal(library.filters.query, "Запрос");
+    groups[1].toggle();
+    search.submit({ preventDefault() {} });
+    assert.equal(library.collapsedGroups.size, 0);
+    await library.perform("reset");
+    assert.equal(library.filters.city, "");
+    assert.equal(library.filters.query, "");
+  } finally { await library._onClose(); }
 });
 
 test("library edit selects the exact latest saved tavern without activating it", async () => {
@@ -1958,12 +2020,12 @@ test("library edit selects the exact latest saved tavern without activating it",
     assert.equal(app.draft.name, changed.name);
     assert.equal(app.draft.storageRevision, changed.storageRevision);
     assert.equal(TavernState.getCurrent().id, active.id);
-    assert.equal(app.activeTavernId, null);
+    assert.equal((await app._prepareContext()).isSaved, true);
     assert.equal(app.editorTab, "menu");
   } finally { await app._onClose(); await library._onClose(); }
 });
 
-test("library deletion cancellation preserves data; confirmed deletion preserves active tavern", async () => {
+test("PR review: library deletion cancellation preserves data; confirmed deletion clears the matching legacy current tavern", async () => {
   const { tavern } = await purchaseFixture();
   const library = new TavernLibraryApp();
   library.render = () => library;
@@ -1972,29 +2034,58 @@ test("library deletion cancellation preserves data; confirmed deletion preserves
     foundry.applications.api.DialogV2.confirm = async () => false;
     await library.perform("delete", tavern.id);
     assert.ok(TavernState.getSavedById(tavern.id));
+    assert.equal(TavernState.getCurrent().id, tavern.id);
+    assert.equal(getSetting("currentTavern").id, tavern.id);
     foundry.applications.api.DialogV2.confirm = async () => true;
     await library.perform("delete", tavern.id);
     assert.equal(TavernState.getSavedById(tavern.id), null);
-    assert.equal(TavernState.getCurrent().id, tavern.id);
+    assert.equal(TavernState.getCurrent(), null);
+    assert.equal(getSetting("currentTavern"), null);
     assert.equal(library.pending, false);
   } finally { foundry.applications.api.DialogV2.confirm = confirm; await library._onClose(); }
 });
 
-test("library activation is explicit, does not open player windows, and ignores repeated pending actions", async () => {
+test("PR review: a deleted legacy current tavern stays deleted after repeated initialization", async () => {
+  const { tavern } = await purchaseFixture();
+  setSetting("savedTaverns", []);
+  await TavernState.deleteSaved(tavern.id);
+  for (let reload = 0; reload < 2; reload++) {
+    await TavernState.initialize();
+    assert.equal(TavernState.getSavedById(tavern.id), null);
+    assert.equal(TavernState.getCurrent(), null);
+    assert.equal(getSetting("currentTavern"), null);
+  }
+});
+
+test("PR review: deleting another saved tavern preserves the legacy current tavern and its public mirror", async () => {
+  const { tavern } = await purchaseFixture();
+  const other = await TavernState.saveTavern(TavernGenerator.generate());
+  const current = TavernState.getCurrent(), mirror = structuredClone(getSetting("currentTavern"));
+  await TavernState.deleteSaved(other.id);
+  assert.equal(TavernState.getSavedById(other.id), null);
+  assert.deepEqual(TavernState.getCurrent(), current);
+  assert.deepEqual(getSetting("currentTavern"), mirror);
+  assert.ok(TavernState.getSavedById(tavern.id));
+});
+
+test("library preview uses the exact tavern, preserves legacy state and ignores repeated pending actions", async () => {
   await purchaseFixture();
   const tavern = await TavernState.saveTavern(TavernGenerator.generate());
   const library = new TavernLibraryApp(); library.render = () => library;
-  const original = TavernSocket.openForPlayers;
-  let opened = 0; TavernSocket.openForPlayers = () => opened++;
+  const original = TavernPlayerApp.openSingleton;
+  const current = TavernState.getCurrent();
+  const opened = []; TavernPlayerApp.openSingleton = options => opened.push(options);
   try {
     library.pending = true;
-    await library.perform("activate", tavern.id);
-    assert.notEqual(TavernState.getCurrent().id, tavern.id);
+    await library.perform("preview", tavern.id);
+    assert.equal(opened.length, 0);
     library.pending = false;
-    await library.perform("activate", tavern.id);
-    assert.equal(TavernState.getCurrent().id, tavern.id);
-    assert.equal(opened, 0);
-  } finally { TavernSocket.openForPlayers = original; await library._onClose(); }
+    await library.perform("preview", tavern.id);
+    assert.deepEqual(TavernState.getCurrent(), current);
+    assert.equal(opened.length, 1);
+    assert.equal(opened[0].tavern.id, tavern.id);
+    assert.equal(opened[0].followCurrent, false);
+  } finally { TavernPlayerApp.openSingleton = original; await library._onClose(); }
 });
 
 test("library does not expose saved taverns or actions to a player", async () => {
@@ -2037,13 +2128,13 @@ test("GM manual rename auto-saves and undo restores the previous name", async ()
   } finally { await app._onClose(); }
 });
 
-test("GM deactivating another tavern retains the editor draft", async () => {
+test("legacy clear does not change an explicitly selected editor draft or its saved data", async () => {
   const { tavern } = await purchaseFixture();
   const draft = TavernGenerator.generate({ region: "sangren" });
-  const { app, click } = await gmButtons(draft);
+  const { app } = await gmButtons(draft);
   try {
-    assert.equal(app.activeTavernId, null);
-    await click("clear");
+    await TavernState.clearCurrent();
+    TavernSocket.refreshAll(null);
     assert.equal(TavernState.getCurrent(), null);
     assert.equal(app.draft.id, draft.id);
     assert.ok(TavernState.getSavedById(tavern.id));
@@ -2267,11 +2358,11 @@ test("takeaway offers have an independent chance and do not displace normal serv
   const random = Math.random;
   try {
     Math.random = () => 0;
-    const present = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "road", priceMultiplier: 1 });
+    const present = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "city", priceMultiplier: 1 });
     assert.equal(present.services.filter(entry => entry.resource).length, 2);
-    assert.equal(present.services.filter(entry => !entry.resource).length, 1);
+    assert.equal(present.services.filter(entry => !entry.resource && !entry.offeringCore).length, 1);
     Math.random = () => 0.9999;
-    const absent = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "road", priceMultiplier: 1 });
+    const absent = TavernInventory.generate({ region: "common", quality: "modest", size: "tiny", terrain: "city", priceMultiplier: 1 });
     assert.equal(absent.services.filter(entry => entry.resource).length, 0);
   } finally { Math.random = random; }
 });
@@ -2341,4 +2432,470 @@ test("editor tabs synchronize selected panel, tab stop and keyboard focus", asyn
     press(2, "Home"); check("menu");
     app.actionPending = true; press(0, "ArrowRight"); buttons[1].click(); check("menu");
   } finally { await app._onClose(); }
+});
+
+
+test("opening players' menus saves and sends the exact draft without changing legacy selection", async () => {
+  const { tavern: previous } = await purchaseFixture();
+  const draft = TavernGenerator.generate({ region: "novandia" });
+  const { app, click } = await gmButtons(draft);
+  const original = TavernSocket.openForPlayers;
+  let calls = 0;
+  TavernSocket.openForPlayers = selected => {
+    calls++;
+    assert.equal(selected.id, draft.id);
+    assert.deepEqual(TavernState.getCurrent(), previous);
+    assert.equal(TavernState.getSavedById(draft.id).name, draft.name);
+  };
+  try {
+    await click("openPlayers");
+    assert.equal(calls, 1);
+    assert.ok(TavernState.getSavedById(previous.id));
+    const context = await app._prepareContext();
+    assert.equal(Object.hasOwn(context, "isActive"), false);
+    assert.equal(context.isSaved, true);
+    assert.equal(context.autoSave, true);
+  } finally { TavernSocket.openForPlayers = original; await app._onClose(); }
+});
+
+test("saving an unsaved draft needs no activation and opens no player windows", async () => {
+  const { store } = await purchaseFixture();
+  await store.write({ current: null, saved: [] });
+  setSetting("currentTavern", null);
+  const { app, click } = await gmButtons(TavernGenerator.generate());
+  const original = TavernSocket.openForPlayers;
+  let calls = 0; TavernSocket.openForPlayers = () => calls++;
+  try {
+    await click("saveDraft");
+    assert.equal(TavernState.getCurrent(), null);
+    assert.ok(TavernState.getSavedById(app.draft.id));
+    assert.equal(calls, 0);
+  } finally { TavernSocket.openForPlayers = original; await app._onClose(); }
+});
+
+test("cancelled regeneration retains the unsaved draft and its parameters", async () => {
+  await purchaseFixture();
+  const { app, click } = await gmButtons(TavernGenerator.generate());
+  const confirm = foundry.applications.api.DialogV2.confirm;
+  try {
+    const draft = structuredClone(app.draft);
+    app.params.region = "novandia";
+    foundry.applications.api.DialogV2.confirm = async () => false;
+    await click("generate");
+    assert.deepEqual(app.draft, draft);
+    assert.equal(app.params.region, "novandia");
+    foundry.applications.api.DialogV2.confirm = async () => true;
+    await click("generate");
+    assert.notEqual(app.draft.id, draft.id);
+    assert.equal(app.draft.region, "novandia");
+    assert.equal(app.workflowStep, "assortment");
+    assert.equal(TavernState.getSavedById(app.draft.id), null);
+    await click("undo");
+    assert.equal(app.draft.id, draft.id);
+    assert.equal(app.workflowStep, "assortment");
+  } finally { foundry.applications.api.DialogV2.confirm = confirm; await app._onClose(); }
+});
+
+test("library draft replacement can be cancelled and loads fresh state after confirmation", async () => {
+  await purchaseFixture();
+  const saved = await TavernState.saveTavern(TavernGenerator.generate());
+  const { app } = await gmButtons(TavernGenerator.generate());
+  const draftId = app.draft.id;
+  const confirm = foundry.applications.api.DialogV2.confirm;
+  try {
+    foundry.applications.api.DialogV2.confirm = async () => false;
+    await app.loadSavedTavern(saved.id);
+    assert.equal(app.draft.id, draftId);
+    foundry.applications.api.DialogV2.confirm = async () => {
+      await TavernState.saveTavern({ ...saved, name: "Изменено во время подтверждения" });
+      return true;
+    };
+    await app.loadSavedTavern(saved.id);
+    assert.equal(app.draft.name, "Изменено во время подтверждения");
+    assert.equal(app.workflowStep, "assortment");
+  } finally { foundry.applications.api.DialogV2.confirm = confirm; await app._onClose(); }
+});
+
+test("workflow navigation preserves the draft without a render", async () => {
+  await purchaseFixture();
+  const app = new TavernGMApp({ tavern: TavernGenerator.generate() });
+  const draft = structuredClone(app.draft);
+  const node = (dataset = {}) => ({ dataset, hidden: false, attributes: {}, handlers: {}, classList: { toggle() {} },
+    setAttribute(key, value) { this.attributes[key] = value; },
+    addEventListener(type, handler) { this.handlers[type] = handler; },
+    click() { this.handlers.click(); }, focus() {}, querySelector() { return null; } });
+  const tabs = ["setup", "assortment", "extras", "launch"].map(step => node({ workflowStep: step }));
+  const panels = tabs.map(tab => node({ workflowPanel: tab.dataset.workflowStep }));
+  const next = node({ stepTarget: "extras" }); const previous = node({ stepTarget: "assortment" }); const footer = node();
+  let renders = 0; app.render = () => { renders++; };
+  app.element = {
+    querySelector: selector => ({ "[data-workflow-next]": next, "[data-workflow-previous]": previous, "[data-workflow-footer]": footer })[selector] ?? null,
+    querySelectorAll: selector => ({ "[data-workflow-step]": tabs, "[data-workflow-panel]": panels, "[data-step-target]": [next, previous] })[selector] ?? []
+  };
+  try {
+    await app._onRender();
+    assert.equal(next.textContent, "Сцена и тавернщик →");
+    next.click(); assert.equal(app.workflowStep, "extras");
+    assert.equal(previous.hidden, false);
+    next.click(); assert.equal(app.workflowStep, "launch");
+    assert.equal(next.hidden, true);
+    assert.deepEqual(panels.filter(panel => !panel.hidden).map(panel => panel.dataset.workflowPanel), ["launch"]);
+    tabs[0].click(); assert.equal(footer.hidden, true);
+    assert.equal(app.workflowStep, "setup");
+    tabs[2].handlers.keydown({ key: "End", preventDefault() {} });
+    assert.equal(app.workflowStep, "launch");
+    assert.deepEqual(tabs.filter(tab => tab.attributes["aria-selected"] === "true").map(tab => tab.dataset.workflowStep), ["launch"]);
+    app.actionPending = true; tabs[1].click(); assert.equal(app.workflowStep, "launch");
+    assert.equal(renders, 0);
+    assert.deepEqual(app.draft, draft);
+  } finally { await app._onClose(); }
+});
+
+test("player purchases and deferred draft updates retain next-generation settings", async () => {
+  const { tavern, request } = await purchaseFixture();
+  const { app } = await gmButtons(tavern);
+  try {
+    app.rendered = true;
+    app.params = { region: "novandia", quality: "fine", size: "large", terrain: "city", priceMultiplier: 3 };
+    const params = structuredClone(app.params);
+    await TavernPurchaseService.execute(request);
+    TavernGMApp.renderOpenInstances({ syncCurrent: true });
+    assert.equal(app.draft.inventory.food[0].stock, 9);
+    assert.deepEqual(app.params, params);
+    const next = structuredClone(app.draft); next.name = "Имя из другого окна";
+    TavernGMApp.receiveDraftUpdate(next);
+    assert.equal(app.draft.name, next.name);
+    assert.deepEqual(app.params, params);
+  } finally { await app._onClose(); }
+});
+
+test("scene creation receives the automatic keeper placement choice", async () => {
+  await purchaseFixture();
+  const { app, click } = await gmButtons(TavernGenerator.generate());
+  const original = TavernSceneService.createSceneForTavern;
+  const choices = [];
+  TavernSceneService.createSceneForTavern = async (_tavern, config) => {
+    choices.push(config.placeTavernkeeper);
+    return { scene: { id: "new-scene", name: "Новая сцена" }, meta: { id: "new-scene", name: "Новая сцена" } };
+  };
+  try {
+    app.keeperConfig.placeTokenOnScene = false;
+    await click("createScene");
+    assert.equal(TavernState.getSavedById(app.draft.id).scene.id, "new-scene");
+    app.keeperConfig.placeTokenOnScene = true;
+    await click("createScene");
+    assert.deepEqual(choices, [false, true]);
+  } finally { TavernSceneService.createSceneForTavern = original; await app._onClose(); }
+});
+
+for (const action of ["createScene", "createTavernkeeper"]) {
+  test(`GM ${action} replacement survives an expired DOM event and cancellation`, async () => {
+    await purchaseFixture();
+    const draft = TavernGenerator.generate();
+    if (action === "createScene") draft.scene = { id: "previous-scene" };
+    else draft.tavernkeeper = { actorId: "previous-keeper" };
+    const { app, click } = await gmButtons(draft);
+    app.keeperConfig.placeTokenOnScene = false;
+    const button = app.element.querySelector(`[data-action='${action}']`);
+    const service = action === "createScene" ? TavernSceneService : CharacterForgeAdapter;
+    const method = action === "createScene" ? "createSceneForTavern" : "createTavernkeeper";
+    const create = service[method];
+    const confirm = foundry.applications.api.DialogV2.confirm;
+    let release, pending, calls = 0;
+    service[method] = async () => {
+      calls += 1;
+      assert.equal(button.disabled, true);
+      return action === "createScene"
+        ? { scene: { id: "replacement-scene", name: "Новая сцена" }, meta: { id: "replacement-scene" } }
+        : { actorId: "replacement-keeper", name: "Новый тавернщик" };
+    };
+    foundry.applications.api.DialogV2.confirm = () => new Promise(resolve => { release = resolve; });
+    try {
+      const before = structuredClone(app.draft);
+      pending = click(action);
+      assert.equal(app.actionPending, true);
+      assert.equal(calls, 0);
+      release(false);
+      await pending;
+      assert.deepEqual(app.draft, before);
+      assert.equal(button.disabled, false);
+      assert.equal(app.actionPending, false);
+
+      pending = click(action);
+      assert.equal(calls, 0);
+      release(true);
+      await pending;
+      assert.equal(calls, 1);
+      const saved = TavernState.getSavedById(app.draft.id);
+      if (action === "createScene") assert.equal(saved.scene.id, "replacement-scene");
+      else assert.equal(saved.tavernkeeper.actorId, "replacement-keeper");
+      assert.equal(button.disabled, false);
+      assert.equal(app.actionPending, false);
+    } finally {
+      release?.(false);
+      await pending;
+      service[method] = create;
+      foundry.applications.api.DialogV2.confirm = confirm;
+      await app._onClose();
+    }
+  });
+}
+
+test("GM saves, reloads, edits, undoes and clears a custom city", async () => {
+  await purchaseFixture();
+  const { app, click } = await gmButtons(TavernGenerator.generate());
+  const query = app.element.querySelector;
+  const generationCity = { value: "  Белый   Берег  " };
+  const currentCity = { value: "Нижний город" };
+  app.element.querySelector = selector => selector === "[name='generationCity']" ? generationCity
+    : selector === "[name='tavernCity']" ? currentCity : query(selector);
+  try {
+    await click("generate");
+    assert.equal(app.draft.city, "Белый Берег");
+    await click("saveDraft");
+    const id = app.draft.id;
+    await app.loadSavedTavern(id);
+    assert.equal(app.params.city, "Белый Берег");
+    await click("setCity");
+    assert.equal(TavernState.getSavedById(id).city, "Нижний город");
+    await click("undo");
+    assert.equal(TavernState.getSavedById(id).city, "Белый Берег");
+    currentCity.value = " \t ";
+    await click("setCity");
+    assert.equal(TavernState.getSavedById(id).city, "");
+    await click("saveDraft");
+    assert.equal(TavernState.getSavedById(id).city, "");
+  } finally { await app._onClose(); }
+});
+
+test("GM generates a custom name, saves and reloads it without using it for random renaming", async () => {
+  const { tavern } = await purchaseFixture();
+  const { app, click } = await gmButtons(tavern);
+  const query = app.element.querySelector;
+  app.element.querySelector = selector => selector === "[name='generationName']" ? { value: "  У   тихой переправы  " } : query(selector);
+  try {
+    await click("generate");
+    assert.equal(app.draft.name, "У тихой переправы");
+    assert.equal(TavernState.getCurrent().id, tavern.id);
+    await click("saveDraft");
+    const savedId = app.draft.id;
+    assert.equal(TavernState.getSavedById(savedId).name, "У тихой переправы");
+    await app.loadSavedTavern(savedId);
+    assert.equal(app.draft.name, "У тихой переправы");
+    app.params.name = "Название следующей таверны";
+    await click("rerollName");
+    assert.notEqual(app.draft.name, app.params.name);
+    assert.notEqual(app.draft.name, "У тихой переправы");
+    assert.equal(TavernState.getSavedById(savedId).name, app.draft.name);
+  } finally { await app._onClose(); }
+});
+
+test("new generator starts with parameters even when a legacy current tavern exists", async () => {
+  const { tavern } = await purchaseFixture();
+  const app = new TavernGMApp();
+  try {
+    assert.equal(app.draft, null);
+    assert.equal(app.workflowStep, "setup");
+    assert.equal(TavernState.getCurrent().id, tavern.id);
+    const context = await app._prepareContext();
+    assert.equal(Object.hasOwn(context, "hasCurrent"), false);
+    assert.equal(Object.hasOwn(context, "isActive"), false);
+  } finally { await app._onClose(); }
+});
+
+test("upgrade preserves a legacy current-only tavern in the library exactly once", async () => {
+  const { tavern } = await purchaseFixture({ stock: 3, saved: false });
+  await TavernState.initialize();
+  assert.deepEqual(TavernState.getSavedById(tavern.id), tavern);
+  assert.deepEqual(TavernState.getCurrent(), tavern);
+  await TavernState.initialize();
+  assert.equal(TavernState.getSaved().filter(entry => entry.id === tavern.id).length, 1);
+  assert.deepEqual(TavernState.getSavedById(tavern.id), tavern);
+});
+
+test("scene buttons, purchases and individual new days work without any current tavern", async () => {
+  const { store, tavern, user, gm, request, actor } = await purchaseFixture();
+  const other = TavernGenerator.generate({ region: "sangren" });
+  const sceneFor = (entry, id) => ({ id, name: entry.name, uuid: `Scene.${id}`,
+    flags: { "fbl-tavern-generator": { shopButton: { tavernId: entry.id }, tavernPublicView: TavernAtmosphereService.publicView(entry) } },
+    getFlag(moduleId, key) { return this.flags[moduleId]?.[key]; }
+  });
+  const scenes = [sceneFor(tavern, "scene-first"), sceneFor(other, "scene-second")];
+  const originalScenes = game.scenes, originalRender = TavernPlayerApp.prototype.render;
+  TavernPlayerApp.prototype.render = function () { return this; };
+  await store.write({ current: null, saved: [tavern, other] });
+  setSetting("currentTavern", null);
+  game.scenes = new Map(scenes.map(scene => [scene.id, scene]));
+  try {
+    game.user = user;
+    let menu;
+    for (const [index, entry] of [other, tavern].entries()) {
+      const scene = scenes[index === 0 ? 1 : 0];
+      menu = await TavernSceneService.openTavernLink({ tavernId: entry.id, sceneId: scene.id });
+      assert.equal(menu.tavern.id, entry.id);
+    }
+    const app = TavernPlayerApp.openSingleton({ tavern: menu.tavern });
+    assert.equal(app.followCurrent, false);
+    game.user = gm;
+    await TavernPurchaseService.execute({ ...request, sceneId: scenes[0].id });
+    assert.equal(actor.wallet().copper, 95);
+    assert.equal(TavernState.getSavedById(tavern.id).inventory.food[0].stock, 9);
+    assert.deepEqual(TavernState.getSavedById(other.id), other);
+    TavernSocket.refreshLocal(TavernAtmosphereService.publicView(other));
+    assert.equal(app.tavernOverride.id, tavern.id);
+    TavernSocket.refreshLocal(null);
+    assert.equal(app.tavernOverride.id, tavern.id);
+    const day = await TavernDailyService.advanceTavern(TavernState.getSavedById(tavern.id));
+    assert.equal(day.wasCurrent, false);
+    assert.equal(day.wasSaved, true);
+    assert.deepEqual(TavernState.getSavedById(other.id), other);
+    assert.equal(TavernState.getCurrent(), null);
+  } finally { game.user = gm; game.scenes = originalScenes; TavernPlayerApp.prototype.render = originalRender; }
+});
+
+test("calendar refresh broadcasts every changed saved tavern when none is current", async () => {
+  const store = await activatePrivateStore();
+  const first = bookedTavern(2), second = bookedTavern(2);
+  second.id = "second-scene-tavern";
+  await store.write({ current: null, saved: [first, second] });
+  setSetting("currentTavern", null);
+  const original = TavernSocket.refreshAll;
+  const sent = []; TavernSocket.refreshAll = tavern => sent.push(structuredClone(tavern));
+  try {
+    const result = await TavernDailyService.advanceDay({ dayKey: "scene-day-1" });
+    assert.equal(result.changed, 2);
+    assert.equal(TavernState.getCurrent(), null);
+    assert.deepEqual(new Set(sent.map(tavern => tavern.id)), new Set([first.id, second.id]));
+    for (const tavern of sent) {
+      assert.equal(tavern.lodgingBookings[0].remainingDays, 1);
+      assert.deepEqual(tavern, TavernState.getSavedById(tavern.id));
+    }
+    await TavernDailyService.advanceDay({ dayKey: "scene-day-1" });
+    assert.equal(sent.length, 2);
+  } finally { TavernSocket.refreshAll = original; }
+});
+
+test("editor synchronizes saved-only purchases and keeps their stock through the next edit", async () => {
+  const { store, tavern, request } = await purchaseFixture();
+  await store.write({ current: null, saved: [tavern] });
+  setSetting("currentTavern", null);
+  const { app, click } = await gmButtons(tavern);
+  app.rendered = true;
+  try {
+    await TavernPurchaseService.execute(request);
+    TavernGMApp.renderOpenInstances({ syncStored: true });
+    assert.equal(app.draft.inventory.food[0].stock, 9);
+    assert.equal(app.draft.storageRevision, TavernState.getSavedById(tavern.id).storageRevision);
+    await click("applyPriceModifier");
+    const saved = TavernState.getSavedById(tavern.id);
+    assert.equal(saved.inventory.food[0].stock, 9);
+    assert.equal(saved.inventory.food[0].price, 10);
+    assert.equal(TavernState.getCurrent(), null);
+  } finally { await app._onClose(); }
+});
+
+test("show-to-players sends an explicit public tavern and binds the receiver to its id", async () => {
+  const { store, tavern, gm, user } = await purchaseFixture();
+  await store.write({ current: null, saved: [tavern] });
+  setSetting("currentTavern", null);
+  const originalRegister = TavernSocketRelay.register, originalEmit = TavernSocketRelay.emit;
+  const originalOpen = TavernPlayerApp.openSingleton;
+  let receive;
+  const sent = [], opened = [];
+  TavernSocketRelay.register = handler => { receive = handler; return true; };
+  TavernSocketRelay.emit = async payload => { sent.push(structuredClone(payload)); };
+  TavernPlayerApp.openSingleton = options => opened.push(options);
+  try {
+    assert.equal(await TavernSocket.register(), true);
+    TavernSocket.openForPlayers(tavern);
+    assert.equal(sent.length, 1);
+    assert.deepEqual(sent[0].tavernData, TavernAtmosphereService.publicView(tavern));
+    assert.equal(TavernState.getCurrent(), null);
+    game.user = user;
+    await receive({ ...sent[0], sender: gm.id }, gm);
+    assert.equal(opened.length, 1);
+    assert.equal(opened[0].tavern.id, tavern.id);
+    assert.equal(opened[0].followCurrent, false);
+    await receive({ type: "open-player", sender: gm.id, tavernData: null }, gm);
+    await receive({ ...sent[0], sender: user.id }, user);
+    assert.equal(opened.length, 1);
+  } finally {
+    game.user = gm; TavernSocketRelay.register = originalRegister;
+    TavernSocketRelay.emit = originalEmit; TavernPlayerApp.openSingleton = originalOpen;
+  }
+});
+
+test("generated basics support a mixed purchase, cleanliness, both resources, a booking and a safe retry without activation", async () => {
+  const {store,actor,user,request}=await resourceFixture({value:1});
+  const t=TavernGenerator.generate({region:"naerder",quality:"modest",size:"medium",terrain:"road"});
+  t.atmosphere.crowd=t.atmosphere.mood.crowd=0;
+  const selected=[
+    ["food",t.inventory.food.find(e=>TavernOfferingModel.has(e,"meal"))],
+    ["drinks",t.inventory.drinks.find(e=>TavernOfferingModel.has(e,"tableDrink"))],
+    ...["wash","animalBoarding","animalFeed","foodSupply","waterSupply"].map(role=>["services",t.inventory.services.find(e=>TavernOfferingModel.has(e,role))]),
+    ["lodging",t.inventory.lodging.find(e=>e.stock>0)]
+  ];
+  for(const [,entry]of selected)entry.pinned=true;
+  await store.write({current:null,saved:[t]});setSetting("currentTavern",null);
+  const getFlag=actor.getFlag,setFlag=actor.setFlag,flags=new Map();
+  actor.getFlag=(module,key)=>key==="wallet"?getFlag(module,key):flags.get(key);
+  actor.setFlag=async(module,key,value)=>key==="wallet"?setFlag(module,key,value):flags.set(key,structuredClone(value));
+  await actor.setFlag("fbl-tavern-generator","wallet",{gold:0,silver:0,copper:1000});
+  const handler=CleanlinessAdapter.customHandler;let washed=0;
+  CleanlinessAdapter.setHandler(async()=>{washed++;});
+  const items=selected.map(([category,e])=>({category,entryId:e.id,quantity:1,unitPrice:e.price,days:category==="lodging"?2:1,...(e.resource?{delivery:"resource"}:{})}));
+  const total=selected.reduce((sum,[category,e])=>sum+e.price*(category==="lodging"?2:1),0);
+  const purchase={...request,requestId:"generated-mixed",userId:user.id,tavernId:t.id,items,expectedTotal:total};
+  try {
+    const result=await TavernPurchaseService.execute(purchase);
+    assert.equal(result.total,total);assert.equal(CurrencyAdapter.getTotal(actor),1000-total);
+    assert.equal(actor.system.consumable.food.value,2);assert.equal(actor.system.consumable.water.value,2);assert.equal(washed,1);
+    const saved=TavernState.getSavedById(t.id);
+    for(const [category,e]of selected)assert.equal(saved.inventory[category].find(row=>row.id===e.id).stock,e.stock-1,e.name);
+    assert.equal(saved.lodgingBookings[0].remainingDays,2);assert.equal(TavernState.getCurrent(),null);
+    assert.deepEqual(saved.offeringPlan,t.offeringPlan);
+    const replay=await TavernPurchaseService.execute(purchase);assert.equal(replay.replayed,true);
+    assert.equal(CurrencyAdapter.getTotal(actor),1000-total);assert.equal(washed,1);
+    const day=await TavernDailyService.advanceTavern(saved);
+    assert.equal(day.tavern.lodgingBookings[0].remainingDays,1);assert.equal(TavernOfferingModel.status(day.tavern).complete,true);
+  } finally {CleanlinessAdapter.setHandler(handler);}
+});
+
+test("a failed generated mixed purchase rolls back money, resources, Gear and stocks before cleanliness", async () => {
+  const {store,actor,request}=await resourceFixture({value:1});
+  const t=TavernGenerator.generate({region:"naerder",size:"medium",terrain:"road"});t.atmosphere.crowd=t.atmosphere.mood.crowd=0;
+  await actor.setFlag("fbl-tavern-generator","wallet",{gold:0,silver:0,copper:1000});
+  await store.write({current:null,saved:[t]});setSetting("currentTavern",null);
+  const selected=["foodSupply","waterSupply","wash"].map(role=>t.inventory.services.find(e=>TavernOfferingModel.has(e,role)));
+  const items=selected.map(e=>({category:"services",entryId:e.id,quantity:1,unitPrice:e.price,...(e.resource?{delivery:e.resource.kind==="food"?"resource":"inventory"}:{})}));
+  const persist=TavernState.persistPurchaseTavern,handler=CleanlinessAdapter.customHandler;let washed=0;
+  TavernState.persistPurchaseTavern=async()=>{throw new Error("generated-storage-failure");};CleanlinessAdapter.setHandler(async()=>{washed++;});
+  try {
+    await assert.rejects(TavernPurchaseService.execute({...request,requestId:"generated-rollback",tavernId:t.id,items,expectedTotal:selected.reduce((s,e)=>s+e.price,0)}),/generated-storage-failure/);
+    assert.equal(CurrencyAdapter.getTotal(actor),1000);assert.equal(actor.system.consumable.food.value,1);assert.equal(actor.system.consumable.water.value,1);
+    assert.equal(actor.items.length,0);assert.equal(washed,0);assert.deepEqual(TavernState.getSavedById(t.id),TavernMigrations.migrate(t));
+    assert.equal(TavernState.getCurrent(),null);
+  } finally {TavernState.persistPurchaseTavern=persist;CleanlinessAdapter.setHandler(handler);}
+});
+
+test("GM foundation update can cancel, retains a purchase made during confirmation, and can undo only its additions", async () => {
+  const {store,tavern,request,actor}=await purchaseFixture();
+  tavern.inventory.services=[];delete tavern.offeringPlan;
+  await store.write({current:null,saved:[tavern]});setSetting("currentTavern",null);
+  const {app,click}=await gmButtons(tavern);
+  const confirm=foundry.applications.api.DialogV2.confirm;let release,pending;
+  try {
+    foundry.applications.api.DialogV2.confirm=async()=>false;
+    await click("ensureOfferings");assert.deepEqual(TavernState.getSavedById(tavern.id).inventory.services,[]);
+    foundry.applications.api.DialogV2.confirm=()=>new Promise(resolve=>{release=resolve;});
+    pending=click("ensureOfferings");assert.equal(app.actionPending,true);
+    const purchase=await TavernPurchaseService.execute(request);
+    TavernGMApp.receiveDraftUpdate(purchase.tavern);
+    release(true);await pending;
+    let saved=TavernState.getSavedById(tavern.id);
+    assert.equal(saved.inventory.food[0].stock,9);assert.equal(actor.wallet().copper,95);
+    assert.equal(TavernOfferingModel.status(saved).complete,true);assert.equal(TavernState.getCurrent(),null);
+    await click("undo");saved=TavernState.getSavedById(tavern.id);
+    assert.deepEqual(saved.inventory.services,[]);assert.equal(saved.inventory.food[0].stock,9);assert.equal(actor.wallet().copper,95);
+  } finally {release?.(false);await pending;foundry.applications.api.DialogV2.confirm=confirm;await app._onClose();}
 });

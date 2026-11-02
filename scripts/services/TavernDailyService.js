@@ -2,7 +2,7 @@ import { MODULE_ID } from "../constants.js";
 import { TavernState } from "./TavernState.js";
 import { TavernGenerator } from "./TavernGenerator.js";
 import { TavernMigrations } from "./TavernMigrations.js";
-import { TavernEditor } from "./TavernEditor.js";
+import { TavernInventory } from "./TavernInventory.js";
 import { CalendariaAdapter } from "./CalendariaAdapter.js";
 import { TavernSocket } from "./TavernSocket.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
@@ -104,8 +104,13 @@ export class TavernDailyService {
         }
       }
 
-      const tavernData = updatedCurrent ?? null;
-      TavernSocket.refreshAll(tavernData);
+      // Scene menus and their public snapshots each follow their own tavern id.
+      for (const tavern of updatedSaved) {
+        if (changedIds.has(tavern.id)) TavernSocket.refreshAll(tavern);
+      }
+      if (updatedCurrent && changedIds.has(updatedCurrent.id) && !updatedSaved.some((tavern) => tavern.id === updatedCurrent.id)) {
+        TavernSocket.refreshAll(updatedCurrent);
+      }
 
       return {
         changed: changedIds.size,
@@ -242,8 +247,7 @@ export class TavernDailyService {
       const victim = removable[Math.floor(Math.random() * removable.length)];
       if (!victim) continue;
 
-      clone = TavernEditor.removeEntry(clone, category, victim.id) ?? clone;
-      clone = TavernEditor.addRandomEntry(clone, category) ?? clone;
+      clone = TavernInventory.rotateMenuEntry(clone, category, victim.id) ?? clone;
     }
 
     return clone;

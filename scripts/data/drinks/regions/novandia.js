@@ -30,8 +30,8 @@ export const NOVANDIA_DRINK_TABLE = [
       "town",
       "road"
     ],
-    "min": 4,
-    "max": 10,
+    "min": 2,
+    "max": 5,
     "weight": 8,
     "desc": "Легкое столовое вино из местных погребов."
   },

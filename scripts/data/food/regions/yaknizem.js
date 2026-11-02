@@ -216,8 +216,8 @@ export const YAKNIZEM_FOOD_TABLE = [
   "regions": [
     "yaknizem"
   ],
-  "min": 2,
-  "max": 7,
+  "min": 4,
+  "max": 10,
   "weight": 9,
   "desc": "Домашняя лапша, баранина и лук, приготовленные вместе в глубоком котле северных степных дворов.",
   "local": true,

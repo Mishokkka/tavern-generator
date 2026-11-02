@@ -212,12 +212,7 @@ export const FLECHENRAND_FOOD_TABLE = [
   "weight": 4,
   "desc": "Привозная дичь, тушенная с сушеным можжевельником и кореньями.",
   "local": true,
-  "terrains": [
-    "town",
-    "road",
-    "mountain",
-    "wilderness"
-  ]
+  "terrains": ["city", "town", "port", "road"]
 },
   {
     "name": "Картофельные оладьи",

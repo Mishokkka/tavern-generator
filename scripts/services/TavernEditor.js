@@ -2,6 +2,7 @@ import { TavernMigrations } from "./TavernMigrations.js";
 import { TavernInventory } from "./TavernInventory.js";
 import { TavernPricing } from "./TavernPricing.js";
 import { TavernViewModel } from "./TavernViewModel.js";
+import { TavernOfferingModel } from "./TavernOfferingModel.js";
 
 export class TavernEditor {
   static removeEntry(tavern, category, entryId) {
@@ -52,6 +53,15 @@ export class TavernEditor {
       local: Boolean(patch.local ?? current.local),
       pinned: Boolean(patch.pinned ?? current.pinned)
     };
+    const previousOffering = TavernOfferingModel.profile(current, type);
+    if (Object.hasOwn(patch, "offering")) {
+      const requested = TavernOfferingModel.profile({ type, offering: patch.offering }, type);
+      if (type === "service" && !entry.resource) {
+        if (requested.roles.includes("wash")) entry.cleanliness ??= { level: 1, state: "Помытый", label: "Помытый" };
+        else delete entry.cleanliness;
+      }
+      entry.offering = requested;
+    } else entry.offering = previousOffering;
 
     if (unlimited) {
       entry.stock = null;
@@ -77,8 +87,11 @@ export class TavernEditor {
 
     if (index >= 0) list[index] = entry;
     else list.push(entry);
-    clone.summary = TavernViewModel.summary(clone);
-    return clone;
+    const nextOffering = TavernOfferingModel.profile(entry, type);
+    const usesAnimals = profile => profile.animals || profile.roles.some(role => ["animalBoarding", "animalFeed"].includes(role));
+    const result = usesAnimals(nextOffering) && !usesAnimals(previousOffering) ? TavernInventory.completeAnimalOffers(clone) : clone;
+    result.summary = TavernViewModel.summary(result);
+    return result;
   }
 
   static togglePinned(tavern, category, entryId) {

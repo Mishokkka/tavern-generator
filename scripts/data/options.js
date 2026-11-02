@@ -49,7 +49,7 @@ export const QUALITY_MODIFIERS = {
     "price": 0.6,
     "menu": -2,
     "rooms": -1,
-    "stock": 0.7,
+    "stock": 0.85,
     "occupied": 0.85
   },
   "modest": {
@@ -63,14 +63,14 @@ export const QUALITY_MODIFIERS = {
     "price": 1.35,
     "menu": 2,
     "rooms": 1,
-    "stock": 1.15,
+    "stock": 1.1,
     "occupied": 0.55
   },
   "fine": {
     "price": 2.1,
     "menu": 3,
     "rooms": 2,
-    "stock": 1.25,
+    "stock": 1.15,
     "occupied": 0.45
   }
 };
@@ -80,28 +80,24 @@ export const SIZE_MODIFIERS = {
     "menu": 5,
     "rooms": 2,
     "roomStock": 3,
-    "mealStock": 4,
     "localMax": 2
   },
   "small": {
     "menu": 7,
     "rooms": 3,
     "roomStock": 6,
-    "mealStock": 7,
     "localMax": 3
   },
   "medium": {
     "menu": 9,
     "rooms": 4,
     "roomStock": 10,
-    "mealStock": 11,
     "localMax": 4
   },
   "large": {
     "menu": 13,
     "rooms": 5,
     "roomStock": 18,
-    "mealStock": 16,
     "localMax": 6
   }
 };

@@ -1,8 +1,12 @@
 import { TEMPLATES } from "../constants.js";
 import { TAVERN_OPTIONS } from "../data/index.js";
 import { TavernInventory } from "../services/TavernInventory.js";
+import { TavernOfferingModel } from "../services/TavernOfferingModel.js";
 import { TavernStockService } from "../services/TavernStockService.js";
 import { TavernGenerator } from "../services/TavernGenerator.js";
+import { TavernGenerationPlan } from "../services/TavernGenerationPlan.js";
+import { TavernNames } from "../services/TavernNames.js";
+import { TavernLocation } from "../services/TavernLocation.js";
 import { TavernSceneService } from "../services/TavernSceneService.js";
 import { TavernState } from "../services/TavernState.js";
 import { TavernSocket } from "../services/TavernSocket.js";
@@ -13,6 +17,8 @@ import { TavernEntryEditorDialog } from "./TavernEntryEditorDialog.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const gmInstances = new Set();
+const WORKFLOW_STEPS = ["setup", "assortment", "extras", "launch"];
+const WORKFLOW_LABELS = { setup: "Параметры", assortment: "Ассортимент", extras: "Сцена и тавернщик", launch: "Сохранение и запуск" };
 
 export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -25,8 +31,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       resizable: true
     },
     position: {
-      width: 1020,
-      height: 860
+      width: 900,
+      height: 740
     }
   };
 
@@ -42,22 +48,22 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     delete appOptions.activeTab;
 
     super(appOptions);
-    this.draft = initialTavern ?? TavernState.getCurrent();
-    this.activeTavernId = TavernState.getCurrent()?.id === this.draft?.id ? this.draft?.id : null;
+    this.draft = initialTavern;
     this.editorTab = "menu";
-    this.generationExpanded = !this.draft;
+    this.workflowStep = this.draft ? "assortment" : "setup";
     this.params = this.#paramsFromTavern(this.draft);
     this.sceneConfig = TavernSceneService.defaultConfig();
     this.keeperConfig = CharacterForgeAdapter.defaultConfig();
     this.undoDraft = null;
     this.pendingDraftUpdate = null;
+    this.offeringExpanded = false;
     gmInstances.add(this);
   }
 
-  static renderOpenInstances({ syncCurrent = false } = {}) {
+  static renderOpenInstances({ syncStored = false, syncCurrent = false } = {}) {
     for (const app of gmInstances) {
       if (!app.rendered) continue;
-      if (syncCurrent) app.#syncFromCurrent();
+      if (syncStored || syncCurrent) app.#syncFromStore();
       app.render();
     }
   }
@@ -129,8 +135,6 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       }
     }
     this.draft.summary = TavernGenerator.decoratePrices(this.draft)?.summary ?? this.draft.summary;
-    this.activeTavernId = current?.id === this.draft.id ? this.draft.id : null;
-    this.params = this.#paramsFromTavern(this.draft);
     this.undoDraft = null;
     return true;
   }
@@ -155,13 +159,15 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     return {
       editorTab: this.editorTab,
-      generationExpanded: this.generationExpanded,
+      workflowStep: this.workflowStep,
+      generationPlan: TavernGenerationPlan.describe(this.params),
+      offeringStatus: this.draft ? TavernOfferingModel.status({ ...this.draft, offeringPlan: TavernInventory.planFor(this.draft) }) : null,
+      offeringExpanded: this.offeringExpanded,
       savedCount: saved.length,
       isSaved: saved.some((entry) => entry.id === this.draft?.id),
-      isActive: Boolean(this.draft && TavernState.getCurrent()?.id === this.draft.id),
       autoSave: Boolean(this.draft && (saved.some((entry) => entry.id === this.draft.id) || TavernState.getCurrent()?.id === this.draft.id)),
-      currentName: TavernState.getCurrent()?.name,
       manualScene: this.sceneConfig.mode === "manual",
+      hasSceneTemplateChoices: Object.keys(TavernSceneService.templateChoices()).length > 1,
       options: TAVERN_OPTIONS,
       sceneOptions: {
         modes: TavernSceneService.sceneModeChoices(),
@@ -170,6 +176,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       sceneConfig: this.sceneConfig,
       sceneArtRoot: TavernSceneService.artRoot(),
       sceneCreateDisabled: !decorated || this.sceneConfig.mode === "none" || (this.sceneConfig.mode === "manual" && !this.sceneConfig.manualImagePath),
+      sceneDisabledReason: this.sceneConfig.mode === "none" ? "Выбери источник фона, чтобы создать сцену."
+        : this.sceneConfig.mode === "manual" && !this.sceneConfig.manualImagePath ? "Выбери файл фона или введи путь к нему." : "",
       linkedScene: linkedScene
         ? { id: linkedScene.id, name: linkedScene.name, archived: false }
         : decorated?.scene
@@ -180,6 +188,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
             }
           : null,
       hasLinkedSceneMeta,
+      canPlaceKeeper: Boolean(hasLinkedSceneMeta && tavernkeeper && (tavernkeeper.exists || tavernkeeper.archived)),
       characterForge: {
         available: CharacterForgeAdapter.isAvailable(),
         availabilityLabel: CharacterForgeAdapter.availabilityLabel(),
@@ -193,13 +202,56 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       tavern: decorated,
       saved,
       hasSaved: saved.length > 0,
-      hasCurrent: Boolean(TavernState.getCurrent()),
       canUndo: Boolean(this.undoDraft),
       isGM: game.user.isGM
     };
   }
 
   async _onRender(context, options) {
+    this.element.onsubmit = (event) => event.preventDefault();
+    const offeringStatus = this.element.querySelector(".tg-offering-status");
+    offeringStatus?.addEventListener("toggle", () => { if (offeringStatus.isConnected) this.offeringExpanded = offeringStatus.open; });
+    this.#bindWorkflow();
+    this.element.querySelector("[name='generationName']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onGenerate(event));
+    });
+    this.element.querySelector("[name='generationCity']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onGenerate(event));
+    });
+    this.element.querySelector("[name='tavernCity']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onSetCity(event));
+    });
+    this.element.querySelector("[name='tavernName']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onRename(event));
+    });
+    this.element.querySelector("[name='draftPricePercent']")?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      this.#runAction(() => this.#onApplyPriceModifier(event));
+    });
+    this.element.querySelector("[data-action='ensureOfferings']")?.addEventListener("click", (event) => this.#runAction(async () => {
+      event.preventDefault();
+      if (!this.draft) return;
+      const tavernId = this.draft.id;
+      if (!await this.#confirm("Добавить недостающие основные блюда, питьё и бытовые предложения? Существующие позиции, цены, остатки, брони и свои правки сохранятся. Распроданные позиции не пополняются.", "Дополнить основу таверны")) return;
+      if (this.draft?.id !== tavernId) throw new Error("В редакторе уже другая таверна. Повтори действие для неё.");
+      this.#reconcileDraftUpdate();
+      this.#checkpoint();
+      this.draft = TavernInventory.ensureOfferings(this.draft);
+      await this.#persistLiveDraft();
+      const status = TavernOfferingModel.status(this.draft);
+      if (status.complete) ui.notifications.info(status.summary);
+      else ui.notifications.warn(`${status.summary}. Проверь назначение существующих позиций и доступность подходящих вариантов в каталоге.`);
+      this.render();
+    }));
     this.element.querySelector("[data-action='renewStockNorms']")?.addEventListener("click", (event) => this.#runAction(async () => {
       event.preventDefault();
       if (!this.draft) return;
@@ -217,7 +269,6 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       await this.#persistLiveDraft();
       this.render();
     }));
-    this.element.querySelector("[data-generation-settings]")?.addEventListener("toggle", (event) => { this.generationExpanded = event.currentTarget.open; });
     const editorTabs = [...this.element.querySelectorAll("[data-editor-tab]")];
     for (const button of editorTabs) {
       const selectTab = () => {
@@ -246,15 +297,14 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       TavernLibraryApp.open({ onEdit: (id) => this.rendered ? this.loadSavedTavern(id) : game.fblTaverns.openGM({ tavernId: id }) });
     });
     this.element.querySelector("[data-action='rename']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRename(event)));
+    this.element.querySelector("[data-action='setCity']")?.addEventListener("click", (event) => this.#runAction(() => this.#onSetCity(event)));
     this.element.querySelector("[data-action='openTavern']")?.addEventListener("click", (event) => {
       event.preventDefault();
       if (game.user.isGM && this.draft) TavernPlayerApp.openSingleton({ tavern: this.draft, followCurrent: false });
     });
 
     this.element.querySelector("[data-action='generate']")?.addEventListener("click", (event) => this.#runAction(() => this.#onGenerate(event)));
-    this.element.querySelector("[data-action='confirm']")?.addEventListener("click", (event) => this.#runAction(() => this.#onConfirm(event)));
     this.element.querySelector("[data-action='openPlayers']")?.addEventListener("click", (event) => this.#runAction(() => this.#onOpenPlayers(event)));
-    this.element.querySelector("[data-action='clear']")?.addEventListener("click", (event) => this.#runAction(() => this.#onClear(event)));
     this.element.querySelector("[data-action='rerollName']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRerollName(event)));
     this.element.querySelector("[data-action='applyPriceModifier']")?.addEventListener("click", (event) => this.#runAction(() => this.#onApplyPriceModifier(event)));
     this.element.querySelector("[data-action='saveDraft']")?.addEventListener("click", (event) => this.#runAction(() => this.#onSaveDraft(event)));
@@ -263,6 +313,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.element.querySelector("[data-action='openLinkedScene']")?.addEventListener("click", (event) => this.#runAction(() => this.#onOpenLinkedScene(event)));
     this.element.querySelector("[data-action='createTavernkeeper']")?.addEventListener("click", (event) => this.#runAction(() => this.#onCreateTavernkeeper(event)));
     this.element.querySelector("[data-action='openTavernkeeper']")?.addEventListener("click", (event) => this.#runAction(() => this.#onOpenTavernkeeper(event)));
+    this.element.querySelector("[data-action='placeTavernkeeper']")?.addEventListener("click", (event) => this.#runAction(() => this.#onPlaceTavernkeeper(event)));
     this.element.querySelector("[data-action='undo']")?.addEventListener("click", (event) => this.#runAction(() => this.#onUndo(event)));
     this.element.querySelector("[data-action='restockAll']")?.addEventListener("click", (event) => this.#runAction(() => this.#onRestockAll(event)));
 
@@ -287,9 +338,11 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
 
     for (const input of this.element.querySelectorAll("select[data-param], input[data-param]")) {
+      if (input.dataset.param === "name") input.addEventListener("input", () => { this.params.name = input.value; });
       input.addEventListener("change", () => {
         if (input.dataset.param === "priceMultiplierPercent") this.params.priceMultiplier = this.#percentToMultiplier(input.value);
         else this.params[input.dataset.param] = input.value;
+        this.#updateGenerationPlan();
       });
     }
 
@@ -298,6 +351,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this.#readSceneConfig();
         const createButton = this.element.querySelector("[data-action='createScene']");
         if (createButton) createButton.disabled = !this.draft || this.sceneConfig.mode === "none" || (this.sceneConfig.mode === "manual" && !this.sceneConfig.manualImagePath);
+        const hint = this.element.querySelector("[data-scene-hint]");
+        if (hint) hint.textContent = this.sceneConfig.manualImagePath ? "" : "Выбери файл фона или введи путь к нему.";
       });
       input.addEventListener("change", () => {
         this.#readSceneConfig();
@@ -314,55 +369,89 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  #onGenerate(event) {
+  #bindWorkflow() {
+    const tabs = [...this.element.querySelectorAll("[data-workflow-step]")];
+    for (const button of tabs) {
+      button.addEventListener("click", () => this.#selectWorkflowStep(button.dataset.workflowStep));
+      button.addEventListener("keydown", (event) => {
+        if (this.actionPending || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const enabled = tabs.filter((tab) => !tab.disabled);
+        const index = enabled.indexOf(button);
+        const next = event.key === "Home" ? 0 : event.key === "End" ? enabled.length - 1
+          : (index + (event.key === "ArrowRight" ? 1 : -1) + enabled.length) % enabled.length;
+        enabled[next]?.focus();
+        enabled[next]?.click();
+      });
+    }
+    for (const button of this.element.querySelectorAll("[data-step-target]")) {
+      button.addEventListener("click", () => this.#selectWorkflowStep(button.dataset.stepTarget, { focus: true }));
+    }
+    this.#selectWorkflowStep(this.workflowStep, { initial: true });
+  }
+
+  #selectWorkflowStep(step, { focus = false, initial = false } = {}) {
+    if ((this.actionPending && !initial) || !WORKFLOW_STEPS.includes(step) || (step !== "setup" && !this.draft)) return;
+    const changed = this.workflowStep !== step;
+    this.workflowStep = step;
+    for (const panel of this.element.querySelectorAll("[data-workflow-panel]")) {
+      panel.hidden = panel.dataset.workflowPanel !== step;
+      if (!panel.hidden && focus) panel.querySelector("h2")?.focus();
+    }
+    for (const button of this.element.querySelectorAll("[data-workflow-step]")) {
+      const selected = button.dataset.workflowStep === step;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    }
+    const index = WORKFLOW_STEPS.indexOf(step);
+    const previous = this.element.querySelector("[data-workflow-previous]");
+    const next = this.element.querySelector("[data-workflow-next]");
+    if (previous) {
+      previous.hidden = index <= 1;
+      previous.dataset.stepTarget = WORKFLOW_STEPS[index - 1] ?? "setup";
+      previous.textContent = `← ${WORKFLOW_LABELS[WORKFLOW_STEPS[index - 1]] ?? "Назад"}`;
+    }
+    if (next) {
+      next.hidden = index === 0 || index === WORKFLOW_STEPS.length - 1;
+      next.dataset.stepTarget = WORKFLOW_STEPS[index + 1] ?? "launch";
+      next.textContent = `${WORKFLOW_LABELS[WORKFLOW_STEPS[index + 1]] ?? "Далее"} →`;
+    }
+    const footer = this.element.querySelector("[data-workflow-footer]");
+    if (footer) footer.hidden = index === 0;
+    if (focus || changed) this.element.querySelector("[data-workflow-scroll]")?.scrollTo({ top: 0 });
+  }
+
+  #updateGenerationPlan() {
+    const plan = TavernGenerationPlan.describe(this.params);
+    for (const node of this.element.querySelectorAll("[data-generation-preview]")) {
+      node.textContent = plan[node.dataset.generationPreview] ?? "";
+    }
+  }
+
+  async #onGenerate(event) {
     event.preventDefault();
+    if (this.draft && !TavernState.getSavedById(this.draft.id)) {
+      if (!await this.#confirm(`Создать другую таверну вместо несохранённого черновика <strong>${this.#escapeHtml(this.draft.name)}</strong>? Сначала сохрани черновик, если хочешь оставить оба заведения.`, "Заменить черновик")) return;
+    }
     this.#checkpoint();
     this.#readParams();
     this.#readSceneConfig();
     this.draft = TavernGenerator.generate(this.params);
-    this.generationExpanded = false;
+    this.workflowStep = "assortment";
     this.editorTab = "menu";
-    this.activeTavernId = null;
-    this.render();
-  }
-
-  async #onConfirm(event) {
-    event.preventDefault();
-    if (!game.user.isGM) return ui.notifications.warn("Только ГМ может подтверждать таверну.");
-    if (!this.draft) this.draft = TavernGenerator.generate(this.params);
-    this.#reconcileDraftUpdate();
-    this.draft = await TavernState.setCurrent(this.draft);
-    this.activeTavernId = this.draft.id;
-    TavernSocket.refreshAll(this.draft);
-    ui.notifications.info(`Таверна активна: ${this.draft.name}`);
     this.render();
   }
 
   async #onOpenPlayers(event) {
     event.preventDefault();
     if (!game.user.isGM) return;
-    if (!this.draft) this.draft = TavernGenerator.generate(this.params);
+    if (!this.draft) return;
     this.#reconcileDraftUpdate();
-    this.draft = await TavernState.setCurrent(this.draft);
-    this.activeTavernId = this.draft.id;
+    this.draft = await TavernState.saveTavern(this.draft);
     TavernSocket.refreshAll(this.draft);
-    TavernSocket.openForPlayers();
+    TavernSocket.openForPlayers(this.draft);
     ui.notifications.info("Окно таверны отправлено игрокам.");
-    this.render();
-  }
-
-  async #onClear(event) {
-    event.preventDefault();
-    if (!game.user.isGM) return ui.notifications.warn("Только ГМ может очищать активную таверну.");
-    const current = TavernState.getCurrent();
-    if (!current) return;
-    const confirmed = await this.#confirm(`Отключить активную таверну <strong>${this.#escapeHtml(current.name)}</strong>? Окна игроков потеряют связь с ней. Сохранённая копия останется в библиотеке.`, "Отключить таверну");
-    if (!confirmed) return;
-    if (TavernState.getCurrent()?.id !== current.id) throw new Error("Активная таверна изменилась. Повтори действие.");
-    this.#checkpoint();
-    await TavernState.clearCurrent();
-    this.activeTavernId = null;
-    TavernSocket.refreshAll();
     this.render();
   }
 
@@ -390,7 +479,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async #onSaveDraft(event) {
     event.preventDefault();
     if (!game.user.isGM) return;
-    if (!this.draft) this.draft = TavernGenerator.generate(this.params);
+    if (!this.draft) return;
     this.#reconcileDraftUpdate();
     const saved = await TavernState.saveTavern(this.draft);
     this.draft = saved;
@@ -406,13 +495,17 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return false;
     }
     return this.#runAction(async () => {
-      const saved = TavernState.getSavedById(id);
+      let saved = TavernState.getSavedById(id);
       if (!saved) throw new Error("Сохранённая таверна не найдена.");
+      if (this.draft?.id !== id && this.draft && !TavernState.getSavedById(this.draft.id)) {
+        if (!await this.#confirm(`Открыть сохранённую таверну вместо несохранённого черновика <strong>${this.#escapeHtml(this.draft.name)}</strong>?`, "Открыть из библиотеки")) return;
+        saved = TavernState.getSavedById(id);
+        if (!saved) throw new Error("Сохранённая таверна не найдена.");
+      }
       this.#checkpoint();
       this.draft = foundry.utils.deepClone(saved);
-      this.activeTavernId = TavernState.getCurrent()?.id === saved.id ? saved.id : null;
       this.params = this.#paramsFromTavern(this.draft);
-      this.generationExpanded = false;
+      this.workflowStep = "assortment";
       this.editorTab = "menu";
       this.render(true);
       this.bringToFront?.();
@@ -422,11 +515,22 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async #onRename(event) {
     event.preventDefault();
     if (!this.draft) return;
-    const name = this.element.querySelector("[name='tavernName']")?.value?.trim();
+    const name = TavernNames.normalizeCustomName(this.element.querySelector("[name='tavernName']")?.value);
     if (!name) throw new Error("Введи название таверны.");
     if (name === this.draft.name) return;
     this.#checkpoint();
-    this.draft.name = name.slice(0, 120);
+    this.draft.name = name;
+    await this.#persistLiveDraft();
+    this.render();
+  }
+
+  async #onSetCity(event) {
+    event.preventDefault();
+    if (!this.draft) return;
+    const city = TavernLocation.normalizeCity(this.element.querySelector("[name='tavernCity']")?.value);
+    if (city === this.draft.city) return;
+    this.#checkpoint();
+    this.draft.city = city;
     await this.#persistLiveDraft();
     this.render();
   }
@@ -450,21 +554,18 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.draft) return ui.notifications.warn("Сначала сгенерируй таверну.");
 
     this.#readSceneConfig();
+    this.#readKeeperConfig();
     const button = event.currentTarget;
+    if (this.draft.scene && !await this.#confirm("Создать другую сцену для этой таверны? Связь переключится на новую сцену, предыдущая сцена останется в мире.", "Создать другую сцену")) return;
     button.disabled = true;
 
     try {
-      const { scene, meta } = await TavernSceneService.createSceneForTavern(this.draft, this.sceneConfig);
+      const { scene, meta } = await TavernSceneService.createSceneForTavern(this.draft, { ...this.sceneConfig, placeTavernkeeper: this.keeperConfig.placeTokenOnScene });
       this.draft.scene = meta;
       this.#reconcileDraftUpdate();
       this.draft = await TavernState.saveTavern(this.draft);
 
-      if (TavernState.getCurrent()?.id === this.draft.id) {
-        this.#reconcileDraftUpdate();
-        this.draft = await TavernState.setCurrent(this.draft);
-        this.activeTavernId = this.draft.id;
-        TavernSocket.refreshAll(this.draft);
-      }
+      TavernSocket.refreshAll(this.draft);
 
       ui.notifications.info(`Сцена создана и таверна сохранена: ${scene.name}`);
       this.render();
@@ -504,6 +605,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!game.user.isGM) return ui.notifications.warn("Только ГМ может создавать тавернщиков.");
     if (!this.draft) return ui.notifications.warn("Сначала сгенерируй таверну.");
     const button = event.currentTarget;
+    if (this.draft.tavernkeeper && !await this.#confirm("Создать нового тавернщика? Таверна и её токен будут связаны с новым актёром. Прежний актёр останется в мире.", "Заменить тавернщика")) return;
     button.disabled = true;
 
     try {
@@ -533,12 +635,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
         }
       }
 
-      if (TavernState.getCurrent()?.id === this.draft.id) {
-        this.#reconcileDraftUpdate();
-        this.draft = await TavernState.setCurrent(this.draft);
-        this.activeTavernId = this.draft.id;
-        TavernSocket.refreshAll(this.draft);
-      }
+      TavernSocket.refreshAll(this.draft);
 
       ui.notifications.info(`Тавернщик создан: ${meta.name}`);
       this.render();
@@ -557,6 +654,20 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     } catch (error) {
       ui.notifications.warn(error.message ?? "Тавернщик не найден.");
     }
+  }
+
+  async #onPlaceTavernkeeper(event) {
+    event.preventDefault();
+    if (!this.draft?.scene || !this.draft?.tavernkeeper) return;
+    this.draft.tavernkeeper = await CharacterForgeAdapter.refreshTavernkeeperArt(this.draft);
+    const placed = await TavernSceneService.placeTavernkeeperOnLinkedScene(this.draft, { replaceExisting: true, archiveScene: true, importActor: true });
+    if (!placed?.token?.id) throw new Error("Не удалось поставить токен. Проверь связанную сцену и актёра.");
+    this.#reconcileDraftUpdate();
+    this.draft.scene.tavernkeeperTokenId = placed.token.id;
+    this.draft = await TavernState.saveTavern(this.draft);
+    TavernSocket.refreshAll(this.draft);
+    ui.notifications.info("Токен тавернщика добавлен на связанную сцену.");
+    this.render();
   }
 
   async #onRemoveEntry(event) {
@@ -643,8 +754,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.draft = foundry.utils.deepClone(latest ?? this.undoDraft);
       this.undoDraft = current;
       this.undoRevision = current?.storageRevision ?? 0;
-      this.activeTavernId = active?.id === this.draft.id ? this.draft.id : null;
       this.params = this.#paramsFromTavern(this.draft);
+      this.workflowStep = "assortment";
       this.render();
       return;
     }
@@ -664,14 +775,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#reconcileDraftUpdate();
     const current = TavernState.getCurrent();
     const saved = TavernState.getSavedById(this.draft.id);
-    if (saved) this.draft = await TavernState.saveTavern(this.draft);
-    else if (current?.id === this.draft.id) {
-      this.draft = await TavernState.setCurrent(this.draft);
-    }
+    if (saved || current?.id === this.draft.id) this.draft = await TavernState.saveTavern(this.draft);
     this.undoRevision = this.draft.storageRevision ?? 0;
-    if (current?.id === this.draft.id) {
-      this.activeTavernId = this.draft.id;
-    }
     if (saved || current?.id === this.draft.id) TavernSocket.refreshAll(this.draft);
   }
 
@@ -689,6 +794,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #readParams() {
     const form = this.element;
+    this.params.name = form.querySelector("[name='generationName']")?.value ?? this.params.name ?? "";
+    this.params.city = form.querySelector("[name='generationCity']")?.value ?? this.params.city ?? "";
     for (const key of ["region", "quality", "size", "terrain"]) {
       this.params[key] = form.querySelector(`[name='${key}']`)?.value ?? this.params[key];
     }
@@ -720,24 +827,13 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   }
 
-  #syncFromCurrent() {
+  #syncFromStore() {
     if (this.actionPending) return;
     const current = TavernState.getCurrent();
-
-    if (!current) {
-      this.activeTavernId = null;
-      return;
-    }
-
-    if (this.draft?.id !== current.id) {
-      this.activeTavernId = null;
-      return;
-    }
-
-    if (Number(this.draft?.storageRevision ?? 0) !== Number(current.storageRevision ?? 0)) this.undoDraft = null;
-    this.draft = foundry.utils.deepClone(current);
-    this.activeTavernId = current.id;
-    this.params = this.#paramsFromTavern(this.draft);
+    const stored = current?.id === this.draft?.id ? current : TavernState.getSavedById(this.draft?.id);
+    if (!stored) return;
+    if (Number(this.draft?.storageRevision ?? 0) !== Number(stored.storageRevision ?? 0)) this.undoDraft = null;
+    this.draft = foundry.utils.deepClone(stored);
   }
 
   #checkpoint() {
@@ -748,6 +844,7 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async #runAction(task) {
     if (!game.user?.isGM || this.actionPending) return;
     this.actionPending = true;
+    this.element?.setAttribute?.("aria-busy", "true");
     const before = this.draft ? foundry.utils.deepClone(this.draft) : null;
     try { await task(); }
     catch (error) {
@@ -759,12 +856,13 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.render();
     } finally {
       this.actionPending = false;
+      this.element?.setAttribute?.("aria-busy", "false");
       // A dialog or external call can defer a purchase refresh. Synchronize once it
       // finishes, but preserve a draft intentionally edited or replaced by the action.
       if (this.#reconcileDraftUpdate()) {
         this.render();
       } else if (JSON.stringify(this.draft) === JSON.stringify(before)) {
-        this.#syncFromCurrent();
+        this.#syncFromStore();
         this.render();
       }
     }
@@ -798,6 +896,8 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #paramsFromTavern(tavern) {
     return {
+      name: "",
+      city: TavernLocation.normalizeCity(tavern?.city),
       region: tavern?.region ?? "common",
       quality: tavern?.quality ?? "modest",
       size: tavern?.size ?? "medium",

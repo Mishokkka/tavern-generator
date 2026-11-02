@@ -54,12 +54,13 @@ export class TavernSocket {
     return this.emit(payload, { targetUserId });
   }
 
-  static openForPlayers() {
+  static openForPlayers(tavern = TavernState.getCurrent()) {
     if (!game.user?.isGM) return;
+    if (!tavern?.id) return ui.notifications.warn("Сначала выбери таверну.");
     if (!this.#available) return ui.notifications.warn("Канал синхронизации таверны недоступен. Перезагрузи страницу и проверь права пользователя Foundry.");
     void this.#safeEmit({
       type: "open-player",
-      tavernData: TavernAtmosphereService.publicView(TavernState.getCurrent())
+      tavernData: TavernAtmosphereService.publicView(tavern)
     });
   }
 
@@ -194,7 +195,8 @@ export class TavernSocket {
 
     if (type === "open-player") {
       if (!sender.isGM || game.user.isGM) return;
-      TavernPlayerApp.openSingleton({ tavern: payload.tavernData ?? null, followCurrent: true });
+      if (!payload.tavernData?.id) return;
+      TavernPlayerApp.openSingleton({ tavern: payload.tavernData, followCurrent: false });
       return;
     }
 

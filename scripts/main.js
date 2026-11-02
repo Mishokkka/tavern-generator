@@ -88,7 +88,7 @@ Hooks.once("init", () => {
   });
   game.settings.registerMenu(MODULE_ID, "tavernLibrary", {
     name: "Сохранённые таверны", label: "Открыть библиотеку",
-    hint: "Поиск, редактирование и выбор активной таверны.",
+    hint: "Поиск по региону и городу, редактирование и просмотр меню.",
     icon: "fa-solid fa-book-open", type: TavernLibraryApp, restricted: true
   });
   dataValidationReport = TavernDataValidator.validate();
@@ -138,7 +138,7 @@ Hooks.once("ready", async () => {
   window.setTimeout(() => TavernSceneService.refreshSceneMenuButton(), 250);
   window.setTimeout(() => TavernSceneService.refreshSceneMenuButton(), 1500);
   Hooks.on(`${MODULE_ID}.refresh`, () => {
-    TavernGMApp.renderOpenInstances({ syncCurrent: true });
+    TavernGMApp.renderOpenInstances({ syncStored: true });
     TavernLibraryApp.refresh();
   });
   Hooks.on(`${MODULE_ID}.tavernDraftUpdated`, (tavern) => TavernGMApp.receiveDraftUpdate(tavern));

@@ -1,4 +1,5 @@
 import { MODULE_ID } from "../constants.js";
+import { TavernOfferingModel } from "./TavernOfferingModel.js";
 import {
   COMMON_DRINK_TABLE,
   COMMON_FOOD_TABLE,
@@ -36,6 +37,13 @@ export class TavernDataValidator {
     this.#validateDuplicateNames(report, ROOM_TABLE, "ROOM_TABLE");
     this.#validateNoBeerRegions(report);
     this.#validateCleanliness(report);
+    for (const [type, table] of [["food", FOOD_TABLE], ["drink", DRINK_TABLE], ["room", ROOM_TABLE], ["service", SERVICE_TABLE]]) {
+      for (const entry of table) {
+        if (entry && typeof entry === "object" && String(entry.name ?? "").trim() && !TavernOfferingModel.profile(entry, type).roles.length) {
+          report.errors.push(`OFFERINGS: не задано назначение ${type} '${entry.name}'.`);
+        }
+      }
+    }
     this.#validateMoodTable(report);
     this.#validateLifeTable(report, TAVERN_RUMOR_TABLE, "TAVERN_RUMOR_TABLE", { titleField: "title", textFields: ["text", "gmTruth"] });
     this.#validateLifeTable(report, TAVERN_REGULAR_TABLE, "TAVERN_REGULAR_TABLE", { titleField: "name", textFields: ["description", "goal", "secret"] });

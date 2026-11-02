@@ -2,6 +2,7 @@ import { MODULE_ID } from "../constants.js";
 import { TAVERN_OPTIONS } from "../data/index.js";
 import { TavernState } from "./TavernState.js";
 import { FoundryDocumentUtils } from "./FoundryDocumentUtils.js";
+import { TavernkeeperArt } from "./TavernkeeperArt.js";
 
 const FORGE_MODULE_ID = "fbl-character-forge";
 const DEFAULT_TAVERNKEEPER_FOLDER = "Тавернщики";
@@ -145,7 +146,8 @@ export class CharacterForgeAdapter {
       exists: Boolean(actor),
       archived: Boolean(meta.compendium?.id),
       currentName: actor?.name ?? meta.name ?? "Тавернщик удален",
-      currentImg: actor?.img ?? meta.img ?? "icons/svg/mystery-man.svg"
+      currentImg: actor?.img ?? meta.img ?? "icons/svg/mystery-man.svg",
+      tokenImg: actor?.prototypeToken?.texture?.src || meta.tokenImg || meta.token || null
     };
   }
 
@@ -175,7 +177,7 @@ export class CharacterForgeAdapter {
       fallbackArtSubset: true,
       folderId,
       createFolder: true,
-      openSheet: true,
+      openSheet: false,
       assignArt: true,
       requireArt: false,
       sourceModule: MODULE_ID,
@@ -193,6 +195,7 @@ export class CharacterForgeAdapter {
     });
 
     if (!result?.actor) throw new Error("Character Forge не создал актера.");
+    await TavernkeeperArt.synchronize(result, api);
 
     let archive = null;
     if (archiveToCompendium !== false) {
@@ -208,7 +211,7 @@ export class CharacterForgeAdapter {
       nameSet: result.nameDetails?.setKey || nameSetKey,
       nameSetLabel: this.nameSetLabelForRegion(tavern.region, result.nameDetails?.setKey || nameSetKey),
       resolvedGender: result.nameDetails?.gender || null,
-      artSet: artSet || null,
+      artSet: result.artSetKey || artSet || null,
       artSubset: result.art?.artSubsetKey || null,
       portrait: result.art?.portrait || null,
       token: result.art?.token || null,
@@ -291,6 +294,40 @@ export class CharacterForgeAdapter {
     if (!actor) throw new Error("Актер тавернщика не найден. Возможно, он был удален.");
     actor.sheet?.render?.(true);
     return actor;
+  }
+
+  /** Explicit token refresh can also repair a keeper created by an older version. */
+  static async refreshTavernkeeperArt(tavern) {
+    if (!game.user?.isGM) throw new Error("Только ГМ может обновлять токен тавернщика.");
+    const actor = await this.resolveTavernkeeperActor(tavern, { importFromCompendium: true });
+    if (!actor) throw new Error("Актёр тавернщика не найден.");
+    const previous = tavern.tavernkeeper ?? {};
+    const previousPortrait = previous.img ?? previous.portrait;
+    const flags = actor.flags?.[FORGE_MODULE_ID] ?? {};
+    const result = {
+      actor,
+      artSetKey: flags.artSet || previous.artSet,
+      nameDetails: { setKey: flags.resolvedNameSet || previous.nameSet, gender: flags.resolvedGender || previous.resolvedGender },
+      art: { portrait: actor.img, token: actor.prototypeToken?.texture?.src || previous.tokenImg || previous.token }
+    };
+    const before = actor.prototypeToken?.texture?.src;
+    const randomImg = actor.prototypeToken?.randomImg;
+    const flagToken = flags.token;
+    await TavernkeeperArt.synchronize(result, this.api() ?? {});
+    const changed = previousPortrait !== actor.img
+      || before !== actor.prototypeToken?.texture?.src
+      || randomImg !== actor.prototypeToken?.randomImg
+      || flagToken !== result.art.token;
+    const compendium = changed && previous.compendium ? await this.archiveActor(actor, tavern) : previous.compendium;
+    return {
+      ...previous,
+      ...this.#metaFromActor(actor, tavern),
+      createdAt: previous.createdAt ?? Date.now(),
+      portrait: result.art.portrait,
+      token: result.art.token,
+      artSet: result.artSetKey ?? null,
+      compendium
+    };
   }
 
   static async persistTavernkeeper(tavern, meta) {

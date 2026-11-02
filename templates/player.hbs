@@ -10,6 +10,7 @@
       </div>
     {{/if}}
     <div class="tg-wrap tg-player-scroll">
+    {{#if tavern.city}}<p class="tg-help">{{tavern.labels.region}} · {{tavern.city}}</p>{{/if}}
     <div id="tg-player-panel-menu" class="tg-tab-panel" {{#if isGM}}role="tabpanel" aria-labelledby="tg-player-tab-menu"{{/if}} {{#unless tabs.menu.active}}hidden{{/unless}}>
     <section class="tg-player-toolbar" aria-label="Управление таверной">
       <div class="tg-payment-summary">
@@ -263,7 +264,7 @@
   {{else}}
     <section class="tg-empty">
       <i class="fa-solid fa-door-closed"></i>
-      <p>Сейчас нет активной таверны. ГМ еще не открыл заведение.</p>
+      <p>Таверна не выбрана. Открой меню кнопкой на связанной сцене.</p>
     </section>
   {{/if}}
 </section>

@@ -293,8 +293,8 @@ export const TIRABOR_FOOD_TABLE = [
       "tirabor"
     ],
     "local": true,
-    "min": 5,
-    "max": 11,
+    "min": 3,
+    "max": 8,
     "weight": 8,
     "desc": "Густая крупяная каша с маслом, которую подают строго после смены.",
     "terrains": [

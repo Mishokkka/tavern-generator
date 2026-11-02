@@ -6,8 +6,8 @@ export const BOLTRASK_FOOD_TABLE = [
     "type": "food",
     "regions": ["boltrask"],
     "local": true,
-    "min": 5,
-    "max": 12,
+    "min": 3,
+    "max": 7,
     "weight": 9,
     "desc": "Каша из зерновых равнин с маслом, луком и дешевой подливой.",
     "terrains": ["city", "town", "village", "road"]

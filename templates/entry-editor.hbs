@@ -10,6 +10,9 @@
       <input type="text" name="name" value="{{entry.name}}" maxlength="120" autofocus required>
     </label>
 
+    {{#if showRole}}<label class="{{#unless food}}tg-field-wide{{/unless}}"><span>Назначение</span><select name="offeringRole">{{selectOptions roleChoices selected=role}}</select></label>{{/if}}
+    {{#if food}}<label><span>Вид еды</span><select name="offeringFamily">{{selectOptions familyChoices selected=family}}</select></label>{{/if}}
+
     <label class="tg-field-wide">
       <span>Описание</span>
       <textarea name="desc" rows="4" maxlength="1000">{{entry.desc}}</textarea>
@@ -45,6 +48,7 @@
     <label class="tg-check"><input type="checkbox" name="unlimited" {{#if entry.unlimited}}checked{{/if}}> <span>Без ограничения</span></label>
     {{#unless lodging}}<label class="tg-check"><input type="checkbox" name="local" {{#if entry.local}}checked{{/if}}> <span>Местная позиция</span></label>{{/unless}}
     <label class="tg-check"><input type="checkbox" name="pinned" {{#if entry.pinned}}checked{{/if}}> <span>Закрепить от дневной ротации</span></label>
+    {{#if lodging}}<label class="tg-check"><input type="checkbox" name="animals" {{#if animals}}checked{{/if}}> <span>Есть двор для животных: добавить размещение и корм, если их нет</span></label>{{/if}}
   </div>
 
   <footer class="tg-dialog-actions">

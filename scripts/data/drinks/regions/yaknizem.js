@@ -95,8 +95,8 @@ export const YAKNIZEM_DRINK_TABLE = [
     "regions": [
       "yaknizem"
     ],
-    "min": 3,
-    "max": 8,
+    "min": 1,
+    "max": 4,
     "weight": 5,
     "desc": "Горький горячий настой с полынью.",
     "local": true,

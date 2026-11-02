@@ -1,4 +1,4 @@
-import { FOOD_TABLE, DRINK_TABLE, SERVICE_TABLE } from "../data/index.js";
+import { FOOD_TABLE, DRINK_TABLE, SERVICE_TABLE, QUALITY_MODIFIERS } from "../data/index.js";
 
 // Daily portions / customer visits, not the number of pots, tubs or employees.
 const RANGES = {
@@ -35,7 +35,7 @@ export class TavernStockService {
     const requestedIndex = ["tiny", "small", "medium", "large"].indexOf(size);
     const index = requestedIndex < 0 ? 2 : requestedIndex;
     const profile = this.profile(entry);
-    const factor = ({ poor: 0.85, modest: 1, good: 1.1, fine: 1.15 })[quality] ?? 1;
+    const factor = QUALITY_MODIFIERS[quality]?.stock ?? 1;
     const waterFactor = entry.resource?.kind === "water" && region === "naerder" ? 0.5 : 1;
     const [min, max] = RANGES[profile][index].map((n) => Math.max(2, Math.round(n * factor * waterFactor)));
     return { profile, min, max };

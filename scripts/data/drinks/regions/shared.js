@@ -33,8 +33,8 @@ export const SHARED_DRINK_TABLE = [
     "town",
     "village"
   ],
-  "min": 6,
-  "max": 14,
+  "min": 2,
+  "max": 6,
   "weight": 5,
   "desc": "Безалкогольный взвар из сушеных слив с медом; подходит к маковой выпечке."
 },

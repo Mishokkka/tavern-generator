@@ -3,6 +3,7 @@ import { TAVERN_SCHEMA_VERSION } from "./TavernMigrations.js";
 import { MoneyFormatter } from "./MoneyFormatter.js";
 import { TavernPricing } from "./TavernPricing.js";
 import { TavernNames } from "./TavernNames.js";
+import { TavernLocation } from "./TavernLocation.js";
 import { TavernInventory } from "./TavernInventory.js";
 import { TavernViewModel } from "./TavernViewModel.js";
 import { TavernEditor } from "./TavernEditor.js";
@@ -22,7 +23,8 @@ export class TavernGenerator {
     const tavern = {
       schemaVersion: TAVERN_SCHEMA_VERSION,
       id: foundry.utils.randomID(16),
-      name: TavernNames.generate(region, terrain),
+      name: TavernNames.normalizeCustomName(params.name) || TavernNames.generate(region, terrain),
+      city: TavernLocation.normalizeCity(params.city),
       region,
       quality,
       size,
@@ -39,6 +41,7 @@ export class TavernGenerator {
       inventory,
       publicSummary: "Доступные позиции указаны ниже."
     };
+    tavern.offeringPlan = TavernInventory.planFor(tavern);
 
     const livingTavern = TavernAtmosphereService.ensure(tavern);
     livingTavern.summary = TavernViewModel.summary(livingTavern);

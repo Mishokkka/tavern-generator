@@ -86,6 +86,13 @@ export class TavernState {
       ? { ...stored, current: storedCurrent, saved: storedSaved }
       : { ...stored, current: legacyCurrent, saved: legacySaved };
 
+    // Activation has no UI anymore. Preserve a legacy current-only tavern in the
+    // library, without changing its prices, stock, bookings or compatibility copy.
+    if (state.current && !state.saved.some((tavern) => tavern.id === state.current.id)) {
+      state.saved.push(foundry.utils.deepClone(state.current));
+      state.saved.sort((a, b) => String(a.name).localeCompare(String(b.name), "ru"));
+    }
+
     await this.#writePrivateState(state);
     await this.#mirrorPublicState(state.current);
     if (legacySaved.length) await game.settings.set(MODULE_ID, "savedTaverns", []);
@@ -148,7 +155,10 @@ export class TavernState {
       if (!game.user.isGM) throw new Error("Only a GM can delete saved taverns.");
       const state = TavernPrivateStore.state;
       state.saved = state.saved.filter((entry) => entry.id !== id);
+      const clearedCurrent = state.current?.id === id;
+      if (clearedCurrent) state.current = null;
       await this.#writePrivateState(state);
+      if (clearedCurrent) await this.#mirrorPublicState(null);
     }, transaction);
   }
 
