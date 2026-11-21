@@ -14,6 +14,7 @@ const DEFAULT_ART_ROOT = "3_F00L/Scenes/Interior/Taverns";
 const DEFAULT_SCENE_PACK = "world.fbl-tavern-scenes";
 const DEFAULT_SCENE_PACK_LABEL = "Таверны: сцены";
 const WORLD_SCENE_ROOT_FOLDER = "ТАВЕРНЫ";
+const TAVERN_SNAPSHOT_PATHS = ["tavernPublicView", "tavernData", "shopButton.tavernPublicView", "shopButton.tavernData"];
 
 const REGION_FOLDERS = {
   common: "common",
@@ -523,12 +524,10 @@ export class TavernSceneService {
     if (!game.user?.isGM) throw new Error("Только ГМ может менять папки сцен таверн.");
     if (!tavern?.scene) return;
 
+    const location = this.#sceneLocation(tavern);
     const candidate = tavern.scene.id ? game.scenes?.get(tavern.scene.id) : null;
     const scene = this.#sceneTavernId(candidate) === tavern.id ? candidate : null;
-    if (scene) {
-      const folder = await this.#ensureSceneFolder(tavern);
-      if (folder && (scene.folder?.id ?? scene.folder) !== folder) await scene.update({ folder });
-    }
+    if (scene) await this.#syncSceneFolder(scene, location);
 
     const reference = tavern.scene.compendium ?? scene?.getFlag?.(MODULE_ID, "compendium");
     const pack = reference?.id ? game.packs?.get(reference.pack) : null;
@@ -539,18 +538,7 @@ export class TavernSceneService {
 
     const wasUnlocked = await this.#unlockPack(pack);
     try {
-      const folder = await this.#ensureSceneFolder(tavern, pack);
-      const update = {};
-      if (folder && (archived.folder?.id ?? archived.folder) !== folder) update.folder = folder;
-      const city = TavernLocation.normalizeCity(tavern.city);
-      if (archived.getFlag(MODULE_ID, "city") !== city) {
-        update[`flags.${MODULE_ID}.city`] = city;
-        if (archived.getFlag(MODULE_ID, "tavernPublicView")) update[`flags.${MODULE_ID}.tavernPublicView.city`] = city;
-        if (archived.getFlag(MODULE_ID, "shopButton")?.tavernPublicView) {
-          update[`flags.${MODULE_ID}.shopButton.tavernPublicView.city`] = city;
-        }
-      }
-      if (Object.keys(update).length) await archived.update(update);
+      await this.#syncSceneFolder(archived, location, pack);
     } finally {
       await FoundryDocumentUtils.relockPack(pack, wasUnlocked);
     }
@@ -695,15 +683,16 @@ export class TavernSceneService {
       const location = this.#sceneLocation(tavern, flags);
       data.folder = await this.#ensureSceneFolder(location, pack);
       data.thumb = null;
-      Object.assign(flags, location, {
+      Object.assign(flags, {
         tavernId: tavern?.id ?? flags.tavernId,
         tavernName: tavern?.name ?? flags.tavernName,
         sourceSceneId: scene.id,
         sourceSceneUuid: scene.uuid,
         archivedAt: Date.now()
       });
-      if (flags.tavernPublicView) Object.assign(flags.tavernPublicView, location);
-      if (flags.shopButton?.tavernPublicView) Object.assign(flags.shopButton.tavernPublicView, location);
+      for (const [path, value] of this.#sceneLocationChanges(flags, location)) {
+        foundry.utils.setProperty(flags, path, value);
+      }
 
       const existing = flags.tavernId ? await this.#findArchivedScene(pack, flags.tavernId) : null;
       let archived;
@@ -1174,12 +1163,37 @@ export class TavernSceneService {
   }
 
   static #sceneLocation(tavern, flags = {}) {
-    const snapshot = flags.tavernPublicView ?? flags.tavernData
-      ?? flags.shopButton?.tavernPublicView ?? flags.shopButton?.tavernData;
+    const snapshot = TAVERN_SNAPSHOT_PATHS
+      .map(path => foundry.utils.getProperty(flags, path))
+      .find(value => value != null);
     return {
       region: tavern?.region ?? flags.region ?? snapshot?.region ?? null,
       city: TavernLocation.normalizeCity(tavern?.city ?? snapshot?.city ?? flags.city)
     };
+  }
+
+  static async #syncSceneFolder(scene, location, pack = null) {
+    const folder = await this.#ensureSceneFolder(location, pack);
+    const flags = scene.flags?.[MODULE_ID] ?? {};
+    const update = {};
+    if (folder && (scene.folder?.id ?? scene.folder) !== folder) update.folder = folder;
+    for (const [path, value] of this.#sceneLocationChanges(flags, location)) {
+      update[`flags.${MODULE_ID}.${path}`] = value;
+    }
+    if (Object.keys(update).length) await scene.update(update);
+  }
+
+  static #sceneLocationChanges(flags, location) {
+    const changes = [];
+    const fields = Object.entries(location);
+    for (const path of ["", ...TAVERN_SNAPSHOT_PATHS]) {
+      const data = path ? foundry.utils.getProperty(flags, path) : flags;
+      if (!data || typeof data !== "object") continue;
+      for (const [field, value] of fields) {
+        if (data[field] !== value) changes.push([path ? `${path}.${field}` : field, value]);
+      }
+    }
+    return changes;
   }
 
   static #regionLabel(region) {

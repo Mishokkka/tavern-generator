@@ -60,6 +60,7 @@ function fixture(t) {
     const scene = {
       id, uuid: `Scene.${id}`, name: data.name,
       get folder() { return folders.get(source.folder) ?? null; },
+      get flags() { return source.flags; },
       getFlag(scope, key) { return source.flags?.[scope]?.[key]; },
       toObject() { return structuredClone(source); },
       async view() {},
@@ -198,6 +199,35 @@ test("applying the city moves linked scenes and their archive records in place",
   assert.deepEqual([...f.worldScenes.values()], [scene]);
   assert.deepEqual([...f.archiveScenes.values()], [archived]);
   assert.equal(f.pack.locked, true);
+});
+
+test("re-archiving from the scene keeps the new city or an explicitly cleared city", async t => {
+  const f = fixture(t);
+  const { tavern, scene, archived } = await f.create({ region: "novandia", city: "Берёзовка" });
+  const oldSnapshot = { id: tavern.id, name: tavern.name, region: tavern.region, city: tavern.city };
+  await scene.update({
+    [`flags.${MODULE_ID}.tavernData`]: oldSnapshot,
+    [`flags.${MODULE_ID}.shopButton`]: { tavernPublicView: oldSnapshot, tavernData: oldSnapshot }
+  });
+
+  for (const [city, destination] of [["Каменка", ["Нованд", "Каменка"]], ["", ["Нованд"]]]) {
+    tavern.city = city;
+    await TavernSceneService.syncLinkedSceneFolders(tavern);
+    assert.deepEqual(folderPath(scene), ["ТАВЕРНЫ", ...destination]);
+    const archive = await TavernSceneService.archiveScene(scene);
+    assert.equal(archive.id, archived.id);
+    assert.deepEqual(folderPath(archived), destination);
+
+    for (const document of [scene, archived]) {
+      const flags = document.flags[MODULE_ID];
+      assert.equal(flags.city, city);
+      for (const snapshot of [flags.tavernPublicView, flags.tavernData, flags.shopButton.tavernPublicView, flags.shopButton.tavernData]) {
+        assert.equal(snapshot.city, city);
+        assert.equal(snapshot.name, oldSnapshot.name);
+      }
+    }
+  }
+  assert.equal(f.archiveScenes.size, 1);
 });
 
 test("applying the city leaves documents linked to another tavern in their own folders", async t => {
