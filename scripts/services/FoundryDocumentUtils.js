@@ -1,61 +1,46 @@
 import { MODULE_ID } from "../constants.js";
+import { AsyncLock } from "./AsyncLock.js";
 
 export class FoundryDocumentUtils {
   static #packUnlocks = new Map();
-  static async ensureWorldFolder({ name, type, parent = null, fallbackName = "Папка" } = {}) {
+
+  static async ensureWorldFolder(options = {}) {
+    return AsyncLock.run(`world-folder:${options.type}`, () => this.#ensureFolder(game.folders, options));
+  }
+
+  static async ensurePackFolder(pack, options = {}) {
+    if (!pack?.collection) return null;
+    const folder = await AsyncLock.run(`pack-folder:${pack.collection}`, () =>
+      this.#ensureFolder(pack.folders, options, { pack: pack.collection })
+    );
+    return folder?.id ?? folder?._id ?? null;
+  }
+
+  static async #ensureFolder(folders, { name, type, parent = null, fallbackName = "Папка", nameKey = String }, documentOptions = {}) {
     const normalizedName = String(name || fallbackName).trim() || fallbackName;
     const parentId = parent || null;
-    const existing = game.folders?.find?.((folder) => (
+    const key = nameKey(normalizedName);
+    const existing = folders?.find?.((folder) => (
       folder.type === type
-      && folder.name === normalizedName
-      && (folder.folder?.id ?? folder.parent ?? null) === parentId
+      && nameKey(folder.name) === key
+      && (folder._source?.folder ?? folder.folder?.id ?? folder.folder ?? null) === parentId
     ));
     if (existing) return existing;
 
     const FolderClass = globalThis.Folder?.implementation ?? globalThis.Folder;
-    if (!FolderClass?.create) return null;
-
-    try {
-      return await FolderClass.create({ name: normalizedName, type, folder: parentId, parent: parentId }, { renderSheet: false });
-    } catch (error) {
-      console.warn(`${MODULE_ID} | Could not create ${type} folder "${normalizedName}"`, error);
-      return null;
-    }
-  }
-
-  static async ensurePackFolder(pack, { name, type, fallbackName = "Папка", logLabel = "pack" } = {}) {
-    if (!pack?.collection) return null;
-    const normalizedName = String(name || fallbackName).trim() || fallbackName;
-
-    try {
-      const index = await pack.getIndex({ fields: ["type", "folder", "name"] });
-      const existing = index?.find?.((entry) => entry.type === "Folder" && entry.name === normalizedName) ?? null;
-      if (existing?._id) return existing._id;
-    } catch (_error) {
-      // Some Foundry builds do not expose compendium folders in the pack index.
-    }
-
-    const FolderClass = globalThis.Folder?.implementation ?? globalThis.Folder;
     if (!FolderClass) return null;
 
-    const folderData = { name: normalizedName, type, sorting: "a" };
-    const attempts = [
-      async () => FolderClass.createDocuments?.([folderData], { pack: pack.collection }),
-      async () => FolderClass.create?.(folderData, { pack: pack.collection, renderSheet: false })
-    ];
+    const data = { name: normalizedName, type, folder: parentId, sorting: "a" };
+    const options = { ...documentOptions, renderSheet: false };
+    try {
+      if (FolderClass.create) return await FolderClass.create(data, options);
 
-    for (const attempt of attempts) {
-      try {
-        const result = await attempt();
-        const folder = Array.isArray(result) ? result[0] : result;
-        if (folder?.id) return folder.id;
-        if (folder?._id) return folder._id;
-      } catch (error) {
-        console.debug(`${MODULE_ID} | ${logLabel} folder creation attempt failed for ${pack.collection}`, error);
-      }
+      const created = await FolderClass.createDocuments?.([data], options);
+      return created?.[0] ?? null;
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Could not create ${type} folder "${normalizedName}" in ${options.pack ?? "world"}`, error);
+      return null;
     }
-
-    return null;
   }
 
   static assertPackType(pack, expectedType) {

@@ -7,6 +7,7 @@ import { TavernSocket } from "./TavernSocket.js";
 import { TavernSceneCompatibility } from "./TavernSceneCompatibility.js";
 import { FoundryDocumentUtils } from "./FoundryDocumentUtils.js";
 import { TavernAtmosphereService } from "./TavernAtmosphereService.js";
+import { TavernLocation } from "./TavernLocation.js";
 
 const IMAGE_EXTENSIONS = /\.(avif|gif|jpe?g|png|webp)$/i;
 const DEFAULT_ART_ROOT = "3_F00L/Scenes/Interior/Taverns";
@@ -424,7 +425,7 @@ export class TavernSceneService {
 
     sceneData.name = sceneName;
     sceneData.navName = tavern.name;
-    sceneData.folder = await this.#ensureWorldSceneFolder(tavern.region);
+    sceneData.folder = await this.#ensureSceneFolder(tavern);
     sceneData.background ??= {};
     sceneData.background.src = imagePath;
     sceneData.thumb = null;
@@ -516,6 +517,43 @@ export class TavernSceneService {
 
     if (globalThis.canvas?.scene?.id === scene.id) this.refreshSceneMenuButton();
     return { updated: true, scene };
+  }
+
+  static async syncLinkedSceneFolders(tavern) {
+    if (!game.user?.isGM) throw new Error("Только ГМ может менять папки сцен таверн.");
+    if (!tavern?.scene) return;
+
+    const candidate = tavern.scene.id ? game.scenes?.get(tavern.scene.id) : null;
+    const scene = this.#sceneTavernId(candidate) === tavern.id ? candidate : null;
+    if (scene) {
+      const folder = await this.#ensureSceneFolder(tavern);
+      if (folder && (scene.folder?.id ?? scene.folder) !== folder) await scene.update({ folder });
+    }
+
+    const reference = tavern.scene.compendium ?? scene?.getFlag?.(MODULE_ID, "compendium");
+    const pack = reference?.id ? game.packs?.get(reference.pack) : null;
+    if (!pack) return;
+    this.#assertScenePack(pack);
+    const archived = await pack.getDocument(reference.id);
+    if (!archived || this.#sceneTavernId(archived) !== tavern.id) return;
+
+    const wasUnlocked = await this.#unlockPack(pack);
+    try {
+      const folder = await this.#ensureSceneFolder(tavern, pack);
+      const update = {};
+      if (folder && (archived.folder?.id ?? archived.folder) !== folder) update.folder = folder;
+      const city = TavernLocation.normalizeCity(tavern.city);
+      if (archived.getFlag(MODULE_ID, "city") !== city) {
+        update[`flags.${MODULE_ID}.city`] = city;
+        if (archived.getFlag(MODULE_ID, "tavernPublicView")) update[`flags.${MODULE_ID}.tavernPublicView.city`] = city;
+        if (archived.getFlag(MODULE_ID, "shopButton")?.tavernPublicView) {
+          update[`flags.${MODULE_ID}.shopButton.tavernPublicView.city`] = city;
+        }
+      }
+      if (Object.keys(update).length) await archived.update(update);
+    } finally {
+      await FoundryDocumentUtils.relockPack(pack, wasUnlocked);
+    }
   }
 
   static async sanitizePublicSceneData() {
@@ -652,22 +690,28 @@ export class TavernSceneService {
       const data = scene.toObject();
       delete data._id;
       delete data._stats;
-      data.folder = await this.#ensurePackFolder(pack, this.#regionLabel(tavern?.region ?? data.flags?.[MODULE_ID]?.region), "Scene");
-      data.thumb = null;
       data.flags ??= {};
-      data.flags[MODULE_ID] ??= {};
-      data.flags[MODULE_ID].tavernId = tavern?.id ?? data.flags[MODULE_ID].tavernId;
-      data.flags[MODULE_ID].tavernName = tavern?.name ?? data.flags[MODULE_ID].tavernName;
-      data.flags[MODULE_ID].sourceSceneId = scene.id;
-      data.flags[MODULE_ID].sourceSceneUuid = scene.uuid;
-      data.flags[MODULE_ID].archivedAt = Date.now();
+      const flags = data.flags[MODULE_ID] ??= {};
+      const location = this.#sceneLocation(tavern, flags);
+      data.folder = await this.#ensureSceneFolder(location, pack);
+      data.thumb = null;
+      Object.assign(flags, location, {
+        tavernId: tavern?.id ?? flags.tavernId,
+        tavernName: tavern?.name ?? flags.tavernName,
+        sourceSceneId: scene.id,
+        sourceSceneUuid: scene.uuid,
+        archivedAt: Date.now()
+      });
+      if (flags.tavernPublicView) Object.assign(flags.tavernPublicView, location);
+      if (flags.shopButton?.tavernPublicView) Object.assign(flags.shopButton.tavernPublicView, location);
 
-      const existing = tavern?.id ? await this.#findArchivedScene(pack, tavern.id) : null;
+      const existing = flags.tavernId ? await this.#findArchivedScene(pack, flags.tavernId) : null;
       let archived;
 
       if (existing?._id) {
         const update = foundry.utils.deepClone(data);
         update._id = existing._id;
+        if (!data.folder) delete update.folder;
         const updated = await Scene.implementation.updateDocuments([update], { pack: pack.collection });
         archived = updated?.[0] ?? await pack.getDocument(existing._id);
       } else {
@@ -951,7 +995,7 @@ export class TavernSceneService {
     if (!tavern?.scene) return { scene: null, imported: false };
     const scene = tavern.scene.id ? game.scenes?.get(tavern.scene.id) : null;
     if (scene || !allowImport) return { scene, imported: false };
-    const imported = await this.#importSceneFromCompendium(tavern.scene.compendium, tavern.id);
+    const imported = await this.#importSceneFromCompendium(tavern.scene.compendium, tavern);
     return { scene: imported, imported: Boolean(imported) };
   }
 
@@ -982,13 +1026,13 @@ export class TavernSceneService {
     if (!allowImport) return null;
 
     const compendium = tavern?.scene?.compendium ?? null;
-    const imported = await this.#importSceneFromCompendium(compendium, tavern.id);
+    const imported = await this.#importSceneFromCompendium(compendium, tavern);
     if (imported) return imported;
 
     return (await this.#resolveSceneForTavern(tavern, { allowImport })).scene;
   }
 
-  static async #importSceneFromCompendium(compendium, tavernId) {
+  static async #importSceneFromCompendium(compendium, tavern) {
     if (!compendium?.pack || !compendium?.id) return null;
     const pack = game.packs.get(compendium.pack);
     if (!pack) throw new Error(`Компендиум сцен не найден: ${compendium.pack}`);
@@ -996,14 +1040,11 @@ export class TavernSceneService {
     const archived = await pack.getDocument(compendium.id);
     if (!archived) throw new Error("Архивная сцена не найдена в компендиуме.");
     const linkedId = this.#sceneTavernId(archived);
-    if (linkedId && linkedId !== tavernId) throw new Error("Архивная сцена относится к другой таверне.");
+    if (linkedId && linkedId !== tavern.id) throw new Error("Архивная сцена относится к другой таверне.");
 
     const archivedData = archived.toObject();
-    const region = archivedData.flags?.[MODULE_ID]?.region
-      ?? archivedData.flags?.[MODULE_ID]?.tavernPublicView?.region
-      ?? archivedData.flags?.[MODULE_ID]?.tavernData?.region
-      ?? null;
-    const worldFolder = await this.#ensureWorldSceneFolder(region);
+    const location = this.#sceneLocation(tavern, archivedData.flags?.[MODULE_ID] ?? {});
+    const worldFolder = await this.#ensureSceneFolder(location);
 
     let scene = null;
     if (typeof game.scenes?.importFromCompendium === "function") {
@@ -1115,27 +1156,30 @@ export class TavernSceneService {
     };
   }
 
-  static async #ensureWorldSceneFolder(region) {
-    const FolderClass = globalThis.Folder?.implementation ?? globalThis.Folder;
-    if (!FolderClass || !game.folders) return null;
+  static async #ensureSceneFolder({ region, city }, pack = null) {
+    const ensure = async (name, parent = null, nameKey) => {
+      const options = { name, type: "Scene", parent, nameKey };
+      if (pack) return FoundryDocumentUtils.ensurePackFolder(pack, options);
+      return (await FoundryDocumentUtils.ensureWorldFolder(options))?.id ?? null;
+    };
+    const root = pack ? null : await ensure(WORLD_SCENE_ROOT_FOLDER);
+    if (!pack && !root) return null;
 
-    const root = await this.#ensureWorldFolder(WORLD_SCENE_ROOT_FOLDER, "Scene", null);
-    const regionName = this.#regionLabel(region);
-    const regionFolder = await this.#ensureWorldFolder(regionName, "Scene", root?.id ?? null);
-    return regionFolder?.id ?? root?.id ?? null;
+    const country = await ensure(this.#regionLabel(region), root);
+    if (!country) return root;
+
+    const cityName = TavernLocation.normalizeCity(city);
+    if (!cityName) return country;
+    return await ensure(cityName, country, name => TavernLocation.cityKey(name)) ?? country;
   }
 
-  static async #ensureWorldFolder(name, type, parent = null) {
-    return FoundryDocumentUtils.ensureWorldFolder({ name, type, parent, fallbackName: WORLD_SCENE_ROOT_FOLDER });
-  }
-
-  static async #ensurePackFolder(pack, name, type) {
-    return FoundryDocumentUtils.ensurePackFolder(pack, {
-      name,
-      type,
-      fallbackName: "Нейтральная дорога",
-      logLabel: "Scene pack"
-    });
+  static #sceneLocation(tavern, flags = {}) {
+    const snapshot = flags.tavernPublicView ?? flags.tavernData
+      ?? flags.shopButton?.tavernPublicView ?? flags.shopButton?.tavernData;
+    return {
+      region: tavern?.region ?? flags.region ?? snapshot?.region ?? null,
+      city: TavernLocation.normalizeCity(tavern?.city ?? snapshot?.city ?? flags.city)
+    };
   }
 
   static #regionLabel(region) {

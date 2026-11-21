@@ -528,10 +528,11 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     event.preventDefault();
     if (!this.draft) return;
     const city = TavernLocation.normalizeCity(this.element.querySelector("[name='tavernCity']")?.value);
-    if (city === this.draft.city) return;
+    if (city === this.draft.city) return this.#syncSceneFolders();
     this.#checkpoint();
     this.draft.city = city;
     await this.#persistLiveDraft();
+    await this.#syncSceneFolders();
     this.render();
   }
 
@@ -767,7 +768,18 @@ export class TavernGMApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.undoDraft = current;
     this.draft.storageRevision = current?.storageRevision ?? 0;
     await this.#persistLiveDraft();
+    if (this.draft.city !== current?.city) await this.#syncSceneFolders();
     this.render();
+  }
+
+  async #syncSceneFolders() {
+    if (!this.draft?.scene) return;
+    try {
+      await TavernSceneService.syncLinkedSceneFolders(this.draft);
+    } catch (error) {
+      console.warn("fbl-tavern-generator | Could not organize linked scene folders", error);
+      ui.notifications.warn("Не удалось обновить папки связанной сцены. Подробности в журнале Foundry.");
+    }
   }
 
   async #persistLiveDraft() {
