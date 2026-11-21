@@ -2641,8 +2641,12 @@ for (const action of ["createScene", "createTavernkeeper"]) {
   });
 }
 
-test("GM saves, reloads, edits, undoes and clears a custom city", async () => {
+test("GM saves, reloads, edits, undoes and clears a custom city", async t => {
   await purchaseFixture();
+  const organizedCities = [];
+  t.mock.method(TavernSceneService, "syncLinkedSceneFolders", async draft => {
+    organizedCities.push(draft.city);
+  });
   const { app, click } = await gmButtons(TavernGenerator.generate());
   const query = app.element.querySelector;
   const generationCity = { value: "  Белый   Берег  " };
@@ -2652,12 +2656,16 @@ test("GM saves, reloads, edits, undoes and clears a custom city", async () => {
   try {
     await click("generate");
     assert.equal(app.draft.city, "Белый Берег");
+    app.draft.scene = { id: "city-test-scene" };
     await click("saveDraft");
     const id = app.draft.id;
     await app.loadSavedTavern(id);
     assert.equal(app.params.city, "Белый Берег");
     await click("setCity");
     assert.equal(TavernState.getSavedById(id).city, "Нижний город");
+    const revision = TavernState.getSavedById(id).storageRevision;
+    await click("setCity");
+    assert.equal(TavernState.getSavedById(id).storageRevision, revision);
     await click("undo");
     assert.equal(TavernState.getSavedById(id).city, "Белый Берег");
     currentCity.value = " \t ";
@@ -2665,6 +2673,7 @@ test("GM saves, reloads, edits, undoes and clears a custom city", async () => {
     assert.equal(TavernState.getSavedById(id).city, "");
     await click("saveDraft");
     assert.equal(TavernState.getSavedById(id).city, "");
+    assert.deepEqual(organizedCities, ["Нижний город", "Нижний город", "Белый Берег", ""]);
   } finally { await app._onClose(); }
 });
 

@@ -444,8 +444,7 @@ export class CharacterForgeAdapter {
     return FoundryDocumentUtils.ensurePackFolder(pack, {
       name,
       type,
-      fallbackName: "Нейтральная дорога",
-      logLabel: "Actor pack"
+      fallbackName: "Нейтральная дорога"
     });
   }
 
